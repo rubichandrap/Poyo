@@ -1,0 +1,64 @@
+@inject IConfiguration Configuration
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewBag.Title - Poyo</title>
+    <meta name="description" content="@ViewBag.Description" />
+    <meta name="keywords" content="@ViewBag.Keywords" />
+
+    <!-- Open Graph tags for social media -->
+    <meta property="og:title" content="@ViewBag.Title - Poyo" />
+    <meta property="og:description" content="@ViewBag.Description" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url"
+        content="@($"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}")" />
+
+    <!-- Twitter Card tags -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="@ViewBag.Title - Poyo" />
+    <meta name="twitter:description" content="@ViewBag.Description" />
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <!-- React components will be hydrated here -->
+    @RenderBody()
+
+    <script>
+        @if (ViewBag.ServerData != null)
+        {
+            @:window.SERVER_DATA = @Html.Raw(ViewBag.ServerData);
+        }
+    </script>
+
+    <!-- Load built React app -->
+   <environment include="Development">
+        @{
+            var viteDevServer = Configuration["Vite:Server:DevServerUrl"];
+        }
+
+        <link rel="stylesheet" vite-href="~/src/main.tsx" />
+
+        <script type="module">
+            import RefreshRuntime from '@(viteDevServer)/@@react-refresh'
+            RefreshRuntime.injectIntoGlobalHook(window)
+            window.$RefreshReg$ = () => {}
+            window.$RefreshSig$ = () => (type) => type
+            window.__vite_plugin_react_preamble_installed__ = true
+        </script>
+
+        <script type="module"
+                vite-src="~/src/main.tsx"
+                asp-append-version="true">
+        </script>
+    </environment>
+    <environment include="Production">
+        @await Html.PartialAsync("_ReactAssets")
+    </environment>
+</body>
+
+</html>
+

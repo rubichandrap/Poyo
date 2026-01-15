@@ -1,0 +1,51 @@
+{
+    "name": "poyo",
+    "version": "1.0.0",
+    "private": true,
+    "type": "module",
+    "description": "Root package for Poyo project",
+    "workspaces": [
+        "poyo.client",
+        "Poyo.Server"
+    ],
+    "scripts": {
+        "prepare": "husky",
+        "client:dev": "npm run dev --workspace=poyo.client",
+        "client:build": "npm run build --workspace=poyo.client",
+        "client:preview": "npm run preview --workspace=poyo.client",
+        "client:type-check": "npm run type-check --workspace=poyo.client",
+        "client:lint": "npm run lint --workspace=poyo.client",
+        "client:lint:fix": "npm run lint:fix --workspace=poyo.client",
+        "client:format": "npm run format --workspace=poyo.client",
+        "client:format:fix": "npm run format:fix --workspace=poyo.client",
+        "client:generate": "npm run client:generate:dtos && npm run client:generate:schemas",
+        "client:generate:dtos": "npm run generate:dtos --workspace=poyo.client",
+        "client:generate:schemas": "npm run generate:schemas --workspace=poyo.client",
+        "server:restore": "npm run restore --workspace=Poyo.Server",
+        "server:dev": "npm run dev --workspace=Poyo.Server",
+        "server:build": "npm run build --workspace=Poyo.Server",
+        "server:format": "npm run format --workspace=Poyo.Server",
+        "server:format:fix": "npm run format:fix --workspace=Poyo.Server",
+        "server:watch": "npm run watch --workspace=Poyo.Server",
+        "server:publish": "npm run publish --workspace=Poyo.Server",
+        "restore": "npm run install && npm run server:restore",
+        "dev": "npm run client:dev",
+        "build": "npm run client:build && node ./scripts/generate-manifest.js && npm run server:build",
+        "format": "npm run client:format && npm run server:format",
+        "format:fix": "npm run client:format:fix && npm run server:format:fix",
+        "generate": "npm run client:generate",
+        "route:add": "node ./scripts/manage-routes.js add",
+        "route:remove": "node ./scripts/manage-routes.js remove",
+        "route:update": "node ./scripts/manage-routes.js update",
+        "route:sync": "node ./scripts/manage-routes.js sync"
+    },
+    "devDependencies": {
+        "@inquirer/prompts": "^8.2.0",
+        "commander": "^14.0.2",
+        "husky": "^9.1.7"
+    },
+    "engines": {
+        "node": "20.19.0",
+        "npm": ">=10"
+    }
+}

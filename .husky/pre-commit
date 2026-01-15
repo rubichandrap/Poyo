@@ -1,0 +1,58 @@
+#!/bin/bash
+set -e
+
+echo "🔍 Checking running processes..."
+# # Check for Poyo.Server (case insensitive)
+# if tasklist | grep -i "Poyo.Server.exe" > /dev/null 2>&1; then
+#   echo "🚫 Poyo.Server.exe is currently RUNNING!"
+#   echo "🛑 Please stop the application before committing."
+#   echo "💡 Close the app or stop debugging, then try again."
+#   exit 1
+# fi
+
+# --- Client Checks ---
+echo "🎨 Checking Client Compliance (Lint, Format, Types)..."
+
+cd poyo.client
+
+echo "👉 Running Type Check..."
+if ! npm run type-check; then
+  echo "❌ Type check failed!"
+  exit 1
+fi
+
+echo "👉 Running Lint..."
+if ! npm run lint; then
+  echo "❌ Linting failed!"
+  exit 1
+fi
+
+echo "👉 Running Format Check..."
+if ! npm run format; then
+  echo "❌ Formatting issues found!"
+  exit 1
+fi
+
+cd ..
+
+# --- Server Checks ---
+echo "🧰 Restoring .NET tools (if any)..."
+dotnet tool restore || true
+
+echo "👉 Running Format Check..."
+if ! dotnet format --verify-no-changes; then
+  echo "❌ Formatting issues found!"
+  exit 1
+fi
+
+echo "🏗️  Building solution (Poyo.sln)..."
+if ! dotnet build "Poyo.sln" --no-restore --verbosity minimal; then
+  echo "🔥 Build FAILED!"
+  echo "🧯 Fix build errors before committing."
+  exit 1
+fi
+
+echo "🎉 All checks passed!"
+echo "✅ Your code is clean"
+echo "🚢 Safe to commit — happy coding!"
+exit 0

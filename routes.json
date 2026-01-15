@@ -1,0 +1,29 @@
+[
+  {
+    "path": "/",
+    "name": "Home",
+    "files": {
+      "react": "src/pages/Home/index.page.tsx",
+      "view": "Views/Home/Index.cshtml"
+    },
+    "isPublic": true
+  },
+  {
+    "path": "/Login",
+    "name": "Login",
+    "files": {
+      "react": "src/pages/Login/index.page.tsx",
+      "view": "Views/Login/Index.cshtml"
+    },
+    "isPublic": true
+  },
+  {
+    "path": "/Dashboard",
+    "name": "Dashboard",
+    "files": {
+      "react": "src/pages/Dashboard/index.page.tsx",
+      "view": "Views/Dashboard/Index.cshtml"
+    },
+    "isPublic": false
+  }
+]

@@ -1,0 +1,7 @@
+@Poyo.Server_HostAddress = http://localhost:5104
+
+GET {{Poyo.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
+

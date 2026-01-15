@@ -1,0 +1,21 @@
+{
+    "name": "poyo-server",
+    "version": "1.0.0",
+    "description": "Poyo .NET Server",
+    "scripts": {
+        "restore": "dotnet restore",
+        "dev": "dotnet run --no-build",
+        "format": "dotnet format --verify-no-changes",
+        "format:fix": "dotnet format",
+        "build": "dotnet build",
+        "watch": "dotnet watch run",
+        "publish": "dotnet publish -c Release -o ./publish"
+    },
+    "keywords": [
+        "dotnet",
+        "aspnet",
+        "server"
+    ],
+    "author": "",
+    "license": "ISC"
+}

@@ -1,0 +1,33 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36414.22 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{54A90642-561A-4BB1-A94E-469ADEE60C69}") = "poyo.client", "poyo.client\poyo.client.esproj", "{86D71C29-6212-710A-45AC-2E4F4E7416C6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Poyo.Server", "Poyo.Server\Poyo.Server.csproj", "{C95C8CF5-BF94-43C4-AA40-D44B8417921B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{86D71C29-6212-710A-45AC-2E4F4E7416C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86D71C29-6212-710A-45AC-2E4F4E7416C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86D71C29-6212-710A-45AC-2E4F4E7416C6}.Debug|Any CPU.Deploy.0 = Debug|Any CPU
+		{86D71C29-6212-710A-45AC-2E4F4E7416C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86D71C29-6212-710A-45AC-2E4F4E7416C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{86D71C29-6212-710A-45AC-2E4F4E7416C6}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{C95C8CF5-BF94-43C4-AA40-D44B8417921B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C95C8CF5-BF94-43C4-AA40-D44B8417921B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C95C8CF5-BF94-43C4-AA40-D44B8417921B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C95C8CF5-BF94-43C4-AA40-D44B8417921B}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7268D42D-9268-4091-9D45-DF1E1CE35A1B}
+	EndGlobalSection
+EndGlobal

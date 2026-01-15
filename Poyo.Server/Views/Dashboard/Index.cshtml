@@ -1,0 +1,19 @@
+@using System.Text.Json
+@using Poyo.Server.Middleware.Auth
+@{
+    Layout = "_Layout";
+    ViewBag.Title = "Dashboard - Poyo";
+    ViewBag.Description = "Protected dashboard area";
+    
+    // Inject server data for demo
+    var serverData = new
+    {
+        message = "This data was injected from the server!",
+        timestamp = DateTime.UtcNow.ToString("o"),
+        user = User.Identity?.Name ?? "Unknown"
+    };
+    
+    ViewBag.ServerData = JsonSerializer.Serialize(serverData);
+}
+
+<div id="root" data-page-name="Dashboard"></div>
