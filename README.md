@@ -190,13 +190,16 @@ interface DashboardData {
 
 export default function DashboardPage() {
     // Access server data immediately - no loading state needed!
+    // Validates that data is a non-null object
     const data = usePage<DashboardData>();
     
+    if (!data) return <div>No data available</div>;
+
     return (
         <div>
-            <h1>{data?.message}</h1>
-            <p>Server time: {data?.timestamp}</p>
-            <p>User: {data?.user}</p>
+            <h1>{data.message}</h1>
+            <p>Server time: {data.timestamp}</p>
+            <p>User: {data.user}</p>
             {/* Data is already here - no spinner, no API call! */}
         </div>
     );
@@ -207,7 +210,8 @@ export default function DashboardPage() {
 1. Server renders Razor view with data in `ViewBag.ServerData`
 2. `_Layout.cshtml` injects it as `window.SERVER_DATA`
 3. React hydrates and `usePage()` reads from `window.SERVER_DATA`
-4. **Zero API calls** for initial page load!
+4. **Validation:** `usePage()` ensures data is a valid object (returns `null` otherwise).
+5. **Zero API calls** for initial page load!
 
 **Benefits:**
 - ✅ **Faster initial render** - No loading spinners
@@ -469,9 +473,15 @@ Your Razor views need to reference these files, but the filenames change with ev
 
 **Add new route:**
 ```bash
-npm run route:add PageName
-npm run route:add PageName --flat  # File-based naming
+npm run route:add User/Profile
 ```
+
+**What this command does:**
+1.  **Updates `routes.json`**: Adds entry mapping `/User/Profile` to the React page and Razor view.
+2.  **Scaffolds React Page**: Creates `poyo.client/src/pages/User/Profile/index.page.tsx`.
+    *   *Optionally use `--flat` for `src/pages/User/profile.page.tsx` style.*
+3.  **Scaffolds Razor View**: Creates `Poyo.Server/Views/User/Profile/Index.cshtml`.
+    *   *Sets up the `#root` div with `data-page-name="User/Profile"` for hydration.*
 
 **Sync routes:**
 ```bash
