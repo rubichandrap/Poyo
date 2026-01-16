@@ -1,6 +1,6 @@
 {
     "name": "@rubichandrap/create-poyo-app",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "private": false,
     "type": "module",
     "description": "A minimal React + .NET 10 Multi-Page Application (MPA) starter framework. Features server-side routing, type-safe API integration, and zero-config HMR.",

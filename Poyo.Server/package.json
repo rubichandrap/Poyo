@@ -1,6 +1,6 @@
 {
     "name": "poyo-server",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "Poyo .NET Server",
     "private": false,
     "scripts": {
