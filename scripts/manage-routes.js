@@ -395,10 +395,12 @@ const actions = {
 // CLI Setup
 const program = new Command();
 
+const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "package.json"), "utf-8"));
+
 program
 	.name("route-manager")
 	.description("CLI to manage routes.json and scaffold files")
-	.version("1.0.0");
+	.version(packageJson.version);
 
 program
 	.command("add")

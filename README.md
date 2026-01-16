@@ -113,21 +113,18 @@ Poyo/
 ### Installation
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd Poyo
+# Create a new project
+npx create-poyo-app my-app
 
-# Install client dependencies
-cd poyo.client
+# Navigate to project
+cd my-app
+
+# Install dependencies (React + .NET)
 npm install
+npm run restore
 
 # Run development servers
-cd ../Poyo.Server
-dotnet run  # Server on http://localhost:5104
-
-# In another terminal
-cd poyo.client
-npm run dev  # Client on http://localhost:5173
+npm run dev
 ```
 
 ### Demo Credentials

@@ -1,0 +1,12 @@
+**/node_modules
+**/.git
+**/.vs
+**/.vscode
+**/dist
+**/publish
+**/bin
+**/obj
+**/wwwroot/generated
+*.tgz
+.env
+.env.local

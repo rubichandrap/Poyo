@@ -2,6 +2,7 @@
     "name": "poyo-server",
     "version": "0.0.1",
     "description": "Poyo .NET Server",
+    "private": false,
     "scripts": {
         "restore": "dotnet restore",
         "dev": "dotnet run --no-build",
@@ -15,7 +16,5 @@
         "dotnet",
         "aspnet",
         "server"
-    ],
-    "author": "",
-    "license": "ISC"
+    ]
 }

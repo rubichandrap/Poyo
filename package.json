@@ -1,9 +1,12 @@
 {
-    "name": "poyo",
+    "name": "create-poyo-app",
     "version": "0.0.1",
-    "private": true,
+    "private": false,
     "type": "module",
     "description": "Root package for Poyo project",
+    "bin": {
+        "create-poyo-app": "./cli/create-poyo-app.js"
+    },
     "workspaces": [
         "poyo.client",
         "Poyo.Server"
@@ -39,9 +42,11 @@
         "route:update": "node ./scripts/manage-routes.js update",
         "route:sync": "node ./scripts/manage-routes.js sync"
     },
-    "devDependencies": {
+    "dependencies": {
         "@inquirer/prompts": "^8.2.0",
-        "commander": "^14.0.2",
+        "commander": "^14.0.2"
+    },
+    "devDependencies": {
         "husky": "^9.1.7"
     },
     "engines": {
