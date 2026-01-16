@@ -4,6 +4,24 @@
     "private": false,
     "type": "module",
     "description": "A minimal React + .NET 10 Multi-Page Application (MPA) starter framework. Features server-side routing, type-safe API integration, and zero-config HMR.",
+    "homepage": "https://github.com/rubichandrap/Poyo#readme",
+    "bugs": {
+        "url": "https://github.com/rubichandrap/Poyo/issues"
+    },
+    "license": "MIT",
+    "author": "rubichandrap",
+    "keywords": [
+        "react",
+        "dotnet",
+        "aspnet-core",
+        "mpa",
+        "starter",
+        "template",
+        "vite",
+        "typescript",
+        "csharp",
+        "mvc"
+    ],
     "repository": {
         "type": "git",
         "url": "git+https://github.com/rubichandrap/Poyo.git"
