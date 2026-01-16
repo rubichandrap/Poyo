@@ -175,7 +175,7 @@ public IActionResult Dashboard()
     });
 }
 
-<div id="root" data-page-name="Dashboard"></div>
+<div id="react-root" data-page-name="Dashboard"></div>
 ```
 
 **Client (TypeScript):**
