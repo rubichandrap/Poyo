@@ -12,7 +12,7 @@
         "registry": "https://npm.pkg.github.com"
     },
     "bin": {
-        "create-poyo-app": "./cli/create-poyo-app.js"
+        "@rubichandrap/create-poyo-app": "cli/create-poyo-app.js"
     },
     "workspaces": [
         "poyo.client",
