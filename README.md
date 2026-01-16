@@ -114,10 +114,10 @@ Poyo/
 
 ```bash
 # Create a new project
-npx create-poyo-app my-app
+npx create-poyo-app MyApp
 
 # Navigate to project
-cd my-app
+cd MyApp
 
 # Install dependencies (React + .NET)
 npm install
