@@ -3,7 +3,7 @@
     "version": "0.0.1",
     "private": false,
     "type": "module",
-    "description": "Root package for Poyo project",
+    "description": "A minimal React + .NET 10 Multi-Page Application (MPA) starter framework. Features server-side routing, type-safe API integration, and zero-config HMR.",
     "bin": {
         "create-poyo-app": "./cli/create-poyo-app.js"
     },
