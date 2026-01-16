@@ -31,3 +31,33 @@ export interface IHttpClient {
 		config?: HttpRequestConfig,
 	): Promise<HttpResponse<T>>;
 }
+
+export class HttpError<T = unknown> extends Error {
+	public message: string;
+	public status?: number;
+	public statusText?: string;
+	public data?: T;
+	public originalError?: unknown;
+
+	constructor(
+		message: string,
+		status?: number,
+		statusText?: string,
+		data?: T,
+		originalError?: unknown,
+	) {
+		super(message);
+		this.name = "HttpError";
+		this.message = message;
+		this.status = status;
+		this.statusText = statusText;
+		this.data = data;
+		this.originalError = originalError;
+	}
+}
+
+export function isHttpError<T = unknown>(
+	error: unknown,
+): error is HttpError<T> {
+	return error instanceof HttpError;
+}

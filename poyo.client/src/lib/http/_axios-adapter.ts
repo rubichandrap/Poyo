@@ -3,7 +3,12 @@ import axios, {
 	type AxiosRequestConfig,
 	type AxiosResponse,
 } from "axios";
-import type { HttpRequestConfig, HttpResponse, IHttpClient } from "./types";
+import {
+	HttpError,
+	type HttpRequestConfig,
+	type HttpResponse,
+	type IHttpClient,
+} from "./types";
 
 export class AxiosAdapter implements IHttpClient {
 	private instance: AxiosInstance;
@@ -47,12 +52,35 @@ export class AxiosAdapter implements IHttpClient {
 		};
 	}
 
+	private handleError(error: unknown): never {
+		if (axios.isAxiosError(error)) {
+			throw new HttpError(
+				error.message,
+				error.response?.status,
+				error.response?.statusText,
+				error.response?.data,
+				error,
+			);
+		}
+		throw new HttpError(
+			error instanceof Error ? error.message : "Unknown error",
+			undefined,
+			undefined,
+			undefined,
+			error,
+		);
+	}
+
 	async get<T>(
 		url: string,
 		config?: HttpRequestConfig,
 	): Promise<HttpResponse<T>> {
-		const response = await this.instance.get<T>(url, this.mapConfig(config));
-		return this.mapResponse(response);
+		try {
+			const response = await this.instance.get<T>(url, this.mapConfig(config));
+			return this.mapResponse(response);
+		} catch (error) {
+			this.handleError(error);
+		}
 	}
 
 	async post<T>(
@@ -60,12 +88,16 @@ export class AxiosAdapter implements IHttpClient {
 		data?: unknown,
 		config?: HttpRequestConfig,
 	): Promise<HttpResponse<T>> {
-		const response = await this.instance.post<T>(
-			url,
-			data,
-			this.mapConfig(config),
-		);
-		return this.mapResponse(response);
+		try {
+			const response = await this.instance.post<T>(
+				url,
+				data,
+				this.mapConfig(config),
+			);
+			return this.mapResponse(response);
+		} catch (error) {
+			this.handleError(error);
+		}
 	}
 
 	async put<T>(
@@ -73,20 +105,31 @@ export class AxiosAdapter implements IHttpClient {
 		data?: unknown,
 		config?: HttpRequestConfig,
 	): Promise<HttpResponse<T>> {
-		const response = await this.instance.put<T>(
-			url,
-			data,
-			this.mapConfig(config),
-		);
-		return this.mapResponse(response);
+		try {
+			const response = await this.instance.put<T>(
+				url,
+				data,
+				this.mapConfig(config),
+			);
+			return this.mapResponse(response);
+		} catch (error) {
+			this.handleError(error);
+		}
 	}
 
 	async delete<T>(
 		url: string,
 		config?: HttpRequestConfig,
 	): Promise<HttpResponse<T>> {
-		const response = await this.instance.delete<T>(url, this.mapConfig(config));
-		return this.mapResponse(response);
+		try {
+			const response = await this.instance.delete<T>(
+				url,
+				this.mapConfig(config),
+			);
+			return this.mapResponse(response);
+		} catch (error) {
+			this.handleError(error);
+		}
 	}
 
 	async patch<T>(
@@ -94,11 +137,15 @@ export class AxiosAdapter implements IHttpClient {
 		data?: unknown,
 		config?: HttpRequestConfig,
 	): Promise<HttpResponse<T>> {
-		const response = await this.instance.patch<T>(
-			url,
-			data,
-			this.mapConfig(config),
-		);
-		return this.mapResponse(response);
+		try {
+			const response = await this.instance.patch<T>(
+				url,
+				data,
+				this.mapConfig(config),
+			);
+			return this.mapResponse(response);
+		} catch (error) {
+			this.handleError(error);
+		}
 	}
 }

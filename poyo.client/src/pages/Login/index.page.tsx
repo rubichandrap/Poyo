@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useLogin } from "~/hooks-api/auth";
+import { isHttpError } from "~/lib/http";
 import { schemas } from "~/schemas/validations.generated";
 
 type LoginFormData = z.infer<typeof schemas.LoginRequest>;
@@ -43,10 +44,15 @@ export default function LoginPage() {
 					});
 				}
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
 			console.error("Login failed", err);
-			const message =
-				err.response?.data?.message || "Invalid credentials. Try demo/password";
+
+			let message = "Invalid credentials. Try demo/password";
+
+			if (isHttpError<{ message: string }>(err) && err.data?.message) {
+				message = err.data.message;
+			}
+
 			setFormError("password", {
 				type: "manual",
 				message: message,
