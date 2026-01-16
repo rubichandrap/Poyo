@@ -8,9 +8,6 @@
         "type": "git",
         "url": "git+https://github.com/rubichandrap/Poyo.git"
     },
-    "publishConfig": {
-        "registry": "https://npm.pkg.github.com"
-    },
     "bin": {
         "create-poyo-app": "cli/create-poyo-app.js"
     },
