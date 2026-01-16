@@ -43,11 +43,11 @@
         "route:sync": "node ./scripts/manage-routes.js sync"
     },
     "dependencies": {
-        "@inquirer/prompts": "^8.2.0",
-        "commander": "^14.0.2"
+        "@inquirer/prompts": "8.2.0",
+        "commander": "14.0.2"
     },
     "devDependencies": {
-        "husky": "^9.1.7"
+        "husky": "9.1.7"
     },
     "engines": {
         "node": "20.19.0",
