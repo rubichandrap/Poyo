@@ -114,7 +114,7 @@ Poyo/
 
 ```bash
 # Create a new project
-npx create-poyo-app MyApp
+npx @rubichandrap/create-poyo-app MyApp
 
 # Navigate to project
 cd MyApp
