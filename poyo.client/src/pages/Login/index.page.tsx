@@ -61,22 +61,26 @@ export default function LoginPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+		<div className="min-h-screen bg-[#F0F9FF] flex items-center justify-center p-4">
 			<div className="w-full max-w-md">
 				{/* Logo/Title */}
 				<div className="text-center mb-8">
-					<h1 className="text-4xl font-bold text-slate-900 mb-2">Poyo</h1>
-					<p className="text-slate-600">Sign in to continue</p>
+					<div className="relative inline-flex items-center justify-center mb-2">
+						<h1 className="text-5xl font-black text-[#5ba4fc] tracking-tight drop-shadow-sm">
+							poyo<span className="text-pink-400 text-3xl align-top">♥</span>
+						</h1>
+					</div>
+					<p className="text-slate-500 font-medium">Sign in to continue</p>
 				</div>
 
 				{/* Login Card */}
-				<div className="bg-white rounded-lg shadow-lg border border-slate-200 p-8">
+				<div className="bg-white rounded-3xl shadow-sm border border-sky-100 p-8 sm:p-10">
 					<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 						{/* Username Field */}
 						<div>
 							<label
 								htmlFor="username"
-								className="block text-sm font-medium text-slate-700 mb-2"
+								className="block text-sm font-bold text-slate-600 mb-2"
 							>
 								Username
 							</label>
@@ -84,7 +88,7 @@ export default function LoginPage() {
 								{...register("username")}
 								type="text"
 								id="username"
-								className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all"
+								className="w-full px-4 py-3 border-2 border-sky-100 rounded-2xl focus:ring-4 focus:ring-sky-100 focus:border-[#5ba4fc] outline-none transition-all text-slate-700 bg-sky-50/50"
 								placeholder="demo"
 							/>
 							{errors.username && (
@@ -98,7 +102,7 @@ export default function LoginPage() {
 						<div>
 							<label
 								htmlFor="password"
-								className="block text-sm font-medium text-slate-700 mb-2"
+								className="block text-sm font-bold text-slate-600 mb-2"
 							>
 								Password
 							</label>
@@ -106,7 +110,7 @@ export default function LoginPage() {
 								{...register("password")}
 								type="password"
 								id="password"
-								className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-900 focus:border-transparent outline-none transition-all"
+								className="w-full px-4 py-3 border-2 border-sky-100 rounded-2xl focus:ring-4 focus:ring-sky-100 focus:border-[#5ba4fc] outline-none transition-all text-slate-700 bg-sky-50/50"
 								placeholder="password"
 							/>
 							{errors.password && (
@@ -122,7 +126,7 @@ export default function LoginPage() {
 								{...register("rememberMe")}
 								type="checkbox"
 								id="rememberMe"
-								className="w-4 h-4 border-slate-300 rounded text-slate-900 focus:ring-slate-900"
+								className="w-5 h-5 border-2 border-sky-200 rounded-lg text-[#5ba4fc] focus:ring-[#5ba4fc]"
 							/>
 							<label
 								htmlFor="rememberMe"
@@ -136,15 +140,15 @@ export default function LoginPage() {
 						<button
 							type="submit"
 							disabled={isSubmitting}
-							className="w-full px-4 py-3 bg-slate-900 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+							className="w-full px-4 py-3.5 bg-[#5ba4fc] text-white rounded-2xl hover:bg-[#4a93ed] disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold shadow-lg shadow-sky-200 hover:shadow-sky-300 transform hover:-translate-y-0.5 active:translate-y-0 text-lg"
 						>
 							{isSubmitting ? "Signing in..." : "Sign In"}
 						</button>
 					</form>
 
 					{/* Demo Credentials */}
-					<div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
-						<p className="text-sm text-slate-600 mb-2 font-medium">
+					<div className="mt-8 p-5 bg-[#F0F9FF] rounded-2xl border border-sky-100">
+						<p className="text-sm text-[#5ba4fc] mb-3 font-bold uppercase tracking-wide opacity-80">
 							Demo Credentials:
 						</p>
 						<p className="text-sm text-slate-700">
@@ -160,10 +164,10 @@ export default function LoginPage() {
 					</div>
 
 					{/* Back to Home */}
-					<div className="mt-6 text-center">
+					<div className="mt-8 text-center">
 						<a
 							href="/"
-							className="text-sm text-slate-600 hover:text-slate-900 transition-colors"
+							className="text-sm font-semibold text-slate-400 hover:text-[#5ba4fc] transition-colors"
 						>
 							← Back to Home
 						</a>
