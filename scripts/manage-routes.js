@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { select } from "@inquirer/prompts";
+import { select, confirm, input } from "@inquirer/prompts";
 import { Command } from "commander";
 
 // ESM dirname equivalent
@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, "..");
 const CLIENT_DIR = path.join(ROOT_DIR, "Poyo.client");
 const SERVER_DIR = path.join(ROOT_DIR, "Poyo.Server");
+const CONTROLLERS_DIR = path.join(SERVER_DIR, "Controllers");
 const ROUTES_JSON_PATH = path.join(ROOT_DIR, "routes.json");
 
 // Templates
@@ -35,6 +36,26 @@ const TEMPLATE_VIEW = (name) => `@{
 <div id="react-root" data-page-name="${name}"></div>
 `;
 
+const TEMPLATE_CONTROLLER = (name, action, viewPath) => `using Microsoft.AspNetCore.Mvc;
+
+namespace Poyo.Server.Controllers;
+
+public class ${name} : Controller
+{
+    public IActionResult ${action}()
+    {
+        return View("~/${viewPath}");
+    }
+}
+`;
+
+const TEMPLATE_ACTION = (action, viewPath) => `
+    public IActionResult ${action}()
+    {
+        return View("~/${viewPath}");
+    }
+`;
+
 // Helper: Read Routes
 function readRoutes() {
 	if (!fs.existsSync(ROUTES_JSON_PATH)) return [];
@@ -56,28 +77,77 @@ function writeRoutes(routes) {
 
 // Helper: Resolve Paths
 function resolvePaths(name, isFlat = false) {
-    if (isFlat) {
-        const parts = name.split('/');
-        const leaf = parts.pop();
-        const parent = parts.join('/');
-        const basePath = parent ? `${parent}/` : '';
-        
-        return {
-            react: `src/pages/${basePath}${leaf.toLowerCase()}.page.tsx`,
-            view: `Views/${basePath}${leaf}.cshtml`
-        };
-    }
+	if (isFlat) {
+		const parts = name.split('/');
+		const leaf = parts.pop();
+		const parent = parts.join('/');
+		const basePath = parent ? `${parent}/` : '';
+
+		return {
+			react: `src/pages/${basePath}${leaf.toLowerCase()}.page.tsx`,
+			view: `Views/${basePath}${leaf}.cshtml`
+		};
+	}
 	return {
 		react: `src/pages/${name}/index.page.tsx`,
 		view: `Views/${name}/Index.cshtml`,
 	};
 }
 
+// Helper: Ensure Controller and Action
+function ensureControllerAction(controllerName, actionName, viewPath) {
+	const controllerFileName = `${controllerName}.cs`;
+	// If user provided "Controller" suffix (e.g. MyController), allow it. 
+	// If not (e.g. "My"), append "Controller" for filename and classname if convention dictates,
+	// BUT user might have provided exact name. 
+	// Standard convention: Class Name = [Name]Controller. File Name = [Name]Controller.cs.
+	// Let's assume input 'controllerName' IS the class name (User is responsible, or we append).
+	// Let's append 'Controller' if not present, to be safe/standard.
+
+	let safeControllerName = controllerName;
+	if (!safeControllerName.endsWith("Controller")) {
+		safeControllerName += "Controller";
+	}
+
+	const controllerPath = path.join(CONTROLLERS_DIR, `${safeControllerName}.cs`);
+
+	if (!fs.existsSync(controllerPath)) {
+		// Create new controller
+		fs.writeFileSync(controllerPath, TEMPLATE_CONTROLLER(safeControllerName, actionName, viewPath));
+		console.log(`[CREATED] Controller: ${safeControllerName}.cs`);
+	} else {
+		// Inject action
+		let content = fs.readFileSync(controllerPath, "utf-8");
+
+		// Simple check if action exists
+		// Regex looks for "public IActionResult [ActionName](" or "public async Task<IActionResult> [ActionName]("
+		const actionRegex = new RegExp(`public\\s+(async\\s+Task<)?IActionResult(>)?\\s+${actionName}\\s*\\(`, "i");
+		if (actionRegex.test(content)) {
+			console.error(`[ERROR] Action '${actionName}' already exists in ${safeControllerName}.cs`);
+			process.exit(1);
+		}
+
+		// Find last closing brace of the class
+		const lastBraceIndex = content.lastIndexOf("}");
+		if (lastBraceIndex === -1) {
+			console.error(`[ERROR] Could not parse class structure in ${safeControllerName}.cs`);
+			process.exit(1);
+		}
+
+		const newContent = content.slice(0, lastBraceIndex) + TEMPLATE_ACTION(actionName, viewPath) + content.slice(lastBraceIndex);
+		fs.writeFileSync(controllerPath, newContent);
+		console.log(`[UPDATED] Controller: ${safeControllerName}.cs (Injected action '${actionName}')`);
+	}
+
+	return safeControllerName; // Return the actual class name used
+}
+
 // Helper: Scaffold Files
-function scaffoldRouteFiles(name, files) {
+function scaffoldRouteFiles(name, files, options, controllerInfo) {
 	const pageFullPath = path.join(CLIENT_DIR, files.react);
 	const viewFullPath = path.join(SERVER_DIR, files.view);
 
+	// 1. React Page (Always unless --no-react, but we don't have --no-react flag yet, plan said "always scaffold react")
 	if (!fs.existsSync(pageFullPath)) {
 		fs.mkdirSync(path.dirname(pageFullPath), { recursive: true });
 		fs.writeFileSync(pageFullPath, TEMPLATE_PAGE(name));
@@ -86,19 +156,29 @@ function scaffoldRouteFiles(name, files) {
 		console.log(`[EXISTS] React Page: ${files.react}`);
 	}
 
-	if (!fs.existsSync(viewFullPath)) {
-		fs.mkdirSync(path.dirname(viewFullPath), { recursive: true });
-		fs.writeFileSync(viewFullPath, TEMPLATE_VIEW(name));
-		console.log(`[CREATED] MVC View: ${files.view}`);
+	// 2. MVC View (Skip if --no-view)
+	if (options.view !== false) {
+		if (!fs.existsSync(viewFullPath)) {
+			fs.mkdirSync(path.dirname(viewFullPath), { recursive: true });
+			fs.writeFileSync(viewFullPath, TEMPLATE_VIEW(name));
+			console.log(`[CREATED] MVC View: ${files.view}`);
+		} else {
+			console.log(`[EXISTS] MVC View: ${files.view}`);
+		}
 	} else {
-		console.log(`[EXISTS] MVC View: ${files.view}`);
+		console.log(`[SKIP] MVC View generation skipped (--no-view)`);
+	}
+
+	// 3. Controller Injection
+	if (controllerInfo) {
+		ensureControllerAction(controllerInfo.controller, controllerInfo.action, files.view);
 	}
 }
 
 // Command Actions
 const actions = {
 	add: (urlPath, options) => {
-		// Normalize path: Ensure leading slash, PascalCase segments
+		// Normalize path
 		const parts = urlPath.split(/[\\/]/).filter(Boolean);
 		const pascalPathParts = parts.map(
 			(part) => part.charAt(0).toUpperCase() + part.slice(1),
@@ -115,20 +195,49 @@ const actions = {
 
 		const files = resolvePaths(name, options.flat);
 
+		// Handle Custom Controller
+		let controllerInfo = null;
+		if (options.controller) {
+			if (!options.action) {
+				console.error("[ERROR] If --controller is specified, --action must also be specified.");
+				process.exit(1);
+			}
+			controllerInfo = {
+				controller: options.controller, // Will be normalized in ensureControllerAction, but stored as is or normalized? 
+				// Better store strict input, but we might want to store the "Real" class name.
+				// Let's rely on ensureControllerAction returning the safe name.
+				action: options.action
+			};
+		}
+
 		// Create Entry
 		const newRoute = {
 			path: pascalPath,
 			name: name,
 			files: files,
 			isPublic: options.public || false,
+			// Add Controller/Action if present
+			...(controllerInfo && { controller: controllerInfo.controller, action: controllerInfo.action }),
+			// Add SEO stub
+			seo: {
+				title: name,
+				description: `Page for ${name}`
+			}
 		};
+
+		// If we are about to inject controller, let's do it first to ensure it adheres to rules
+		if (controllerInfo) {
+			const finalControllerName = ensureControllerAction(controllerInfo.controller, controllerInfo.action, files.view);
+			newRoute.controller = finalControllerName; // Store the official class name
+		}
 
 		routes.push(newRoute);
 		writeRoutes(routes);
-		scaffoldRouteFiles(name, files);
+		scaffoldRouteFiles(name, files, options, null); // We already handled controller injection above
 	},
 
 	update: (urlPath, options) => {
+		// Existing update logic...
 		const lowerPath = urlPath.toLowerCase();
 		const routes = readRoutes();
 		const route = routes.find(
@@ -144,7 +253,6 @@ const actions = {
 
 		let updated = false;
 
-		// Update Public Status
 		if (options.public !== undefined) {
 			const isPublic = options.public === "true" || options.public === true;
 			if (route.isPublic !== isPublic) {
@@ -154,8 +262,6 @@ const actions = {
 			}
 		}
 
-		// Future: Add more properties here (e.g. name, title)
-
 		if (updated) {
 			writeRoutes(routes);
 		} else {
@@ -163,7 +269,7 @@ const actions = {
 		}
 	},
 
-	remove: (urlPath) => {
+	remove: async (urlPath) => {
 		const lowerPath = urlPath.toLowerCase();
 		const routes = readRoutes();
 		const routeIndex = routes.findIndex(
@@ -178,6 +284,23 @@ const actions = {
 		}
 
 		const routeToRemove = routes[routeIndex];
+
+		// Ask about controller deletion if it exists
+		if (routeToRemove.controller) {
+			const answer = await confirm({ message: `Route uses custom controller '${routeToRemove.controller}'. Delete this controller file? (y/N)`, default: false });
+			if (answer) {
+				const controllerPath = path.join(CONTROLLERS_DIR, `${routeToRemove.controller}.cs`);
+				if (fs.existsSync(controllerPath)) {
+					fs.unlinkSync(controllerPath);
+					console.log(`[DELETED] Controller: ${routeToRemove.controller}.cs`);
+				} else {
+					console.warn(`[WARN] Controller file not found: ${controllerPath}`);
+				}
+			} else {
+				console.log(`[INFO] Custom controller override preserved.`);
+			}
+		}
+
 		routes.splice(routeIndex, 1);
 		writeRoutes(routes);
 
@@ -192,6 +315,12 @@ const actions = {
 	},
 
 	sync: async () => {
+		// Sync logic remains mostly same but respects custom controllers?
+		// Actually sync should just check file existence.
+		// It should NOT try to re-scaffold View if a custom controller is used and View is missing, UNLESS we know for sure.
+		// But for now, let's keep it simple: It checks for 'files.react' and 'files.view'.
+		// If View is missing for a custom controller route, it flags it. This is probably correct because even custom controllers usually need a view.
+
 		console.log("Checking route consistency...");
 		const routes = readRoutes();
 		const missingRoutes = [];
@@ -245,7 +374,8 @@ const actions = {
 		if (answer === "rescaffold") {
 			console.log("\nRe-scaffolding files...");
 			missingRoutes.forEach((item) => {
-				scaffoldRouteFiles(item.route.name, item.route.files);
+				// Pass default options for rescaffold
+				scaffoldRouteFiles(item.route.name, item.route.files, { noView: false, flat: false }, item.route.controller ? { controller: item.route.controller, action: item.route.action } : null);
 			});
 			console.log("[DONE] All files restored.");
 		} else if (answer === "prune") {
@@ -275,7 +405,10 @@ program
 	.description("Add a new route and scaffold files")
 	.argument("<path>", "URL path for the route (e.g. /Admin/Users)")
 	.option("-p, --public", "Mark route as public (accessible without auth)")
-    .option("-f, --flat", "Use flat file structure (e.g. detail.page.tsx) instead of folder (Detail/index.page.tsx)")
+	.option("-f, --flat", "Use flat file structure (e.g. detail.page.tsx) instead of folder (Detail/index.page.tsx)")
+	.option("-c, --controller <name>", "Specify custom controller class name")
+	.option("-a, --action <name>", "Specify action method name")
+	.option("--no-view", "Skip MVC View generation")
 	.action(actions.add);
 
 program

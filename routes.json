@@ -9,15 +9,6 @@
     "isPublic": true
   },
   {
-    "path": "/Login",
-    "name": "Login",
-    "files": {
-      "react": "src/pages/Login/index.page.tsx",
-      "view": "Views/Login/Index.cshtml"
-    },
-    "isPublic": true
-  },
-  {
     "path": "/Dashboard",
     "name": "Dashboard",
     "files": {
@@ -25,5 +16,14 @@
       "view": "Views/Dashboard/Index.cshtml"
     },
     "isPublic": false
+  },
+  {
+    "path": "/Login",
+    "name": "Login",
+    "files": {
+      "react": "src/pages/Login/index.page.tsx",
+      "view": "Views/Login/Index.cshtml"
+    },
+    "isPublic": true
   }
 ]

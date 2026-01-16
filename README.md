@@ -227,9 +227,9 @@ export default function DashboardPage() {
 - User preferences
 - Any data needed on page load
 
-### 2. Route Management
+### 2. Route Management (Enhanced)
 
-Routes are defined in `routes.json`:
+Routes are defined in `routes.json` and can now support **Custom Controllers** and **Flexible SEO**:
 
 ```json
 {
@@ -239,14 +239,42 @@ Routes are defined in `routes.json`:
     "react": "src/pages/Dashboard/index.page.tsx",
     "view": "Views/Dashboard/Index.cshtml"
   },
-  "isPublic": false
+  "isPublic": false,
+  "controller": "DashboardController", // Optional: Use custom controller
+  "action": "Index",                   // Optional: Custom action
+  "seo": {                             // Optional: SEO Metadata
+    "title": "My Dashboard",
+    "description": "View your stats",
+    "meta": {
+       "og:image": "https://..."
+    },
+    "jsonld": {
+       "@type": "WebPage"
+    }
+  }
 }
 ```
 
-Add new routes via CLI:
+**CLI Commands:**
 ```bash
+# Basic Add
 npm run route:add YourPage
+
+# Add with Custom Controller & Action
+node scripts/manage-routes.js add /Admin --controller AdminController --action Index
+
+# Skip View Generation (if controller handles it)
+node scripts/manage-routes.js add /API/Proxy --controller ApiController --action Proxy --no-view
 ```
+
+### 3. Flexible SEO System
+
+Poyo now supports a data-driven SEO system. You don't need to touch `.cshtml` files for metadata.
+- **Title/Description**: Set in `routes.json`.
+- **Meta Tags**: Dictionary in `routes.json` (supports OpenGraph).
+- **JSON-LD**: Inject structured data scripts automatically.
+
+All metadata is injected server-side into `_Layout.cshtml` before the React app even loads, ensuring perfect SEO.
 
 ### 3. Authentication Strategy
 
@@ -499,7 +527,9 @@ npm run build            # Build for production
 npm run generate         # Generate DTOs + schemas
 npm run generate:dtos    # Generate TypeScript types from OpenAPI
 npm run generate:schemas # Generate Zod schemas from DTOs
-npm run route:add        # Add new route (interactive)
+npm run generate:dtos    # Generate TypeScript types from OpenAPI
+npm run generate:schemas # Generate Zod schemas from DTOs
+npm run route:add        # Add new route (supports --controller, --action, --no-view)
 npm run route:sync       # Sync routes with files
 npm run lint             # Run linter
 npm run format           # Check formatting

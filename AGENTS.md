@@ -45,7 +45,19 @@ Poyo is intentionally minimal. It provides:
 - **Purpose**: RESTful JSON APIs
 - **Returns**: `ActionResult<T>` with JSend format
 
-### 2.2. Middleware & Attributes
+- **Returns**: `ActionResult<T>` with JSend format
+
+**Custom Controllers**
+- **Purpose**: Complex page logic, specialized data fetching, or custom view rendering.
+- **Usage**: Map in `routes.json` via `"controller"` property.
+- **CLI**: Use `npm run route:add ... --controller MyController` to generate.
+
+### 2.2. SEO & Metadata
+- **Configuration**: Managed in `routes.json` under `"seo"` object.
+- **Do NOT**: Hardcode meta tags in views unless absolutely necessary.
+- **Do**: Use `routes.json` for titles, descriptions, OG tags, and JSON-LD.
+
+### 2.3. Middleware & Attributes
 
 **Custom Attributes:**
 - `[GuestOnly]` - Redirects authenticated users (for login/landing pages)
@@ -253,7 +265,11 @@ npm run route:add YourPage
 1. Add entry to `routes.json`
 2. Create `src/pages/YourPage/index.page.tsx`
 3. Create `Views/YourPage/Index.cshtml`
-4. Create controller if needed
+4. Create controller if needed (or use CLI `--controller` flag)
+
+### 4.3. SEO Configuration
+- Add `"seo"` object to route in `routes.json`.
+- Supports `title`, `description`, `meta` (dictionary), and `jsonld`.
 
 ---
 

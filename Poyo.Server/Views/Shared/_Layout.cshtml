@@ -7,20 +7,28 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewBag.Title - Poyo</title>
-    <meta name="description" content="@ViewBag.Description" />
-    <meta name="keywords" content="@ViewBag.Keywords" />
+    
+    @if (ViewBag.Description != null)
+    {
+        <meta name="description" content="@ViewBag.Description" />
+    }
 
-    <!-- Open Graph tags for social media -->
-    <meta property="og:title" content="@ViewBag.Title - Poyo" />
-    <meta property="og:description" content="@ViewBag.Description" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url"
-        content="@($"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}{Context.Request.QueryString}")" />
+    @if (ViewBag.MetaTags != null)
+    {
+        foreach (var tag in (Dictionary<string, string>)ViewBag.MetaTags)
+        {
+            var key = tag.Key;
+            var att = key.StartsWith("og:") ? "property" : "name";
+            <meta @att="@key" content="@tag.Value" />
+        }
+    }
 
-    <!-- Twitter Card tags -->
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="@ViewBag.Title - Poyo" />
-    <meta name="twitter:description" content="@ViewBag.Description" />
+    @if (ViewBag.JsonLd != null)
+    {
+        <script type="application/ld+json">
+            @Html.Raw(ViewBag.JsonLd)
+        </script>
+    }
 </head>
 
 <body class="bg-gray-50 font-sans">

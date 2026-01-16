@@ -160,16 +160,25 @@ try
         {
             foreach (var route in routes)
             {
-                // specific Logic for Home: handled by HomeController (Keep existing skipping logic or remove if PageController handles it)
                 if (route.Name.Equals("Home", StringComparison.OrdinalIgnoreCase)) continue;
 
-                var actionName = route.IsPublic ? "PublicIndex" : "Index";
+                var controllerName = !string.IsNullOrWhiteSpace(route.Controller) ? route.Controller : "Page";
+                var actionName = !string.IsNullOrWhiteSpace(route.Action)
+                    ? route.Action
+                    : (route.IsPublic ? "PublicIndex" : "Index");
 
-                // Map route to PageController
+                // Map route
                 app.MapControllerRoute(
                     name: route.Name,
                     pattern: route.Path.TrimStart('/'),
-                    defaults: new { controller = "Page", action = actionName, viewPath = route.Files.View, pageName = route.Name });
+                    defaults: new
+                    {
+                        controller = controllerName,
+                        action = actionName,
+                        viewPath = route.Files.View,
+                        pageName = route.Name,
+                        seo = route.Seo
+                    });
             }
         }
     }
@@ -187,7 +196,7 @@ app.MapControllerRoute(
 app.Run();
 
 // Helper record for deserialization
-internal record RouteDefinition(string Path, string Name, RouteFiles Files, bool IsPublic);
+internal record RouteDefinition(string Path, string Name, RouteFiles Files, bool IsPublic, Poyo.Server.Models.SeoModel? Seo, string? Controller, string? Action);
 internal record RouteFiles(string View);
 
 

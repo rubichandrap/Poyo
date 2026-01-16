@@ -16,7 +16,7 @@ public class PageController : Controller
     public IActionResult Index(string viewPath, string pageName)
     {
         _logger.LogInformation("Serving protected page: {PageName}", pageName);
-        ViewBag.Title = pageName;
+        ApplySeo(pageName);
         return View(viewPath);
     }
 
@@ -24,8 +24,19 @@ public class PageController : Controller
     public IActionResult PublicIndex(string viewPath, string pageName)
     {
         _logger.LogInformation("Serving public page: {PageName}", pageName);
-        ViewBag.Title = pageName;
+        ApplySeo(pageName);
         return View(viewPath);
+    }
+
+    private void ApplySeo(string pageName)
+    {
+        var seo = RouteData.Values["seo"] as Poyo.Server.Models.SeoModel;
+
+        // Defaults
+        ViewBag.Title = seo?.Title ?? pageName;
+        ViewBag.Description = seo?.Description;
+        ViewBag.MetaTags = seo?.Meta ?? new Dictionary<string, string>();
+        ViewBag.JsonLd = seo?.JsonLd?.ToString();
     }
 }
 
