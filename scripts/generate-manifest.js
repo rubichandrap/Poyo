@@ -83,13 +83,7 @@ if (!fs.existsSync(generatedAssetsPath)) {
 const distPath = path.join(__dirname, "..", "Poyo.client", "dist");
 activeFiles.forEach((file) => {
 	const srcPath = path.join(distPath, file);
-	const destPath = path.join(
-		__dirname,
-		"..",
-		"Poyo.Server",
-		"wwwroot",
-		file,
-	);
+	const destPath = path.join(__dirname, "..", "Poyo.Server", "wwwroot", file);
 
 	// Ensure parent directory exists (e.g. for generated/ folder)
 	fs.mkdirSync(path.dirname(destPath), { recursive: true });
@@ -138,4 +132,3 @@ fs.writeFileSync(scriptsPath, scriptsContent);
 
 console.log("Build manifest updated:", updatedManifest);
 console.log("_ReactAssets.cshtml updated");
-

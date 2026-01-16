@@ -6,14 +6,28 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"ignoreUnknown": false
+		"ignoreUnknown": false,
+		"includes": [
+			"**",
+			"!**/dist",
+			"!**/node_modules",
+			"!**/bin",
+			"!**/obj",
+			"!**/.vs",
+			"!**/.git",
+			"!**/.github",
+			"!**/.husky",
+			"!**/.vscode",
+			"!**/package-lock.json",
+			"!**/*.generated.ts"
+		]
 	},
 	"linter": {
 		"enabled": true,
 		"rules": {
 			"recommended": false
 		},
-		"includes": ["**", "!dist"]
+		"includes": ["**"]
 	},
 	"css": {
 		"parser": {
@@ -30,7 +44,7 @@
 	},
 	"overrides": [
 		{
-			"includes": ["**/*.{js,ts,jsx,tsx}", "!**/*.generated.ts"],
+			"includes": ["**/*.{js,ts,jsx,tsx}"],
 			"javascript": {
 				"globals": [
 					"onanimationend",

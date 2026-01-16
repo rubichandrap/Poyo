@@ -1,20 +1,20 @@
 {
-    "name": "poyo-server",
-    "version": "0.0.2",
-    "description": "Poyo .NET Server",
-    "private": false,
-    "scripts": {
-        "restore": "dotnet restore",
-        "dev": "dotnet run --no-build",
-        "format": "dotnet format --verify-no-changes",
-        "format:fix": "dotnet format",
-        "build": "dotnet build",
-        "watch": "dotnet watch run",
-        "publish": "dotnet publish -c Release -o ./publish"
-    },
-    "keywords": [
-        "dotnet",
-        "aspnet",
-        "server"
-    ]
+	"name": "poyo-server",
+	"version": "0.0.2",
+	"description": "Poyo .NET Server",
+	"private": false,
+	"scripts": {
+		"restore": "dotnet restore",
+		"dev": "dotnet run --no-build",
+		"format": "dotnet format --verify-no-changes",
+		"format:fix": "dotnet format",
+		"build": "dotnet build",
+		"watch": "dotnet watch run",
+		"publish": "dotnet publish -c Release -o ./publish"
+	},
+	"keywords": [
+		"dotnet",
+		"aspnet",
+		"server"
+	]
 }

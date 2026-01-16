@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { select, confirm, checkbox } from "@inquirer/prompts";
+import { checkbox, confirm, select } from "@inquirer/prompts";
 import { Command } from "commander";
 
 // ESM dirname equivalent
@@ -36,7 +36,11 @@ const TEMPLATE_VIEW = (name) => `@{
 <div id="react-root" data-page-name="${name}"></div>
 `;
 
-const TEMPLATE_CONTROLLER = (name, action, viewPath) => `using Microsoft.AspNetCore.Mvc;
+const TEMPLATE_CONTROLLER = (
+	name,
+	action,
+	viewPath,
+) => `using Microsoft.AspNetCore.Mvc;
 
 namespace Poyo.Server.Controllers;
 
@@ -78,14 +82,14 @@ function writeRoutes(routes) {
 // Helper: Resolve Paths
 function resolvePaths(name, isFlat = false) {
 	if (isFlat) {
-		const parts = name.split('/');
+		const parts = name.split("/");
 		const leaf = parts.pop();
-		const parent = parts.join('/');
-		const basePath = parent ? `${parent}/` : '';
+		const parent = parts.join("/");
+		const basePath = parent ? `${parent}/` : "";
 
 		return {
 			react: `src/pages/${basePath}${leaf.toLowerCase()}.page.tsx`,
-			view: `Views/${basePath}${leaf}.cshtml`
+			view: `Views/${basePath}${leaf}.cshtml`,
 		};
 	}
 	return {
@@ -116,7 +120,9 @@ function deleteEmptyParents(filePath, rootDir) {
 	while (dir !== rootDir && path.relative(rootDir, dir).length > 0) {
 		if (fs.existsSync(dir) && fs.readdirSync(dir).length === 0) {
 			fs.rmdirSync(dir);
-			console.log(`[CLEANUP] Removed empty directory: ${path.relative(ROOT_DIR, dir)}`);
+			console.log(
+				`[CLEANUP] Removed empty directory: ${path.relative(ROOT_DIR, dir)}`,
+			);
 			dir = path.dirname(dir);
 		} else {
 			break;
@@ -135,26 +141,41 @@ function ensureControllerAction(controllerName, actionName, viewPath) {
 
 	if (!fs.existsSync(controllerPath)) {
 		// Create new controller
-		fs.writeFileSync(controllerPath, TEMPLATE_CONTROLLER(safeControllerName, actionName, viewPath));
+		fs.writeFileSync(
+			controllerPath,
+			TEMPLATE_CONTROLLER(safeControllerName, actionName, viewPath),
+		);
 		console.log(`[CREATED] Controller: ${safeControllerName}.cs`);
 	} else {
 		// Inject action
-		let content = fs.readFileSync(controllerPath, "utf-8");
-		const actionRegex = new RegExp(`public\\s+(async\\s+Task<)?IActionResult(>)?\\s+${actionName}\\s*\\(`, "i");
+		const content = fs.readFileSync(controllerPath, "utf-8");
+		const actionRegex = new RegExp(
+			`public\\s+(async\\s+Task<)?IActionResult(>)?\\s+${actionName}\\s*\\(`,
+			"i",
+		);
 		if (actionRegex.test(content)) {
-			console.error(`[ERROR] Action '${actionName}' already exists in ${safeControllerName}.cs`);
+			console.error(
+				`[ERROR] Action '${actionName}' already exists in ${safeControllerName}.cs`,
+			);
 			process.exit(1);
 		}
 
 		const lastBraceIndex = content.lastIndexOf("}");
 		if (lastBraceIndex === -1) {
-			console.error(`[ERROR] Could not parse class structure in ${safeControllerName}.cs`);
+			console.error(
+				`[ERROR] Could not parse class structure in ${safeControllerName}.cs`,
+			);
 			process.exit(1);
 		}
 
-		const newContent = content.slice(0, lastBraceIndex) + TEMPLATE_ACTION(actionName, viewPath) + content.slice(lastBraceIndex);
+		const newContent =
+			content.slice(0, lastBraceIndex) +
+			TEMPLATE_ACTION(actionName, viewPath) +
+			content.slice(lastBraceIndex);
 		fs.writeFileSync(controllerPath, newContent);
-		console.log(`[UPDATED] Controller: ${safeControllerName}.cs (Injected action '${actionName}')`);
+		console.log(
+			`[UPDATED] Controller: ${safeControllerName}.cs (Injected action '${actionName}')`,
+		);
 	}
 
 	return safeControllerName;
@@ -189,7 +210,11 @@ function scaffoldRouteFiles(name, files, options, controllerInfo) {
 
 	// 3. Controller Injection
 	if (controllerInfo) {
-		ensureControllerAction(controllerInfo.controller, controllerInfo.action, files.view);
+		ensureControllerAction(
+			controllerInfo.controller,
+			controllerInfo.action,
+			files.view,
+		);
 	}
 }
 
@@ -214,12 +239,14 @@ const actions = {
 		let controllerInfo = null;
 		if (options.controller) {
 			if (!options.action) {
-				console.error("[ERROR] If --controller is specified, --action must also be specified.");
+				console.error(
+					"[ERROR] If --controller is specified, --action must also be specified.",
+				);
 				process.exit(1);
 			}
 			controllerInfo = {
 				controller: options.controller,
-				action: options.action
+				action: options.action,
 			};
 		}
 
@@ -229,15 +256,22 @@ const actions = {
 			files: files,
 			isPublic: options.public || false,
 			isGuestOnly: options.guest || false,
-			...(controllerInfo && { controller: controllerInfo.controller, action: controllerInfo.action }),
+			...(controllerInfo && {
+				controller: controllerInfo.controller,
+				action: controllerInfo.action,
+			}),
 			seo: {
 				title: name,
-				description: `Page for ${name}`
-			}
+				description: `Page for ${name}`,
+			},
 		};
 
 		if (controllerInfo) {
-			const finalControllerName = ensureControllerAction(controllerInfo.controller, controllerInfo.action, files.view);
+			const finalControllerName = ensureControllerAction(
+				controllerInfo.controller,
+				controllerInfo.action,
+				files.view,
+			);
 			newRoute.controller = finalControllerName;
 		}
 
@@ -308,13 +342,16 @@ const actions = {
 		let deleteController = false;
 
 		if (controller) {
-			deleteController = await confirm({ message: `Route uses custom controller '${controller}'. Delete this controller file? (y/N)`, default: false });
+			deleteController = await confirm({
+				message: `Route uses custom controller '${controller}'. Delete this controller file? (y/N)`,
+				default: false,
+			});
 		}
 
 		// NEW: Ask to remove related files
 		const deleteFiles = await confirm({
 			message: `Do you want to DELETE the physical files and folders related to this route? (y/N)`,
-			default: false
+			default: false,
 		});
 
 		// Perform deletion
@@ -347,7 +384,9 @@ const actions = {
 		routes.splice(routeIndex, 1);
 		writeRoutes(routes);
 
-		console.log(`[REMOVED] Route '${routeToRemove.path}' removed from routes.json`);
+		console.log(
+			`[REMOVED] Route '${routeToRemove.path}' removed from routes.json`,
+		);
 
 		if (!deleteFiles) {
 			console.log(`[INFO] Orphaned files (not deleted):`);
@@ -377,25 +416,48 @@ const actions = {
 
 		// 2. Reverse Sync: Check for untracked files
 		// Scan for React pages (*.page.tsx)
-		const reactPages = findFiles(path.join(CLIENT_DIR, "src", "pages"), (file) => file.endsWith(".page.tsx"), [], path.join(CLIENT_DIR));
+		const reactPages = findFiles(
+			path.join(CLIENT_DIR, "src", "pages"),
+			(file) => file.endsWith(".page.tsx"),
+			[],
+			path.join(CLIENT_DIR),
+		);
 		// Scan for Views (*.cshtml) - exclude Shared, _ViewStart, etc.
-		const viewPages = findFiles(path.join(SERVER_DIR, "Views"), (file) => {
-			const name = path.basename(file);
-			return file.endsWith(".cshtml") && !file.includes("Shared") && !name.startsWith("_");
-		}, [], path.join(SERVER_DIR));
+		const viewPages = findFiles(
+			path.join(SERVER_DIR, "Views"),
+			(file) => {
+				const name = path.basename(file);
+				return (
+					file.endsWith(".cshtml") &&
+					!file.includes("Shared") &&
+					!name.startsWith("_")
+				);
+			},
+			[],
+			path.join(SERVER_DIR),
+		);
 
 		// Normalize existing route paths for comparison
-		const trackedReactFiles = new Set(routes.map(r => r.files.react.replaceAll("\\", "/")));
-		const trackedViewFiles = new Set(routes.map(r => r.files.view.replaceAll("\\", "/")));
+		const trackedReactFiles = new Set(
+			routes.map((r) => r.files.react.replaceAll("\\", "/")),
+		);
+		const trackedViewFiles = new Set(
+			routes.map((r) => r.files.view.replaceAll("\\", "/")),
+		);
 
-		const untrackedReact = reactPages.filter(f => !trackedReactFiles.has(f));
+		const untrackedReact = reactPages.filter((f) => !trackedReactFiles.has(f));
 		// Only consider the view untracked if it's not associated with any route
-		const untrackedViews = viewPages.filter(f => !trackedViewFiles.has(f));
+		const untrackedViews = viewPages.filter((f) => !trackedViewFiles.has(f));
 
-		const hasIssues = missingRoutes.length > 0 || untrackedReact.length > 0 || untrackedViews.length > 0;
+		const hasIssues =
+			missingRoutes.length > 0 ||
+			untrackedReact.length > 0 ||
+			untrackedViews.length > 0;
 
 		if (!hasIssues) {
-			console.log(`[OK] All ${routes.length} routes indicate valid files, and no untracked files found.`);
+			console.log(
+				`[OK] All ${routes.length} routes indicate valid files, and no untracked files found.`,
+			);
 			return;
 		}
 
@@ -414,14 +476,30 @@ const actions = {
 		const answer = await select({
 			message: "How should we resolve these discrepancies?",
 			choices: [
-				...(missingRoutes.length > 0 ? [
-					{ name: "Rescaffold: Re-create missing files for broken routes", value: "rescaffold" },
-					{ name: "Prune: Remove broken routes from routes.json", value: "prune" }
-				] : []),
-				...(untrackedReact.length > 0 || untrackedViews.length > 0 ? [
-					{ name: "Add: Add untracked files to routes.json", value: "add_untracked" },
-					{ name: "Delete: Delete untracked files from disk", value: "delete_untracked" }
-				] : []),
+				...(missingRoutes.length > 0
+					? [
+							{
+								name: "Rescaffold: Re-create missing files for broken routes",
+								value: "rescaffold",
+							},
+							{
+								name: "Prune: Remove broken routes from routes.json",
+								value: "prune",
+							},
+						]
+					: []),
+				...(untrackedReact.length > 0 || untrackedViews.length > 0
+					? [
+							{
+								name: "Add: Add untracked files to routes.json",
+								value: "add_untracked",
+							},
+							{
+								name: "Delete: Delete untracked files from disk",
+								value: "delete_untracked",
+							},
+						]
+					: []),
 				{ name: "Ignore: Do nothing for now", value: "ignore" },
 			],
 		});
@@ -429,7 +507,14 @@ const actions = {
 		if (answer === "rescaffold") {
 			console.log("\nRe-scaffolding files...");
 			missingRoutes.forEach((item) => {
-				scaffoldRouteFiles(item.route.name, item.route.files, { noView: false, flat: false }, item.route.controller ? { controller: item.route.controller, action: item.route.action } : null);
+				scaffoldRouteFiles(
+					item.route.name,
+					item.route.files,
+					{ noView: false, flat: false },
+					item.route.controller
+						? { controller: item.route.controller, action: item.route.action }
+						: null,
+				);
 			});
 			console.log("[DONE] All files restored.");
 		} else if (answer === "prune") {
@@ -437,7 +522,9 @@ const actions = {
 			const pathsToRemove = new Set(missingRoutes.map((m) => m.route.path));
 			const newRoutes = routes.filter((r) => !pathsToRemove.has(r.path));
 			writeRoutes(newRoutes);
-			console.log(`[DONE] Removed ${missingRoutes.length} routes from routes.json.`);
+			console.log(
+				`[DONE] Removed ${missingRoutes.length} routes from routes.json.`,
+			);
 		} else if (answer === "add_untracked") {
 			// Logic to add untracked files
 			console.log("\nAnalyzing untracked files...");
@@ -460,15 +547,17 @@ const actions = {
 
 				// Convert routeName to PascalCase path
 				const parts = routeName.split(/[\\/]/);
-				const pascalParts = parts.map(p => p.charAt(0).toUpperCase() + p.slice(1));
+				const pascalParts = parts.map(
+					(p) => p.charAt(0).toUpperCase() + p.slice(1),
+				);
 				routeName = pascalParts.join("/");
 				routePath = "/" + routeName;
 
 				// Check if we have a matching view (simplistic check)
 				// Start with standard folder view
-				let viewCandidate = `Views/${routeName}/Index.cshtml`;
+				const viewCandidate = `Views/${routeName}/Index.cshtml`;
 				// OR flat view
-				let viewCandidateFlat = `Views/${routeName}.cshtml`;
+				const viewCandidateFlat = `Views/${routeName}.cshtml`;
 
 				let finalView = viewCandidate;
 				// See if any untracked view matches
@@ -483,56 +572,73 @@ const actions = {
 					name: routeName,
 					files: {
 						react: reactFile,
-						view: finalView
+						view: finalView,
 					},
 					isPublic: false,
-					seo: { title: routeName, description: `Page for ${routeName}` }
+					seo: { title: routeName, description: `Page for ${routeName}` },
 				});
 			}
 
 			if (newRoutesToAdd.length === 0 && untrackedViews.length > 0) {
-				console.log("[INFO] Found untracked Views but no corresponding React pages. Skipping automatic addition for these (manual intervention needed).");
-				untrackedViews.forEach(v => console.log(`  - ${v}`));
+				console.log(
+					"[INFO] Found untracked Views but no corresponding React pages. Skipping automatic addition for these (manual intervention needed).",
+				);
+				untrackedViews.forEach((v) => console.log(`  - ${v}`));
 			} else if (newRoutesToAdd.length > 0) {
-				console.log(`Probe found ${newRoutesToAdd.length} potential new routes.`);
+				console.log(
+					`Probe found ${newRoutesToAdd.length} potential new routes.`,
+				);
 				const confirmedRoutes = await checkbox({
 					message: "Select routes to add:",
-					choices: newRoutesToAdd.map(r => ({ name: `${r.path} (${r.files.react})`, value: r, checked: true }))
+					choices: newRoutesToAdd.map((r) => ({
+						name: `${r.path} (${r.files.react})`,
+						value: r,
+						checked: true,
+					})),
 				});
 
 				if (confirmedRoutes.length > 0) {
-					confirmedRoutes.forEach(r => routes.push(r));
+					confirmedRoutes.forEach((r) => routes.push(r));
 					writeRoutes(routes);
 					// Also ensure files exist (scaffold view if missing?)
 					console.log("Ensuring views exist for new routes...");
-					confirmedRoutes.forEach(r => {
+					confirmedRoutes.forEach((r) => {
 						const viewPath = path.join(SERVER_DIR, r.files.view);
 						if (!fs.existsSync(viewPath)) {
-							console.log(`[Creating] Missing View for ${r.name}: ${r.files.view}`);
+							console.log(
+								`[Creating] Missing View for ${r.name}: ${r.files.view}`,
+							);
 							fs.mkdirSync(path.dirname(viewPath), { recursive: true });
 							fs.writeFileSync(viewPath, TEMPLATE_VIEW(r.name));
 						}
 					});
 				}
 			}
-
 		} else if (answer === "delete_untracked") {
-			const filesToDelete = [...untrackedReact, ...untrackedViews].map(f => {
-				return f.startsWith("src") ? path.join(CLIENT_DIR, f) : path.join(SERVER_DIR, f);
+			const filesToDelete = [...untrackedReact, ...untrackedViews].map((f) => {
+				return f.startsWith("src")
+					? path.join(CLIENT_DIR, f)
+					: path.join(SERVER_DIR, f);
 			});
 
 			const confirmedFiles = await checkbox({
 				message: "Select files to PERMANENTLY DELETE:",
-				choices: filesToDelete.map(f => ({ name: path.relative(ROOT_DIR, f), value: f, checked: true }))
+				choices: filesToDelete.map((f) => ({
+					name: path.relative(ROOT_DIR, f),
+					value: f,
+					checked: true,
+				})),
 			});
 
 			if (confirmedFiles.length > 0) {
-				confirmedFiles.forEach(f => {
+				confirmedFiles.forEach((f) => {
 					if (fs.existsSync(f)) {
 						fs.unlinkSync(f);
 						console.log(`[DELETED] ${path.relative(ROOT_DIR, f)}`);
 						// Determine root dir based on client/server
-						const fileRoot = f.includes("poyo.client") ? CLIENT_DIR : SERVER_DIR;
+						const fileRoot = f.includes("poyo.client")
+							? CLIENT_DIR
+							: SERVER_DIR;
 						deleteEmptyParents(f, fileRoot);
 					}
 				});
@@ -546,7 +652,9 @@ const actions = {
 // CLI Setup
 const program = new Command();
 
-const packageJson = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, "package.json"), "utf-8"));
+const packageJson = JSON.parse(
+	fs.readFileSync(path.join(ROOT_DIR, "package.json"), "utf-8"),
+);
 
 program
 	.name("route-manager")
@@ -558,8 +666,14 @@ program
 	.description("Add a new route and scaffold files")
 	.argument("<path>", "URL path for the route (e.g. /Admin/Users)")
 	.option("-p, --public", "Mark route as public (accessible without auth)")
-	.option("-g, --guest", "Mark route as guest only (only accessible without auth)")
-	.option("-f, --flat", "Use flat file structure (e.g. detail.page.tsx) instead of folder (Detail/index.page.tsx)")
+	.option(
+		"-g, --guest",
+		"Mark route as guest only (only accessible without auth)",
+	)
+	.option(
+		"-f, --flat",
+		"Use flat file structure (e.g. detail.page.tsx) instead of folder (Detail/index.page.tsx)",
+	)
 	.option("-c, --controller <name>", "Specify custom controller class name")
 	.option("-a, --action <name>", "Specify action method name")
 	.option("--no-view", "Skip MVC View generation")
