@@ -1,9 +1,16 @@
 {
-    "name": "create-poyo-app",
+    "name": "@rubichandrap/create-poyo-app",
     "version": "0.0.1",
     "private": false,
     "type": "module",
     "description": "A minimal React + .NET 10 Multi-Page Application (MPA) starter framework. Features server-side routing, type-safe API integration, and zero-config HMR.",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/rubichandrap/Poyo.git"
+    },
+    "publishConfig": {
+        "registry": "https://npm.pkg.github.com"
+    },
     "bin": {
         "create-poyo-app": "./cli/create-poyo-app.js"
     },
