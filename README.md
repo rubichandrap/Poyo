@@ -499,6 +499,8 @@ Your Razor views need to reference these files, but the filenames change with ev
 **Add new route:**
 ```bash
 npm run route:add User/Profile
+# OR (with flags)
+npm run route:add -- /Register --guest
 ```
 
 **What this command does:**
@@ -508,10 +510,18 @@ npm run route:add User/Profile
 3.  **Scaffolds Razor View**: Creates `Poyo.Server/Views/User/Profile/Index.cshtml`.
     *   *Sets up the `#root` div with `data-page-name="User/Profile"` for hydration.*
 
+**Remove route:**
+```bash
+npm run route:remove User/Profile
+```
+*   **Safe Deletion**: Prompts to optionally delete both the React page and MVC View (and empty folders).
+
 **Sync routes:**
 ```bash
-npm run route:sync  # Interactive sync between routes.json and files
+npm run route:sync
 ```
+*   **Forward Sync**: Checks for missing files and offers Rescaffold/Prune.
+*   **Reverse Sync**: Checks for "untracked" files (React pages not in `routes.json`) and offers to Add/Delete them.
 
 ---
 

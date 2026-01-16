@@ -165,7 +165,7 @@ try
                 var controllerName = !string.IsNullOrWhiteSpace(route.Controller) ? route.Controller : "Page";
                 var actionName = !string.IsNullOrWhiteSpace(route.Action)
                     ? route.Action
-                    : (route.IsPublic ? "PublicIndex" : "Index");
+                    : (route.IsGuestOnly ? "GuestIndex" : (route.IsPublic ? "PublicIndex" : "Index"));
 
                 // Map route
                 app.MapControllerRoute(
@@ -196,7 +196,7 @@ app.MapControllerRoute(
 app.Run();
 
 // Helper record for deserialization
-internal record RouteDefinition(string Path, string Name, RouteFiles Files, bool IsPublic, Poyo.Server.Models.SeoModel? Seo, string? Controller, string? Action);
+internal record RouteDefinition(string Path, string Name, RouteFiles Files, bool IsPublic, bool IsGuestOnly, Poyo.Server.Models.SeoModel? Seo, string? Controller, string? Action);
 internal record RouteFiles(string View);
 
 

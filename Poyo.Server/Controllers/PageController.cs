@@ -28,6 +28,15 @@ public class PageController : Controller
         return View(viewPath);
     }
 
+    [AllowAnonymous]
+    [Poyo.Server.Middleware.Auth.GuestOnly]
+    public IActionResult GuestIndex(string viewPath, string pageName)
+    {
+        _logger.LogInformation("Serving guest-only page: {PageName}", pageName);
+        ApplySeo(pageName);
+        return View(viewPath);
+    }
+
     private void ApplySeo(string pageName)
     {
         var seo = RouteData.Values["seo"] as Poyo.Server.Models.SeoModel;

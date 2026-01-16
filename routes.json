@@ -25,5 +25,19 @@
       "view": "Views/Login/Index.cshtml"
     },
     "isPublic": true
+  },
+  {
+    "path": "/Register",
+    "name": "Register",
+    "files": {
+      "react": "src/pages/Register/index.page.tsx",
+      "view": "Views/Register/Index.cshtml"
+    },
+    "isPublic": false,
+    "isGuestOnly": true,
+    "seo": {
+      "title": "Register",
+      "description": "Page for Register"
+    }
   }
 ]

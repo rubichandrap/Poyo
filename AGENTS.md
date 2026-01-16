@@ -64,6 +64,11 @@ Poyo is intentionally minimal. It provides:
 - `[ServerData]` - Injects data to `window.SERVER_DATA`
 - `[Authorize]` - Requires authentication (built-in)
 
+**Guest Routes:**
+- Use CLI: `npm run route:add -- /Register --guest`
+- Maps to `PageController.GuestIndex`
+- Redirects authenticated users to `/Dashboard`
+
 **Middleware:**
 - `GlobalExceptionHandler` - Catches unhandled exceptions
 - Cookie authentication - Simple demo auth
@@ -267,7 +272,24 @@ npm run route:add YourPage
 3. Create `Views/YourPage/Index.cshtml`
 4. Create controller if needed (or use CLI `--controller` flag)
 
-### 4.3. SEO Configuration
+### 4.3. Removing Routes
+
+**CLI:**
+```bash
+npm run route:remove YourPage
+```
+*   **Behavior**: Will prompt to delete the React page and View file. You can answer 'y' to clean up everything.
+
+### 4.4. Syncing Routes
+
+**CLI:**
+```bash
+npm run route:sync
+```
+*   **Forward Sync**: Fixes missing files (offers to `Rescaffold`).
+*   **Reverse Sync**: Detects untracked files (React pages not in `routes.json`) and offers to `Add` them. Useful if you manually created a file and forgot to register the route.
+
+### 4.5. SEO Configuration
 - Add `"seo"` object to route in `routes.json`.
 - Supports `title`, `description`, `meta` (dictionary), and `jsonld`.
 
