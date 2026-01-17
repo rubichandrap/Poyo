@@ -54,7 +54,7 @@
 		"server:watch": "npm run watch --workspace=Poyo.Server",
 		"server:publish": "npm run publish --workspace=Poyo.Server",
 		"restore": "npm run install && npm run server:restore",
-		"dev": "npm run client:dev",
+		"dev": "npm run server:dev",
 		"build": "npm run client:build && node ./scripts/generate-manifest.js && npm run server:build",
 		"lint": "biome lint .",
 		"lint:fix": "biome lint . --write",

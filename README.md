@@ -120,7 +120,6 @@ npx @rubichandrap/create-poyo-app MyApp
 cd MyApp
 
 # Install dependencies (React + .NET)
-npm install
 npm run restore
 
 # Run development servers
