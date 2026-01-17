@@ -502,6 +502,16 @@ npm run route:add User/Profile
 npm run route:add -- /Register --guest
 ```
 
+**New Recommended Method (Go CLI):**
+```bash
+# Windows
+.\poyo.ps1 route add /User/Profile --guest
+
+# Mac/Linux
+./poyo route add /User/Profile --guest
+```
+
+
 **What this command does:**
 1.  **Updates `routes.json`**: Adds entry mapping `/User/Profile` to the React page and Razor view.
 2.  **Scaffolds React Page**: Creates `poyo.client/src/pages/User/Profile/index.page.tsx`.
@@ -518,6 +528,9 @@ npm run route:remove User/Profile
 **Sync routes:**
 ```bash
 npm run route:sync
+
+# OR via poyo CLI
+.\poyo.ps1 route sync
 ```
 *   **Forward Sync**: Checks for missing files and offers Rescaffold/Prune.
 *   **Reverse Sync**: Checks for "untracked" files (React pages not in `routes.json`) and offers to Add/Delete them.
@@ -535,10 +548,13 @@ npm run generate:dtos    # Generate TypeScript types from OpenAPI
 npm run generate:schemas # Generate Zod schemas from DTOs
 npm run generate:dtos    # Generate TypeScript types from OpenAPI
 npm run generate:schemas # Generate Zod schemas from DTOs
-npm run route:add        # Add new route (supports --controller, --action, --no-view)
-npm run route:sync       # Sync routes with files
-npm run lint             # Run linter
-npm run format           # Check formatting
+# Legacy Scripts (Node.js) - Will be deprecated
+npm run route:add        # Add new route
+npm run route:sync       # Sync routes
+
+# New CLI (Go) - Recommended
+./poyo route sync        # Faster, interactive sync
+./poyo route add ...     # Robust scaffolding
 ```
 
 ### Server (`Poyo.Server/`)
@@ -582,3 +598,5 @@ MIT License - Use freely for any purpose
 ---
 
 **Built with ❤️ for developers who want control over their stack**
+
+See [tools/poyo/README.md](tools/poyo/README.md) for detailed build instructions.

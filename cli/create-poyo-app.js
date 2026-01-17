@@ -3,8 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { Command } from "commander";
 import { input } from "@inquirer/prompts";
+import { Command } from "commander";
 
 // Utilities
 const __filename = fileURLToPath(import.meta.url);
@@ -27,7 +27,9 @@ const EXCLUDED_FILES = [
 	"publish",
 	"package-lock.json",
 	"cli",
+	"dist",
 ];
+const PRESERVED_FILES = ["tools", "poyo.ps1", "poyo", ".git"];
 
 const BINARY_EXTENSIONS = [
 	".dll",
@@ -109,6 +111,8 @@ function processProject(dir, rules) {
 	const items = fs.readdirSync(dir);
 
 	for (const item of items) {
+		if (PRESERVED_FILES.includes(item)) continue;
+
 		const fullPath = path.join(dir, item);
 		const stats = fs.statSync(fullPath);
 

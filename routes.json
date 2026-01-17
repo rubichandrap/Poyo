@@ -14,8 +14,7 @@
 		"files": {
 			"react": "src/pages/Dashboard/index.page.tsx",
 			"view": "Views/Dashboard/Index.cshtml"
-		},
-		"isPublic": false
+		}
 	},
 	{
 		"path": "/Login",
@@ -33,11 +32,10 @@
 			"react": "src/pages/Register/index.page.tsx",
 			"view": "Views/Register/Index.cshtml"
 		},
-		"isPublic": false,
 		"isGuestOnly": true,
 		"seo": {
-			"title": "Register",
-			"description": "Page for Register"
+			"description": "Page for Register",
+			"title": "Register"
 		}
 	}
 ]

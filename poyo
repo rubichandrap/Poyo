@@ -1,0 +1,35 @@
+#!/bin/sh
+# Wrapper script to run the correct Poyo CLI binary for the current platform
+
+# Resolve project root (directory of this script)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BIN_DIR="$SCRIPT_DIR/tools/poyo/bin"
+
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+
+BINARY=""
+
+if [ "$OS" = "darwin" ]; then
+    if [ "$ARCH" = "arm64" ]; then
+        BINARY="$BIN_DIR/poyo-darwin-arm64"
+    else
+        BINARY="$BIN_DIR/poyo-darwin-amd64"
+    fi
+elif [ "$OS" = "linux" ]; then
+    BINARY="$BIN_DIR/poyo-linux-amd64"
+elif [[ "$OS" == *"mingw"* ]] || [[ "$OS" == *"cygwin"* ]] || [[ "$OS" == *"msys"* ]]; then
+     # In case running from Git Bash on Windows
+     BINARY="$BIN_DIR/poyo-windows-amd64.exe"
+else
+    echo "Unsupported OS: $OS"
+    exit 1
+fi
+
+if [ ! -f "$BINARY" ]; then
+    echo "Error: Binary not found at $BINARY"
+    echo "Please ensure you have built the tools using 'go build' inside poyo-cli/"
+    exit 1
+fi
+
+"$BINARY" "$@"
