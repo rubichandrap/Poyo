@@ -47,13 +47,22 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	}
 
 	// Normalize path: /foo/bar -> /Foo/Bar (PascalCase)
+	// We want to preserve existing casing if provided (e.g. /UserProfile -> /UserProfile),
+	// but ensure the first letter of each segment is uppercase.
 	parts := strings.Split(urlPath, "/")
 	var pascalParts []string
 	for _, p := range parts {
 		if p == "" {
 			continue
 		}
-		pascalParts = append(pascalParts, strings.Title(strings.ToLower(p)))
+		// Only uppercase the first character, leave the rest alone.
+		// unicode.ToUpper is better for international support but generic ToTitle/ToUpper is fine here.
+		// simple string manipulation:
+		if len(p) > 0 {
+			first := strings.ToUpper(p[:1])
+			rest := p[1:]
+			pascalParts = append(pascalParts, first+rest)
+		}
 	}
 	pascalPath := "/" + strings.Join(pascalParts, "/")
 	name := strings.Join(pascalParts, "/")
@@ -106,7 +115,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	// Scaffold Files first? Or update JSON first?
 	// Node script: scaffold then write? No, logic was mixed.
 	// But scaffold logic for controller returns the "Safe" Controller Name.
-	
+
 	if controllerInfo != nil {
 		safeName, err := scaffold.EnsureController(
 			config.ControllersDir,
@@ -118,8 +127,8 @@ func runAdd(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		// Update with ensuring "Controller" suffix
-		newRoute.Controller = strings.TrimSuffix(safeName, ".cs") 
-		// Actually EnsureController returns name with suffix if file created/found? 
+		newRoute.Controller = strings.TrimSuffix(safeName, ".cs")
+		// Actually EnsureController returns name with suffix if file created/found?
 		// Wait, EnsureController returns `name` (argument) or updated.
 		// My implementation of EnsureController returns just `name` or `name+"Controller"`.
 		// Let's verify EnsureController returns.
@@ -130,7 +139,7 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	if err := routes.Write(config.RoutesJSON, r); err != nil {
 		return err
 	}
-	
+
 	opt := scaffold.ScaffoldOptions{NoView: addNoView}
 	// We pass nil for controller here because we arguably already handled it above for the Route struct?
 	// But ScaffoldRouteFiles ALSO calls EnsureController?
@@ -144,24 +153,24 @@ func runAdd(cmd *cobra.Command, args []string) error {
 	// Or I can update JSON after.
 	// Let's rely on ScaffoldRouteFiles to handle the controller file.
 	// But I need to know the SafeName for JSON.
-	
+
 	// Refined approach matches Node logic better:
 	// Node script:
 	// 1. Prepare Route object (with preliminary controller info)
 	// 2. If controller, ensure it AND update object.controller
 	// 3. routes.push(); writeRoutes();
 	// 4. scaffoldRouteFiles();
-	
+
 	// My implementation:
 	// I'll skip passing controller to ScaffoldRouteFiles if I do it manually here.
 	// OR I remove the manual call here and do it via ScaffoldRouteFiles?
 	// The problem is updating the JSON with the correct controller name (e.g. adding "Controller" suffix).
 	// I will keep the explicit EnsureController call here to get the name, and pass nil to ScaffoldRouteFiles for controller to avoid double log/work.
-	
+
 	if err := scaffold.ScaffoldRouteFiles(name, files, opt, nil); err != nil {
 		return err
 	}
-	
+
 	fmt.Printf("[SUCCESS] Added route %s\n", pascalPath)
 	return nil
 }
