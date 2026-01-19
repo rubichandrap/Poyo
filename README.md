@@ -502,7 +502,7 @@ npm run route:add User/Profile
 npm run route:add -- /Register --guest
 ```
 
-**New Recommended Method (Go CLI):**
+**Poyo CLI:**
 ```bash
 # Windows
 .\poyo.ps1 route add /User/Profile --guest
@@ -522,6 +522,13 @@ npm run route:add -- /Register --guest
 **Remove route:**
 ```bash
 npm run route:remove User/Profile
+
+# OR via poyo CLI
+# Windows
+.\poyo.ps1 route remove User/Profile
+
+# Mac/Linux
+./poyo route remove User/Profile
 ```
 *   **Safe Deletion**: Prompts to optionally delete both the React page and MVC View (and empty folders).
 
@@ -530,7 +537,11 @@ npm run route:remove User/Profile
 npm run route:sync
 
 # OR via poyo CLI
+# Windows
 .\poyo.ps1 route sync
+
+# Mac/Linux
+./poyo route sync
 ```
 *   **Forward Sync**: Checks for missing files and offers Rescaffold/Prune.
 *   **Reverse Sync**: Checks for "untracked" files (React pages not in `routes.json`) and offers to Add/Delete them.
