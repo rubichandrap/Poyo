@@ -123,7 +123,7 @@ cd MyApp
 npm run restore
 
 # Run development servers
-npm run dev
+npm run dev:watch
 ```
 
 ### Demo Credentials
