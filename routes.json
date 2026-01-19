@@ -37,29 +37,5 @@
 			"description": "Page for Register",
 			"title": "Register"
 		}
-	},
-	{
-		"path": "/TestFromNpm/TestFlat",
-		"name": "TestFromNpm/TestFlat",
-		"files": {
-			"react": "src/pages/TestFromNpm/testflat.page.tsx",
-			"view": "Views/TestFromNpm/TestFlat.cshtml"
-		},
-		"seo": {
-			"description": "Page for TestFromNpm/TestFlat",
-			"title": "TestFromNpm/TestFlat"
-		}
-	},
-	{
-		"path": "/Testfromcli/Testflat",
-		"name": "Testfromcli/Testflat",
-		"files": {
-			"react": "src/pages/Testfromcli/testflat.page.tsx",
-			"view": "Views/Testfromcli/Testflat.cshtml"
-		},
-		"seo": {
-			"description": "Page for Testfromcli/Testflat",
-			"title": "Testfromcli/Testflat"
-		}
 	}
 ]

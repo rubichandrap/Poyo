@@ -9,7 +9,9 @@ interface RouteEntry {
 		react: string;
 		view: string;
 	};
-	isPublic: boolean;
+	isPublic?: boolean;
+	isGuestOnly?: boolean;
+	seo?: Record<string, unknown>;
 }
 
 const routeManifest = routeManifestData as RouteEntry[];
