@@ -29,10 +29,6 @@
 	"bin": {
 		"create-poyo-app": "cli/create-poyo-app.js"
 	},
-	"workspaces": [
-		"poyo.client",
-		"Poyo.Server"
-	],
 	"scripts": {
 		"prepare": "husky",
 		"client:dev": "pnpm --filter ./poyo.client dev",

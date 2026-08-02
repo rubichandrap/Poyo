@@ -320,7 +320,6 @@ Poyo.Server/Views/Shared/_ReactAssets.cshtml
 !tools/poyo/bin/poyo-darwin-arm64
 
 # AI artifacts
-# AI artifacts
 .agents
 !.agents/.gitkeep
 .claude
