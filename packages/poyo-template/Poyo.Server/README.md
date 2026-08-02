@@ -47,14 +47,14 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 ### 1. Hybrid Routing (`routes.json`)
 
-Poyo uses a unique hybrid routing system. Routes are defined in `routes.json` (at the root of the repo) and are dynamically mapped to `PageController`.
+Poyo uses a unique hybrid routing system. Routes are defined in `routes.json` (at the template root, the parent of this folder) and are dynamically mapped to `PageController`.
 
 - **Dynamic Routes**: Most pages use generic routing mapped to React pages.
 - **Manual Routes**: You can still create standard MVC controllers (`Home`, `Login`) for specific needs.
 
 **Adding a Route:**
 ```bash
-# Run from ROOT directory
+# Run from the template ROOT directory
 pnpm run route:add [FeatureName]
 ```
 

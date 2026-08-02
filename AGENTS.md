@@ -261,7 +261,7 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 ### 4.2. Adding Routes
 
-**CLI:**
+**CLI** (run from `packages/poyo-template/`, or from the repo root via `pnpm --filter poyo-template run`):
 ```bash
 pnpm run route:add YourPage
 ```
@@ -274,7 +274,7 @@ pnpm run route:add YourPage
 
 ### 4.3. Removing Routes
 
-**CLI:**
+**CLI** (run from `packages/poyo-template/`, or from the repo root via `pnpm --filter poyo-template run`):
 ```bash
 pnpm run route:remove YourPage
 ```
@@ -282,7 +282,7 @@ pnpm run route:remove YourPage
 
 ### 4.4. Syncing Routes
 
-**CLI:**
+**CLI** (run from `packages/poyo-template/`, or from the repo root via `pnpm --filter poyo-template run`):
 ```bash
 pnpm run route:sync
 ```
@@ -300,7 +300,7 @@ pnpm run route:sync
 ### 5.1. DTOs from OpenAPI
 
 ```bash
-pnpm run generate:dtos
+pnpm --filter poyo-template run client:generate:dtos
 ```
 
 Generates TypeScript types from `/openapi/v1.json`
@@ -308,7 +308,7 @@ Generates TypeScript types from `/openapi/v1.json`
 ### 5.2. Zod Schemas
 
 ```bash
-pnpm run generate:schemas
+pnpm --filter poyo-template run client:generate:schemas
 ```
 
 Generates Zod validation schemas from DTOs
@@ -371,11 +371,11 @@ Generates Zod validation schemas from DTOs
 
 ```bash
 # Client
-cd poyo.client
+cd packages/poyo-template/poyo.client
 pnpm run build
 
 # Server
-cd Poyo.Server
+cd packages/poyo-template/Poyo.Server
 dotnet publish -c Release
 ```
 

@@ -1,71 +1,15 @@
 {
-	"name": "@rubichandrap/create-poyo-app",
+	"name": "poyo",
 	"version": "0.0.3",
-	"private": false,
-	"type": "module",
-	"description": "A minimal React + .NET 10 Multi-Page Application (MPA) starter framework. Features server-side routing, type-safe API integration, and zero-config HMR.",
-	"homepage": "https://github.com/rubichandrap/Poyo#readme",
-	"bugs": {
-		"url": "https://github.com/rubichandrap/Poyo/issues"
-	},
+	"private": true,
+	"description": "Poyo monorepo: tooling packages plus the poyo-template skeleton.",
 	"license": "MIT",
-	"author": "rubichandrap",
-	"keywords": [
-		"react",
-		"dotnet",
-		"aspnet-core",
-		"mpa",
-		"starter",
-		"template",
-		"vite",
-		"typescript",
-		"csharp",
-		"mvc"
-	],
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/rubichandrap/Poyo.git"
-	},
-	"bin": {
-		"create-poyo-app": "cli/create-poyo-app.js"
-	},
 	"scripts": {
 		"prepare": "husky",
-		"client:dev": "pnpm --filter ./poyo.client dev",
-		"client:build": "pnpm --filter ./poyo.client build",
-		"client:preview": "pnpm --filter ./poyo.client preview",
-		"client:type-check": "pnpm --filter ./poyo.client type-check",
-		"client:lint": "pnpm --filter ./poyo.client lint",
-		"client:lint:fix": "pnpm --filter ./poyo.client lint:fix",
-		"client:format": "pnpm --filter ./poyo.client format",
-		"client:format:fix": "pnpm --filter ./poyo.client format:fix",
-		"client:generate": "pnpm run client:generate:dtos && pnpm run client:generate:schemas",
-		"client:generate:dtos": "pnpm --filter ./poyo.client generate:dtos",
-		"client:generate:schemas": "pnpm --filter ./poyo.client generate:schemas",
-		"server:restore": "pnpm --filter ./Poyo.Server restore",
-		"server:dev": "pnpm --filter ./Poyo.Server dev",
-		"server:build": "pnpm --filter ./Poyo.Server build",
-		"server:format": "pnpm --filter ./Poyo.Server format",
-		"server:format:fix": "pnpm --filter ./Poyo.Server format:fix",
-		"server:watch": "pnpm --filter ./Poyo.Server watch",
-		"server:publish": "pnpm --filter ./Poyo.Server publish",
-		"restore": "pnpm install && pnpm run server:restore",
-		"dev": "pnpm run client:dev",
-		"dev:watch": "pnpm run server:watch",
-		"build": "pnpm run client:build && node ./scripts/generate-manifest.js && pnpm run server:build",
 		"lint": "biome lint .",
 		"lint:fix": "biome lint . --write",
-		"format": "biome format . && pnpm run server:format",
-		"format:fix": "biome format . --write && pnpm run server:format:fix",
-		"generate": "pnpm run client:generate",
-		"route:add": "node ./scripts/manage-routes.js add",
-		"route:remove": "node ./scripts/manage-routes.js remove",
-		"route:update": "node ./scripts/manage-routes.js update",
-		"route:sync": "node ./scripts/manage-routes.js sync"
-	},
-	"dependencies": {
-		"@inquirer/prompts": "8.2.0",
-		"commander": "14.0.2"
+		"format": "biome format . && pnpm --filter poyo-template run server:format",
+		"format:fix": "biome format . --write && pnpm --filter poyo-template run server:format:fix"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.11",

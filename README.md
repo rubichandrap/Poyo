@@ -85,21 +85,26 @@ generate-manifest.js creates _ReactAssets.cshtml
 
 ```
 Poyo/
-├── Poyo.Server/              # .NET 10 Server
-│   ├── Controllers/          # MVC + API Controllers
-│   ├── Middleware/           # Auth, Error handling
-│   ├── Models/               # DTOs
-│   ├── Services/             # Business logic
-│   └── Views/                # Razor views
-│
-└── poyo.client/              # React Client
-    ├── src/
-    │   ├── pages/            # React pages
-    │   ├── hooks/            # Custom hooks (usePage, etc.)
-    │   ├── hooks-api/        # TanStack Query hooks
-    │   ├── services/         # API services
-    │   └── providers/        # Context providers
-    └── scripts/              # Code generation tools
+└── packages/
+    └── poyo-template/        # The skeleton (developed live)
+        ├── package.json      # Template scripts (dev, build, route:*)
+        ├── routes.json       # Routes registry
+        ├── scripts/          # Old Node route/build implementations
+        ├── Poyo.slnx         # .NET solution
+        ├── Poyo.Server/      # .NET 10 Server
+        │   ├── Controllers/  # MVC + API Controllers
+        │   ├── Middleware/   # Auth, Error handling
+        │   ├── Models/       # DTOs
+        │   ├── Services/     # Business logic
+        │   └── Views/        # Razor views
+        └── poyo.client/      # React Client
+            ├── src/
+            │   ├── pages/    # React pages
+            │   ├── hooks/    # Custom hooks (usePage, etc.)
+            │   ├── hooks-api/# TanStack Query hooks
+            │   ├── services/ # API services
+            │   └── providers/# Context providers
+            └── scripts/      # Code generation tools
 ```
 
 ---
@@ -502,14 +507,12 @@ pnpm run route:add User/Profile
 pnpm run route:add -- /Register --guest
 ```
 
-**Poyo CLI:**
+**Route commands from the monorepo:**
 ```bash
-# Windows
-.\poyo.ps1 route add /User/Profile --guest
-
-# Mac/Linux
-./poyo route add /User/Profile --guest
+# From the repo root (template development)
+pnpm --filter poyo-template run route:add /User/Profile --guest
 ```
+*   In a generated project, run `pnpm run route:add /User/Profile --guest` directly from the project root.
 
 
 **What this command does:**
@@ -522,26 +525,12 @@ pnpm run route:add -- /Register --guest
 **Remove route:**
 ```bash
 pnpm run route:remove User/Profile
-
-# OR via poyo CLI
-# Windows
-.\poyo.ps1 route remove User/Profile
-
-# Mac/Linux
-./poyo route remove User/Profile
 ```
 *   **Safe Deletion**: Prompts to optionally delete both the React page and MVC View (and empty folders).
 
 **Sync routes:**
 ```bash
 pnpm run route:sync
-
-# OR via poyo CLI
-# Windows
-.\poyo.ps1 route sync
-
-# Mac/Linux
-./poyo route sync
 ```
 *   **Forward Sync**: Checks for missing files and offers Rescaffold/Prune.
 *   **Reverse Sync**: Checks for "untracked" files (React pages not in `routes.json`) and offers to Add/Delete them.
@@ -550,7 +539,7 @@ pnpm run route:sync
 
 ## 📝 Scripts
 
-### Client (`poyo.client/`)
+### Client (`packages/poyo-template/poyo.client/`)
 ```bash
 pnpm run dev              # Start dev server
 pnpm run build            # Build for production
@@ -559,16 +548,17 @@ pnpm run generate:dtos    # Generate TypeScript types from OpenAPI
 pnpm run generate:schemas # Generate Zod schemas from DTOs
 pnpm run generate:dtos    # Generate TypeScript types from OpenAPI
 pnpm run generate:schemas # Generate Zod schemas from DTOs
-# Legacy Scripts (Node.js) - Will be deprecated
-pnpm run route:add        # Add new route
-pnpm run route:sync       # Sync routes
-
-# New CLI (Go) - Recommended
-./poyo route sync        # Faster, interactive sync
-./poyo route add ...     # Robust scaffolding
 ```
 
-### Server (`Poyo.Server/`)
+### Route Management (Node)
+```bash
+pnpm run route:add        # Add new route
+pnpm run route:remove     # Remove a route
+pnpm run route:update     # Toggle route visibility
+pnpm run route:sync       # Sync routes
+```
+
+### Server (`packages/poyo-template/Poyo.Server/`)
 ```bash
 pnpm run dev              # Start server (dotnet run)
 pnpm run build            # Build project (dotnet build)
@@ -609,5 +599,3 @@ MIT License - Use freely for any purpose
 ---
 
 **Built with ❤️ for developers who want control over their stack**
-
-See [tools/poyo/README.md](tools/poyo/README.md) for detailed build instructions.

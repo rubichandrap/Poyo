@@ -307,17 +307,10 @@ appsettings.Staging.json
 secrets.json
 
 # Auto-generated React build folders
-Poyo.Server/wwwroot/generated/
-Poyo.Server/wwwroot/manifest.json
-Poyo.Server/wwwroot/index.html
-Poyo.Server/Views/Shared/_ReactAssets.cshtml
-
-# Tools Binaries (Force Track)
-!tools/poyo/bin/
-!tools/poyo/bin/poyo-windows-amd64.exe
-!tools/poyo/bin/poyo-linux-amd64
-!tools/poyo/bin/poyo-darwin-amd64
-!tools/poyo/bin/poyo-darwin-arm64
+packages/poyo-template/Poyo.Server/wwwroot/generated/
+packages/poyo-template/Poyo.Server/wwwroot/manifest.json
+packages/poyo-template/Poyo.Server/wwwroot/index.html
+packages/poyo-template/Poyo.Server/Views/Shared/_ReactAssets.cshtml
 
 # AI artifacts
 .agents

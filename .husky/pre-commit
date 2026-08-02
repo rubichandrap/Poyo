@@ -13,7 +13,7 @@ echo "🔍 Checking running processes..."
 # --- Client Checks ---
 echo "🎨 Checking Client Compliance (Lint, Format, Types)..."
 
-cd poyo.client
+cd packages/poyo-template/poyo.client
 
 echo "👉 Running Type Check..."
 if ! pnpm run type-check; then
@@ -33,20 +33,20 @@ if ! pnpm run format; then
   exit 1
 fi
 
-cd ..
+cd ../../..
 
 # --- Server Checks ---
 echo "🧰 Restoring .NET tools (if any)..."
 dotnet tool restore || true
 
 echo "👉 Running Format Check..."
-if ! dotnet format --verify-no-changes; then
+if ! dotnet format packages/poyo-template/Poyo.Server --verify-no-changes; then
   echo "❌ Formatting issues found!"
   exit 1
 fi
 
 echo "🏗️  Building solution (Poyo.slnx)..."
-if ! dotnet build "Poyo.slnx" --no-restore --verbosity minimal; then
+if ! dotnet build "packages/poyo-template/Poyo.slnx" --no-restore --verbosity minimal; then
   echo "🔥 Build FAILED!"
   echo "🧯 Fix build errors before committing."
   exit 1

@@ -7,13 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      '@inquirer/prompts':
-        specifier: 8.2.0
-        version: 8.2.0(@types/node@24.6.0)
-      commander:
-        specifier: 14.0.2
-        version: 14.0.2
     devDependencies:
       '@biomejs/biome':
         specifier: 2.3.11
@@ -22,10 +15,22 @@ importers:
         specifier: 9.1.7
         version: 9.1.7
 
-  Poyo.Server: {}
-
-  poyo.client:
+  packages/poyo-template:
     devDependencies:
+      '@inquirer/prompts':
+        specifier: 8.2.0
+        version: 8.2.0(@types/node@24.6.0)
+      commander:
+        specifier: 14.0.2
+        version: 14.0.2
+
+  packages/poyo-template/Poyo.Server: {}
+
+  packages/poyo-template/poyo.client:
+    devDependencies:
+      '@biomejs/biome':
+        specifier: 2.3.11
+        version: 2.3.11
       '@hookform/resolvers':
         specifier: 5.2.2
         version: 5.2.2(react-hook-form@7.70.0(react@19.1.1))

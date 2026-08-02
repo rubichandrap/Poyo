@@ -74,13 +74,17 @@ export default function DashboardPage() {
 
 ### 3. Adding New Routes
 
-Routes are managed at the **Root** level of the repository.
+Routes are managed at the **Template** level (the parent of this folder).
 
 **DO NOT** manually create files in `src/pages` unless you know what you are doing.
 
-Run this command from the **Root Directory** (parent of this folder):
+Run this command from the **Template Root** (parent of this folder):
 ```bash
 pnpm run route:add User/Settings
+```
+Or, from the monorepo root:
+```bash
+pnpm --filter poyo-template run route:add User/Settings
 ```
 This will:
 1. Update `routes.json`
