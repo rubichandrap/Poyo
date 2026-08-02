@@ -51,7 +51,7 @@ User → .NET MVC → Razor View → Vite Dev Server (localhost:5173)
 
 **Production Mode:**
 ```
-npm run build
+pnpm run build
   ↓
 Vite compiles React → wwwroot/generated/index-[hash].js
   ↓
@@ -120,10 +120,10 @@ npx @rubichandrap/create-poyo-app MyApp
 cd MyApp
 
 # Install dependencies (React + .NET)
-npm run restore
+pnpm run restore
 
 # Run development servers
-npm run dev:watch
+pnpm run dev:watch
 ```
 
 ### Demo Credentials
@@ -254,7 +254,7 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
 **CLI Commands:**
 ```bash
 # Basic Add
-npm run route:add YourPage
+pnpm run route:add YourPage
 
 # Add with Custom Controller & Action
 node scripts/manage-routes.js add /Admin --controller AdminController --action Index
@@ -409,7 +409,7 @@ Poyo includes powerful code generation tools to keep your client and server in s
 **Generates TypeScript types from OpenAPI specification**
 
 ```bash
-npm run generate:dtos
+pnpm run generate:dtos
 ```
 
 - Fetches OpenAPI spec from server
@@ -422,7 +422,7 @@ npm run generate:dtos
 **Generates Zod validation schemas from TypeScript DTOs**
 
 ```bash
-npm run generate:schemas
+pnpm run generate:schemas
 ```
 
 - Reads generated DTOs
@@ -435,7 +435,7 @@ npm run generate:schemas
 **Generates production asset manifest for server-side rendering**
 
 ```bash
-npm run generate:manifest
+pnpm run generate:manifest
 ```
 
 **Why this is CRITICAL:**
@@ -469,7 +469,7 @@ Your Razor views need to reference these files, but the filenames change with ev
 ```
 
 **How it works:**
-1. `npm run build` compiles React app
+1. `pnpm run build` compiles React app
 2. Vite creates `.vite/manifest.json` with file mappings
 3. `generate-manifest.js` reads manifest
 4. Generates `_ReactAssets.cshtml` with correct hashed filenames
@@ -485,8 +485,8 @@ Your Razor views need to reference these files, but the filenames change with ev
 ```
 
 **When it runs:**
-- ✅ Automatically after `npm run build` (via postbuild script)
-- ✅ Manually with `npm run generate:manifest`
+- ✅ Automatically after `pnpm run build` (via postbuild script)
+- ✅ Manually with `pnpm run generate:manifest`
 
 **Files involved:**
 - Input: `poyo.client/dist/.vite/manifest.json` (Vite output)
@@ -497,9 +497,9 @@ Your Razor views need to reference these files, but the filenames change with ev
 
 **Add new route:**
 ```bash
-npm run route:add User/Profile
+pnpm run route:add User/Profile
 # OR (with flags)
-npm run route:add -- /Register --guest
+pnpm run route:add -- /Register --guest
 ```
 
 **Poyo CLI:**
@@ -521,7 +521,7 @@ npm run route:add -- /Register --guest
 
 **Remove route:**
 ```bash
-npm run route:remove User/Profile
+pnpm run route:remove User/Profile
 
 # OR via poyo CLI
 # Windows
@@ -534,7 +534,7 @@ npm run route:remove User/Profile
 
 **Sync routes:**
 ```bash
-npm run route:sync
+pnpm run route:sync
 
 # OR via poyo CLI
 # Windows
@@ -552,16 +552,16 @@ npm run route:sync
 
 ### Client (`poyo.client/`)
 ```bash
-npm run dev              # Start dev server
-npm run build            # Build for production
-npm run generate         # Generate DTOs + schemas
-npm run generate:dtos    # Generate TypeScript types from OpenAPI
-npm run generate:schemas # Generate Zod schemas from DTOs
-npm run generate:dtos    # Generate TypeScript types from OpenAPI
-npm run generate:schemas # Generate Zod schemas from DTOs
+pnpm run dev              # Start dev server
+pnpm run build            # Build for production
+pnpm run generate         # Generate DTOs + schemas
+pnpm run generate:dtos    # Generate TypeScript types from OpenAPI
+pnpm run generate:schemas # Generate Zod schemas from DTOs
+pnpm run generate:dtos    # Generate TypeScript types from OpenAPI
+pnpm run generate:schemas # Generate Zod schemas from DTOs
 # Legacy Scripts (Node.js) - Will be deprecated
-npm run route:add        # Add new route
-npm run route:sync       # Sync routes
+pnpm run route:add        # Add new route
+pnpm run route:sync       # Sync routes
 
 # New CLI (Go) - Recommended
 ./poyo route sync        # Faster, interactive sync
@@ -570,12 +570,12 @@ npm run route:sync       # Sync routes
 
 ### Server (`Poyo.Server/`)
 ```bash
-npm run dev              # Start server (dotnet run)
-npm run build            # Build project (dotnet build)
-npm run format           # Check C# formatting
-npm run format:fix       # Fix C# formatting
-npm run watch            # Watch mode (dotnet watch)
-npm run publish          # Publish for production
+pnpm run dev              # Start server (dotnet run)
+pnpm run build            # Build project (dotnet build)
+pnpm run format           # Check C# formatting
+pnpm run format:fix       # Fix C# formatting
+pnpm run watch            # Watch mode (dotnet watch)
+pnpm run publish          # Publish for production
 ```
 
 ---

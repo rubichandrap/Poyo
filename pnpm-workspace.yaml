@@ -1,0 +1,3 @@
+packages:
+  - poyo.client
+  - Poyo.Server

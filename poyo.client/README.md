@@ -80,7 +80,7 @@ Routes are managed at the **Root** level of the repository.
 
 Run this command from the **Root Directory** (parent of this folder):
 ```bash
-npm run route:add User/Settings
+pnpm run route:add User/Settings
 ```
 This will:
 1. Update `routes.json`
@@ -106,7 +106,7 @@ export function useUpdateProfile() {
 We generate TypeScript types directly from the Server's OpenAPI spec.
 
 1. Ensure the server is running.
-2. Run `npm run generate` in this directory.
+2. Run `pnpm run generate` in this directory.
 3. Import types from `@/schemas/dtos.generated`.
 
 ---
@@ -115,11 +115,11 @@ We generate TypeScript types directly from the Server's OpenAPI spec.
 
 | Command | Description |
 | :--- | :--- |
-| `npm run dev` | Starts the Vite development server (HMR enabled). |
-| `npm run build` | Builds the application for production ( outputs to `dist/`). |
-| `npm run generate` | Runs both DTO and Zod schema generation. |
-| `npm run lint` | Runs Biome linting. |
-| `npm run format` | Runs Biome formatting. |
+| `pnpm run dev` | Starts the Vite development server (HMR enabled). |
+| `pnpm run build` | Builds the application for production ( outputs to `dist/`). |
+| `pnpm run generate` | Runs both DTO and Zod schema generation. |
+| `pnpm run lint` | Runs Biome linting. |
+| `pnpm run format` | Runs Biome formatting. |
 
 ---
 

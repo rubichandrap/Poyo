@@ -50,7 +50,7 @@ Poyo is intentionally minimal. It provides:
 **Custom Controllers**
 - **Purpose**: Complex page logic, specialized data fetching, or custom view rendering.
 - **Usage**: Map in `routes.json` via `"controller"` property.
-- **CLI**: Use `npm run route:add ... --controller MyController` to generate.
+- **CLI**: Use `pnpm run route:add ... --controller MyController` to generate.
 
 ### 2.2. SEO & Metadata
 - **Configuration**: Managed in `routes.json` under `"seo"` object.
@@ -65,7 +65,7 @@ Poyo is intentionally minimal. It provides:
 - `[Authorize]` - Requires authentication (built-in)
 
 **Guest Routes:**
-- Use CLI: `npm run route:add -- /Register --guest`
+- Use CLI: `pnpm run route:add -- /Register --guest`
 - Maps to `PageController.GuestIndex`
 - Redirects authenticated users to `/Dashboard`
 
@@ -263,7 +263,7 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 **CLI:**
 ```bash
-npm run route:add YourPage
+pnpm run route:add YourPage
 ```
 
 **Manual:**
@@ -276,7 +276,7 @@ npm run route:add YourPage
 
 **CLI:**
 ```bash
-npm run route:remove YourPage
+pnpm run route:remove YourPage
 ```
 *   **Behavior**: Will prompt to delete the React page and View file. You can answer 'y' to clean up everything.
 
@@ -284,7 +284,7 @@ npm run route:remove YourPage
 
 **CLI:**
 ```bash
-npm run route:sync
+pnpm run route:sync
 ```
 *   **Forward Sync**: Fixes missing files (offers to `Rescaffold`).
 *   **Reverse Sync**: Detects untracked files (React pages not in `routes.json`) and offers to `Add` them. Useful if you manually created a file and forgot to register the route.
@@ -300,7 +300,7 @@ npm run route:sync
 ### 5.1. DTOs from OpenAPI
 
 ```bash
-npm run generate:dtos
+pnpm run generate:dtos
 ```
 
 Generates TypeScript types from `/openapi/v1.json`
@@ -308,7 +308,7 @@ Generates TypeScript types from `/openapi/v1.json`
 ### 5.2. Zod Schemas
 
 ```bash
-npm run generate:schemas
+pnpm run generate:schemas
 ```
 
 Generates Zod validation schemas from DTOs
@@ -372,7 +372,7 @@ Generates Zod validation schemas from DTOs
 ```bash
 # Client
 cd poyo.client
-npm run build
+pnpm run build
 
 # Server
 cd Poyo.Server

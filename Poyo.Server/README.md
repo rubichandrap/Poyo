@@ -55,7 +55,7 @@ Poyo uses a unique hybrid routing system. Routes are defined in `routes.json` (a
 **Adding a Route:**
 ```bash
 # Run from ROOT directory
-npm run route:add [FeatureName]
+pnpm run route:add [FeatureName]
 ```
 
 ### 2. Authentication
@@ -100,7 +100,7 @@ A manifest file (`_ReactAssets.cshtml`) is automatically generated during the bu
 | :--- | :--- |
 | `dotnet run` | Starts the server (usually on port 5104). |
 | `dotnet watch` | Starts the server with hot reload. |
-| `npm run build` | Builds the client and server for production (run from root). |
+| `pnpm run build` | Builds the client and server for production (run from root). |
 
 ### Configuration (`.env`)
 

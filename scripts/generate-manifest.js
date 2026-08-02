@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const viteManifestPath = path.join(
 	__dirname,
 	"..",
-	"Poyo.client",
+	"poyo.client",
 	"dist",
 	".vite",
 	"manifest.json",
@@ -80,7 +80,7 @@ if (!fs.existsSync(generatedAssetsPath)) {
 }
 
 // 5. Copy ONLY active files from dist to wwwroot/generated
-const distPath = path.join(__dirname, "..", "Poyo.client", "dist");
+const distPath = path.join(__dirname, "..", "poyo.client", "dist");
 activeFiles.forEach((file) => {
 	const srcPath = path.join(distPath, file);
 	const destPath = path.join(__dirname, "..", "Poyo.Server", "wwwroot", file);

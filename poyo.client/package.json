@@ -12,7 +12,7 @@
 		"lint:fix": "biome lint --write",
 		"format": "biome format",
 		"format:fix": "biome format --write",
-		"generate": "npm run generate:dtos && npm run generate:schemas",
+		"generate": "pnpm run generate:dtos && pnpm run generate:schemas",
 		"generate:dtos": "node scripts/generate-dtos.js",
 		"generate:schemas": "node scripts/generate-schema-validations.js"
 	},

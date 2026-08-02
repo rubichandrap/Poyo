@@ -214,9 +214,9 @@ async function create(options) {
 	console.log("\n✅ Project created successfully!");
 	console.log(`\nNext steps:`);
 	console.log(`  cd ${projectName}`);
-	console.log(`  npm install`);
-	console.log(`  npm run restore  (Restores .NET dependencies)`);
-	console.log(`  npm run dev      (Starts development servers)`);
+	console.log(`  pnpm install`);
+	console.log(`  pnpm run restore  (Restores .NET dependencies)`);
+	console.log(`  pnpm run dev      (Starts development servers)`);
 }
 
 const program = new Command();

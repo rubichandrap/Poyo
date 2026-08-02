@@ -253,9 +253,10 @@ Thumbs.db
 .env.test.local
 .env.production.local
 
-# Package manager lock files (keep package-lock.json but ignore others)
+# Package manager lock files (keep pnpm-lock.yaml but ignore others)
 yarn.lock
-pnpm-lock.yaml
+package-lock.json
+package-lock.json.*
 
 # Build artifacts
 *.tgz
@@ -317,3 +318,27 @@ Poyo.Server/Views/Shared/_ReactAssets.cshtml
 !tools/poyo/bin/poyo-linux-amd64
 !tools/poyo/bin/poyo-darwin-amd64
 !tools/poyo/bin/poyo-darwin-arm64
+
+# AI artifacts
+# AI artifacts
+.agents
+!.agents/.gitkeep
+.claude
+!.claude/.gitkeep
+.codex
+!.codex/.gitkeep
+.commandcode
+.commandcode/.gitkeep
+.gemini
+.gemini/.gitkeep
+.kiro
+.kiro/.gitkeep
+.opencode
+.opencode/.gitkeep
+
+.mcp.json
+
+skills-lock.json
+
+# Graphifyy
+graphify-out

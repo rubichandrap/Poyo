@@ -16,19 +16,19 @@ echo "🎨 Checking Client Compliance (Lint, Format, Types)..."
 cd poyo.client
 
 echo "👉 Running Type Check..."
-if ! npm run type-check; then
+if ! pnpm run type-check; then
   echo "❌ Type check failed!"
   exit 1
 fi
 
 echo "👉 Running Lint..."
-if ! npm run lint; then
+if ! pnpm run lint; then
   echo "❌ Linting failed!"
   exit 1
 fi
 
 echo "👉 Running Format Check..."
-if ! npm run format; then
+if ! pnpm run format; then
   echo "❌ Formatting issues found!"
   exit 1
 fi

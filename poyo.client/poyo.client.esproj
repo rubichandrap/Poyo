@@ -1,8 +1,10 @@
 <Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.2752196">
   <PropertyGroup>
-    <StartupCommand>npm run dev</StartupCommand>
+    <StartupCommand>pnpm run dev</StartupCommand>
     <JavaScriptTestRoot>src\</JavaScriptTestRoot>
     <JavaScriptTestFramework>Vitest</JavaScriptTestFramework>
+    <!-- Dependencies are installed by pnpm at the workspace root; the JS SDK's built-in npm install is disabled -->
+    <ShouldRunNpmInstall>false</ShouldRunNpmInstall>
     <!-- Allows the build (or compile) script located on package.json to run on Build -->
     <ShouldRunBuildScript>false</ShouldRunBuildScript>
     <!-- Folder where production build objects will be placed -->
