@@ -45,8 +45,8 @@ if ! dotnet format --verify-no-changes; then
   exit 1
 fi
 
-echo "🏗️  Building solution (Poyo.sln)..."
-if ! dotnet build "Poyo.sln" --no-restore --verbosity minimal; then
+echo "🏗️  Building solution (Poyo.slnx)..."
+if ! dotnet build "Poyo.slnx" --no-restore --verbosity minimal; then
   echo "🔥 Build FAILED!"
   echo "🧯 Fix build errors before committing."
   exit 1
