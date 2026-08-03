@@ -23,13 +23,36 @@ export function findProjectRoot(startDir = process.cwd()): string {
 	}
 }
 
+function findClientDir(root: string): string {
+	const topLevel = fs
+		.readdirSync(root)
+		.filter((entry) => fs.statSync(path.join(root, entry)).isDirectory());
+	const client = topLevel.find((entry) =>
+		fs.existsSync(path.join(root, entry, "src", "pages")),
+	);
+	return path.join(root, client ?? "poyo.client");
+}
+
+function findServerDir(root: string): string {
+	const topLevel = fs
+		.readdirSync(root)
+		.filter((entry) => fs.statSync(path.join(root, entry)).isDirectory());
+	const server = topLevel.find(
+		(entry) =>
+			fs.existsSync(path.join(root, entry, "Views")) &&
+			fs.existsSync(path.join(root, entry, "Controllers")),
+	);
+	return path.join(root, server ?? "Poyo.Server");
+}
+
 export function getPaths(root?: string): ProjectPaths {
 	const projectRoot = root ?? findProjectRoot();
+	const serverDir = findServerDir(projectRoot);
 	return {
 		root: projectRoot,
-		clientDir: path.join(projectRoot, "poyo.client"),
-		serverDir: path.join(projectRoot, "Poyo.Server"),
-		controllersDir: path.join(projectRoot, "Poyo.Server", "Controllers"),
+		clientDir: findClientDir(projectRoot),
+		serverDir,
+		controllersDir: path.join(serverDir, "Controllers"),
 		routesJsonPath: path.join(projectRoot, "routes.json"),
 	};
 }

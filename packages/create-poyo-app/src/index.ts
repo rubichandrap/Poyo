@@ -59,8 +59,10 @@ function copyRecursive(src: string, dest: string): void {
 
 	const stat = fs.statSync(src);
 	if (stat.isDirectory()) {
+		const entries = fs.readdirSync(src);
+		if (entries.length === 0) return;
 		fs.mkdirSync(dest, { recursive: true });
-		for (const entry of fs.readdirSync(src)) {
+		for (const entry of entries) {
 			copyRecursive(path.join(src, entry), path.join(dest, entry));
 		}
 		return;
@@ -181,6 +183,7 @@ export function createProject(
 export function createPoyoAppCommand(): Command {
 	return new Command("create-poyo-app")
 		.description("Scaffold a new Poyo project")
+		.version(ownVersion())
 		.argument("[project-name]", "Name of the project to create")
 		.option(
 			"--project <name>",
