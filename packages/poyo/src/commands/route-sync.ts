@@ -105,7 +105,10 @@ function inferRoutesFromUntracked(report: SyncReport): UntrackedCandidate[] {
 	return candidates;
 }
 
-function writeDiscrepancyReport(report: SyncReport): void {
+function writeDiscrepancyReport(
+	paths: ProjectPaths,
+	report: SyncReport,
+): void {
 	process.stdout.write("[WARN] Discrepancies found:\n");
 	for (const { route, missingFiles } of report.missingRoutes) {
 		process.stdout.write(
@@ -113,10 +116,14 @@ function writeDiscrepancyReport(report: SyncReport): void {
 		);
 	}
 	for (const file of report.untrackedReact) {
-		process.stdout.write(`  - untracked React page: poyo.client/${file}\n`);
+		process.stdout.write(
+			`  - untracked React page: ${paths.toProjectPath("client", file)}\n`,
+		);
 	}
 	for (const file of report.untrackedViews) {
-		process.stdout.write(`  - untracked MVC view: Poyo.Server/${file}\n`);
+		process.stdout.write(
+			`  - untracked MVC view: ${paths.toProjectPath("server", file)}\n`,
+		);
 	}
 }
 
@@ -156,7 +163,7 @@ export function syncCommand(): Command {
 				(options.delete && "delete_untracked");
 
 			if (!action) {
-				writeDiscrepancyReport(report);
+				writeDiscrepancyReport(paths, report);
 				const { select } = await import("@inquirer/prompts");
 				const choice = await select({
 					message: "How should we resolve these discrepancies?",
@@ -258,7 +265,9 @@ async function runAction(
 					`[INFO] Untracked MVC views with no matching React page (manual intervention needed):\n`,
 				);
 				for (const view of orphanViews) {
-					process.stdout.write(`  - Poyo.Server/${view}\n`);
+					process.stdout.write(
+						`  - ${paths.toProjectPath("server", view)}\n`,
+					);
 				}
 			}
 
@@ -288,7 +297,7 @@ async function runAction(
 				selected = await checkbox({
 					message: "Select files to PERMANENTLY DELETE:",
 					choices: filesToDelete.map((f) => ({
-						name: f.startsWith("src") ? `poyo.client/${f}` : `Poyo.Server/${f}`,
+						name: paths.toProjectPath(paths.resolveSide(f), f),
 						value: f,
 						checked: true,
 					})),
@@ -296,15 +305,11 @@ async function runAction(
 			}
 
 			for (const file of selected) {
-				const full = file.startsWith("src")
-					? `${paths.clientDir}/${file}`
-					: `${paths.serverDir}/${file}`;
+				const side = paths.resolveSide(file);
+				const full = path.join(paths.dirOf(side), file);
 				if (fs.existsSync(full)) {
 					fs.unlinkSync(full);
-					const root = file.startsWith("src")
-						? paths.clientDir
-						: paths.serverDir;
-					deleteEmptyParents(full, root);
+					deleteEmptyParents(full, paths.dirOf(side));
 				}
 			}
 			break;

@@ -80,11 +80,15 @@ export function removeCommand(): Command {
 				process.stdout.write(
 					`Orphaned files kept (use 'poyo route remove ${route.path} --yes' to delete them):\n`,
 				);
-				process.stdout.write(`  - poyo.client/${route.files.react}\n`);
-				process.stdout.write(`  - Poyo.Server/${route.files.view}\n`);
+				process.stdout.write(
+					`  - ${paths.toProjectPath("client", route.files.react)}\n`,
+				);
+				process.stdout.write(
+					`  - ${paths.toProjectPath("server", route.files.view)}\n`,
+				);
 				if (deleteController === false && route.controller) {
 					process.stdout.write(
-						`  - Poyo.Server/Controllers/${route.controller}.cs\n`,
+						`  - ${paths.toProjectPath("server", `Controllers/${route.controller}.cs`)}\n`,
 					);
 				}
 			}

@@ -47,11 +47,16 @@ export interface Route {
 	seo?: { title?: string; description?: string; meta?: Record<string, string> };
 }
 
-export function makeFixture(starterRoutes: Route[] = []): Fixture {
+export function makeFixture(
+	starterRoutes: Route[] = [],
+	layout: { clientDir?: string; serverDir?: string } = {},
+): Fixture {
+	const clientDir = layout.clientDir ?? "poyo.client";
+	const serverDir = layout.serverDir ?? "Poyo.Server";
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "poyo-test-"));
-	mkdirs(dir, "poyo.client/src/pages");
-	mkdirs(dir, "Poyo.Server/Views");
-	mkdirs(dir, "Poyo.Server/Controllers");
+	mkdirs(dir, `${clientDir}/src/pages`);
+	mkdirs(dir, `${serverDir}/Views`);
+	mkdirs(dir, `${serverDir}/Controllers`);
 	fs.writeFileSync(
 		path.join(dir, "routes.json"),
 		`${JSON.stringify(starterRoutes, null, 2)}\n`,
