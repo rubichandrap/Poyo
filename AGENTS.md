@@ -50,7 +50,7 @@ Poyo is intentionally minimal. It provides:
 **Custom Controllers**
 - **Purpose**: Complex page logic, specialized data fetching, or custom view rendering.
 - **Usage**: Map in `routes.json` via `"controller"` property.
-- **CLI**: Use `npm run route:add ... --controller MyController` to generate.
+- **CLI**: Use `pnpm run route:add ... --controller MyController` to generate.
 
 ### 2.2. SEO & Metadata
 - **Configuration**: Managed in `routes.json` under `"seo"` object.
@@ -65,7 +65,7 @@ Poyo is intentionally minimal. It provides:
 - `[Authorize]` - Requires authentication (built-in)
 
 **Guest Routes:**
-- Use CLI: `npm run route:add -- /Register --guest`
+- Use CLI: `pnpm run route:add -- /Register --guest`
 - Maps to `PageController.GuestIndex`
 - Redirects authenticated users to `/Dashboard`
 
@@ -261,9 +261,9 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 ### 4.2. Adding Routes
 
-**CLI:**
+**CLI** (run from `packages/poyo-template/`, or from the repo root via `pnpm --filter poyo-template run`):
 ```bash
-npm run route:add YourPage
+pnpm run route:add YourPage
 ```
 
 **Manual:**
@@ -274,17 +274,17 @@ npm run route:add YourPage
 
 ### 4.3. Removing Routes
 
-**CLI:**
+**CLI** (run from `packages/poyo-template/`, or from the repo root via `pnpm --filter poyo-template run`):
 ```bash
-npm run route:remove YourPage
+pnpm run route:remove YourPage
 ```
 *   **Behavior**: Will prompt to delete the React page and View file. You can answer 'y' to clean up everything.
 
 ### 4.4. Syncing Routes
 
-**CLI:**
+**CLI** (run from `packages/poyo-template/`, or from the repo root via `pnpm --filter poyo-template run`):
 ```bash
-npm run route:sync
+pnpm run route:sync
 ```
 *   **Forward Sync**: Fixes missing files (offers to `Rescaffold`).
 *   **Reverse Sync**: Detects untracked files (React pages not in `routes.json`) and offers to `Add` them. Useful if you manually created a file and forgot to register the route.
@@ -297,21 +297,21 @@ npm run route:sync
 
 ## 5. Code Generation
 
-### 5.1. DTOs from OpenAPI
+### 5.1. DTOs + Zod Schemas from OpenAPI
 
 ```bash
-npm run generate:dtos
+pnpm --filter poyo-template run client:generate
 ```
 
-Generates TypeScript types from `/openapi/v1.json`
+Generates TypeScript DTOs from the server OpenAPI document (via `openapi-typescript`) and Zod validation schemas from those DTOs (via `openapi-zod-client`). Reads `VITE_OPENAPI_URL` from `.env`, or pass a local file: `poyo generate ./openapi.json`.
 
-### 5.2. Zod Schemas
+### 5.2. Client Build Sync
 
 ```bash
-npm run generate:schemas
+pnpm --filter poyo-template run build
 ```
 
-Generates Zod validation schemas from DTOs
+`poyo build` reads the Vite manifest, copies active assets into `wwwroot/generated`, prunes stale files, and rewrites `_ReactAssets.cshtml` with the current entry JS/CSS.
 
 ---
 
@@ -371,11 +371,11 @@ Generates Zod validation schemas from DTOs
 
 ```bash
 # Client
-cd poyo.client
-npm run build
+cd packages/poyo-template/poyo.client
+pnpm run build
 
 # Server
-cd Poyo.Server
+cd packages/poyo-template/Poyo.Server
 dotnet publish -c Release
 ```
 
@@ -388,6 +388,14 @@ dotnet publish -c Release
 **Optional:**
 - `ConnectionStrings__DB` (if using database)
 - Add your own as needed
+
+### 8.3. Publishing the Three Packages (lockstep)
+
+All three packages share one version and are published together from a git tag.
+
+1. **Bump the version** in all three `package.json` files (`packages/poyo-template`, `packages/poyo`, `packages/create-poyo-app`) to the same value.
+2. **Verify** with `pnpm run release:check` (zero-arg lockstep check) or `node scripts/assert-release-version.mjs <version>`.
+3. **Cut a tag** `v<version>` and push it. `.github/workflows/release.yml` runs: install, `tsc` build, asserts versions match the tag, fails if the version is already on npm, then publishes all three with provenance (npm Trusted Publishing — no token needed).
 
 ---
 

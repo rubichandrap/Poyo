@@ -51,11 +51,11 @@ User → .NET MVC → Razor View → Vite Dev Server (localhost:5173)
 
 **Production Mode:**
 ```
-npm run build
+pnpm run build
   ↓
 Vite compiles React → wwwroot/generated/index-[hash].js
   ↓
-generate-manifest.js creates _ReactAssets.cshtml
+poyo build creates _ReactAssets.cshtml
   ↓
 .NET MVC serves from wwwroot/ with correct hashed filenames ✅
 ```
@@ -85,21 +85,26 @@ generate-manifest.js creates _ReactAssets.cshtml
 
 ```
 Poyo/
-├── Poyo.Server/              # .NET 10 Server
-│   ├── Controllers/          # MVC + API Controllers
-│   ├── Middleware/           # Auth, Error handling
-│   ├── Models/               # DTOs
-│   ├── Services/             # Business logic
-│   └── Views/                # Razor views
-│
-└── poyo.client/              # React Client
-    ├── src/
-    │   ├── pages/            # React pages
-    │   ├── hooks/            # Custom hooks (usePage, etc.)
-    │   ├── hooks-api/        # TanStack Query hooks
-    │   ├── services/         # API services
-    │   └── providers/        # Context providers
-    └── scripts/              # Code generation tools
+└── packages/
+    └── poyo-template/        # The skeleton (developed live)
+        ├── package.json      # Template scripts (dev, build, route:*)
+        ├── routes.json       # Routes registry
+        ├── scripts/          # Old Node route/build implementations
+        ├── Poyo.slnx         # .NET solution
+        ├── Poyo.Server/      # .NET 10 Server
+        │   ├── Controllers/  # MVC + API Controllers
+        │   ├── Middleware/   # Auth, Error handling
+        │   ├── Models/       # DTOs
+        │   ├── Services/     # Business logic
+        │   └── Views/        # Razor views
+        └── poyo.client/      # React Client
+            ├── src/
+            │   ├── pages/    # React pages
+            │   ├── hooks/    # Custom hooks (usePage, etc.)
+            │   ├── hooks-api/# TanStack Query hooks
+            │   ├── services/ # API services
+            │   └── providers/# Context providers
+            └── scripts/      # Code generation tools
 ```
 
 ---
@@ -120,10 +125,10 @@ npx @rubichandrap/create-poyo-app MyApp
 cd MyApp
 
 # Install dependencies (React + .NET)
-npm run restore
+pnpm run restore
 
 # Run development servers
-npm run dev:watch
+pnpm run dev:watch
 ```
 
 ### Demo Credentials
@@ -254,13 +259,13 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
 **CLI Commands:**
 ```bash
 # Basic Add
-npm run route:add YourPage
+pnpm run route:add YourPage
 
 # Add with Custom Controller & Action
-node scripts/manage-routes.js add /Admin --controller AdminController --action Index
+pnpm run route:add /Admin --controller AdminController --action Index
 
 # Skip View Generation (if controller handles it)
-node scripts/manage-routes.js add /API/Proxy --controller ApiController --action Proxy --no-view
+pnpm run route:add /API/Proxy --controller ApiController --action Proxy --no-view
 ```
 
 ### 3. Flexible SEO System
@@ -404,38 +409,27 @@ Update Tailwind configuration in `poyo.client/src/index.css`:
 
 Poyo includes powerful code generation tools to keep your client and server in sync.
 
-### 1. DTO Generation
+### 1. DTO + Validation Schema Generation
 
-**Generates TypeScript types from OpenAPI specification**
+**Generates TypeScript DTOs and Zod schemas from the server's OpenAPI document**
 
 ```bash
-npm run generate:dtos
+pnpm run client:generate
 ```
 
-- Fetches OpenAPI spec from server
+- Fetches the OpenAPI spec (from `VITE_OPENAPI_URL` or a local file argument)
 - Generates TypeScript types using `openapi-typescript`
-- Outputs to `src/schemas/dtos.generated.ts`
-- **Requires:** Server running + `VITE_OPENAPI_URL` in `.env`
-
-### 2. Validation Schema Generation
-
-**Generates Zod validation schemas from TypeScript DTOs**
-
-```bash
-npm run generate:schemas
-```
-
-- Reads generated DTOs
-- Creates Zod schemas using `ts-to-zod`
-- Outputs to `src/schemas/validations.generated.ts`
-- Use in forms with `zodResolver`
+- Creates Zod validation schemas using `openapi-zod-client`
+- Outputs to `src/schemas/dtos.generated.ts` and `src/schemas/validations.generated.ts`
+- **Requires:** Server running + `VITE_OPENAPI_URL` in `.env` (or pass a file: `poyo generate ./openapi.json`)
+- Use the generated schemas in forms with `zodResolver`
 
 ### 3. Manifest Generation ⚠️ CRITICAL FOR PRODUCTION
 
 **Generates production asset manifest for server-side rendering**
 
 ```bash
-npm run generate:manifest
+pnpm run generate:manifest
 ```
 
 **Why this is CRITICAL:**
@@ -458,7 +452,7 @@ dist/generated/
 Your Razor views need to reference these files, but the filenames change with every build!
 
 **The Solution:**
-`generate-manifest.js` reads Vite's manifest and generates `_ReactAssets.cshtml`:
+`poyo build` reads Vite's manifest and generates `_ReactAssets.cshtml`:
 
 ```cshtml
 <!-- Auto-generated - DO NOT EDIT -->
@@ -469,9 +463,9 @@ Your Razor views need to reference these files, but the filenames change with ev
 ```
 
 **How it works:**
-1. `npm run build` compiles React app
+1. `pnpm run build` compiles React app
 2. Vite creates `.vite/manifest.json` with file mappings
-3. `generate-manifest.js` reads manifest
+3. `poyo build` reads manifest
 4. Generates `_ReactAssets.cshtml` with correct hashed filenames
 5. `_Layout.cshtml` includes this partial in production
 6. **Your app loads with correct assets!**
@@ -485,8 +479,8 @@ Your Razor views need to reference these files, but the filenames change with ev
 ```
 
 **When it runs:**
-- ✅ Automatically after `npm run build` (via postbuild script)
-- ✅ Manually with `npm run generate:manifest`
+- ✅ Automatically after `pnpm run build` (via postbuild script)
+- ✅ Manually with `pnpm run generate:manifest`
 
 **Files involved:**
 - Input: `poyo.client/dist/.vite/manifest.json` (Vite output)
@@ -497,19 +491,17 @@ Your Razor views need to reference these files, but the filenames change with ev
 
 **Add new route:**
 ```bash
-npm run route:add User/Profile
+pnpm run route:add User/Profile
 # OR (with flags)
-npm run route:add -- /Register --guest
+pnpm run route:add -- /Register --guest
 ```
 
-**Poyo CLI:**
+**Route commands from the monorepo:**
 ```bash
-# Windows
-.\poyo.ps1 route add /User/Profile --guest
-
-# Mac/Linux
-./poyo route add /User/Profile --guest
+# From the repo root (template development)
+pnpm --filter poyo-template run route:add /User/Profile --guest
 ```
+*   In a generated project, run `pnpm run route:add /User/Profile --guest` directly from the project root.
 
 
 **What this command does:**
@@ -521,27 +513,13 @@ npm run route:add -- /Register --guest
 
 **Remove route:**
 ```bash
-npm run route:remove User/Profile
-
-# OR via poyo CLI
-# Windows
-.\poyo.ps1 route remove User/Profile
-
-# Mac/Linux
-./poyo route remove User/Profile
+pnpm run route:remove User/Profile
 ```
 *   **Safe Deletion**: Prompts to optionally delete both the React page and MVC View (and empty folders).
 
 **Sync routes:**
 ```bash
-npm run route:sync
-
-# OR via poyo CLI
-# Windows
-.\poyo.ps1 route sync
-
-# Mac/Linux
-./poyo route sync
+pnpm run route:sync
 ```
 *   **Forward Sync**: Checks for missing files and offers Rescaffold/Prune.
 *   **Reverse Sync**: Checks for "untracked" files (React pages not in `routes.json`) and offers to Add/Delete them.
@@ -550,32 +528,33 @@ npm run route:sync
 
 ## 📝 Scripts
 
-### Client (`poyo.client/`)
+### Client (`packages/poyo-template/poyo.client/`)
 ```bash
-npm run dev              # Start dev server
-npm run build            # Build for production
-npm run generate         # Generate DTOs + schemas
-npm run generate:dtos    # Generate TypeScript types from OpenAPI
-npm run generate:schemas # Generate Zod schemas from DTOs
-npm run generate:dtos    # Generate TypeScript types from OpenAPI
-npm run generate:schemas # Generate Zod schemas from DTOs
-# Legacy Scripts (Node.js) - Will be deprecated
-npm run route:add        # Add new route
-npm run route:sync       # Sync routes
-
-# New CLI (Go) - Recommended
-./poyo route sync        # Faster, interactive sync
-./poyo route add ...     # Robust scaffolding
+pnpm run dev              # Start dev server
+pnpm run build            # Build for production
 ```
 
-### Server (`Poyo.Server/`)
+### Code Generation (from the template root)
 ```bash
-npm run dev              # Start server (dotnet run)
-npm run build            # Build project (dotnet build)
-npm run format           # Check C# formatting
-npm run format:fix       # Fix C# formatting
-npm run watch            # Watch mode (dotnet watch)
-npm run publish          # Publish for production
+pnpm run client:generate  # Generate TypeScript DTOs + Zod schemas from OpenAPI
+```
+
+### Route Management (Node)
+```bash
+pnpm run route:add        # Add new route
+pnpm run route:remove     # Remove a route
+pnpm run route:update     # Toggle route visibility
+pnpm run route:sync       # Sync routes
+```
+
+### Server (`packages/poyo-template/Poyo.Server/`)
+```bash
+pnpm run dev              # Start server (dotnet run)
+pnpm run build            # Build project (dotnet build)
+pnpm run format           # Check C# formatting
+pnpm run format:fix       # Fix C# formatting
+pnpm run watch            # Watch mode (dotnet watch)
+pnpm run publish          # Publish for production
 ```
 
 ---
@@ -609,5 +588,3 @@ MIT License - Use freely for any purpose
 ---
 
 **Built with ❤️ for developers who want control over their stack**
-
-See [tools/poyo/README.md](tools/poyo/README.md) for detailed build instructions.

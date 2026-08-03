@@ -1,0 +1,56 @@
+name: Publish Packages
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Compile TypeScript
+        run: |
+          pnpm --filter @rubichandrap/poyo build
+          pnpm --filter @rubichandrap/create-poyo-app build
+
+      - name: Assert package versions match the tag
+        run: node scripts/assert-release-version.mjs "${GITHUB_REF_NAME#v}"
+
+      - name: Fail if the tag version is already published
+        run: |
+          set -e
+          VERSION="${GITHUB_REF_NAME#v}"
+          for pkg in poyo-template poyo create-poyo-app; do
+            if npm view "@rubichandrap/${pkg}@${VERSION}" version >/dev/null 2>&1; then
+              echo "::error::@rubichandrap/${pkg}@${VERSION} already exists on npm; bump the version before tagging."
+              exit 1
+            fi
+          done
+          echo "Version ${VERSION} is not yet published on npm."
+
+      - name: Publish poyo-template
+        run: pnpm --filter @rubichandrap/poyo-template publish --access public --provenance --no-git-checks
+
+      - name: Publish poyo
+        run: pnpm --filter @rubichandrap/poyo publish --access public --provenance --no-git-checks
+
+      - name: Publish create-poyo-app
+        run: pnpm --filter @rubichandrap/create-poyo-app publish --access public --provenance --no-git-checks

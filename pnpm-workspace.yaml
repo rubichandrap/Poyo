@@ -1,0 +1,4 @@
+packages:
+  - packages/*
+  - packages/poyo-template/poyo.client
+  - packages/poyo-template/Poyo.Server

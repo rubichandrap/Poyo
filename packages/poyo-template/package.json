@@ -1,0 +1,42 @@
+{
+	"name": "@rubichandrap/poyo-template",
+	"version": "0.1.0",
+	"description": "The Poyo skeleton: React client, .NET server, and routes registry.",
+	"private": false,
+	"type": "module",
+	"scripts": {
+		"client:dev": "pnpm --filter ./poyo.client dev",
+		"client:build": "pnpm --filter ./poyo.client build",
+		"client:preview": "pnpm --filter ./poyo.client preview",
+		"client:type-check": "pnpm --filter ./poyo.client type-check",
+		"client:lint": "pnpm --filter ./poyo.client lint",
+		"client:lint:fix": "pnpm --filter ./poyo.client lint:fix",
+		"client:format": "pnpm --filter ./poyo.client format",
+		"client:format:fix": "pnpm --filter ./poyo.client format:fix",
+		"client:generate": "poyo generate",
+		"server:restore": "pnpm --filter ./Poyo.Server restore",
+		"server:dev": "pnpm --filter ./Poyo.Server dev",
+		"server:build": "pnpm --filter ./Poyo.Server build",
+		"server:format": "pnpm --filter ./Poyo.Server format",
+		"server:format:fix": "pnpm --filter ./Poyo.Server format:fix",
+		"server:watch": "pnpm --filter ./Poyo.Server watch",
+		"server:publish": "pnpm --filter ./Poyo.Server publish",
+		"restore": "pnpm install && pnpm run server:restore",
+		"dev": "pnpm run client:dev",
+		"dev:watch": "pnpm run server:watch",
+		"build": "pnpm run client:build && poyo build && pnpm run server:build",
+		"generate": "pnpm run client:generate",
+		"route:add": "poyo route add",
+		"route:remove": "poyo route remove",
+		"route:update": "poyo route update",
+		"route:sync": "poyo route sync"
+	},
+	"devDependencies": {
+		"@rubichandrap/poyo": "workspace:*"
+	},
+	"packageManager": "pnpm@9.15.9",
+	"engines": {
+		"node": ">=20.19.0",
+		"pnpm": ">=9"
+	}
+}
