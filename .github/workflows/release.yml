@@ -46,10 +46,13 @@ jobs:
           echo "Version ${VERSION} is not yet published on npm."
 
       - name: Publish poyo-template
-        run: pnpm --filter @rubichandrap/poyo-template publish --access public --provenance --no-git-checks
+        working-directory: packages/poyo-template
+        run: npm publish --provenance --access public
 
       - name: Publish poyo
-        run: pnpm --filter @rubichandrap/poyo publish --access public --provenance --no-git-checks
+        working-directory: packages/poyo
+        run: npm publish --provenance --access public
 
       - name: Publish create-poyo-app
-        run: pnpm --filter @rubichandrap/create-poyo-app publish --access public --provenance --no-git-checks
+        working-directory: packages/create-poyo-app
+        run: npm publish --provenance --access public
