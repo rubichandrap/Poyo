@@ -4,6 +4,12 @@ All notable changes to the Poyo monorepo are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-08-03
+
+### Fixed
+
+- Empty readmes on npm: none of the three packages shipped a `README.md` in its own directory, and npm renders the readme from the package directory, not the monorepo root. Added package-local `README.md` files to `@rubichandrap/poyo-template`, `@rubichandrap/poyo`, and `@rubichandrap/create-poyo-app`, and added a release-workflow guard that fails the build if any package publishes without one.
+
 ## [0.1.0] - 2026-08-03
 
 ### Added
@@ -26,3 +32,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The old whole-repo-copy scaffolder (`cli/create-poyo-app.js`)
 
 [0.1.0]: https://github.com/rubichandrap/Poyo/releases/tag/v0.1.0
+[0.1.1]: https://github.com/rubichandrap/Poyo/releases/tag/v0.1.1
