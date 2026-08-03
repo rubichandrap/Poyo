@@ -3,6 +3,10 @@
 	"version": "0.1.0",
 	"description": "The Poyo project CLI: route management, build glue, and OpenAPI-to-TypeScript codegen.",
 	"private": false,
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/rubichandrap/Poyo.git"
+	},
 	"type": "module",
 	"bin": {
 		"poyo": "./dist/index.js"
