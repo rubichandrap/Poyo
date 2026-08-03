@@ -83,28 +83,33 @@ poyo build creates _ReactAssets.cshtml
 
 ## 🏗️ Architecture
 
+Poyo is a pnpm monorepo of three packages:
+
 ```
 Poyo/
-└── packages/
-    └── poyo-template/        # The skeleton (developed live)
-        ├── package.json      # Template scripts (dev, build, route:*)
-        ├── routes.json       # Routes registry
-        ├── scripts/          # Old Node route/build implementations
-        ├── Poyo.slnx         # .NET solution
-        ├── Poyo.Server/      # .NET 10 Server
-        │   ├── Controllers/  # MVC + API Controllers
-        │   ├── Middleware/   # Auth, Error handling
-        │   ├── Models/       # DTOs
-        │   ├── Services/     # Business logic
-        │   └── Views/        # Razor views
-        └── poyo.client/      # React Client
-            ├── src/
-            │   ├── pages/    # React pages
-            │   ├── hooks/    # Custom hooks (usePage, etc.)
-            │   ├── hooks-api/# TanStack Query hooks
-            │   ├── services/ # API services
-            │   └── providers/# Context providers
-            └── scripts/      # Code generation tools
+├── packages/
+│   ├── poyo-template/       # The skeleton (developed live)
+│   │   ├── package.json     # Template scripts (dev, build, route:*)
+│   │   ├── routes.json      # Routes registry
+│   │   ├── Poyo.slnx        # .NET solution
+│   │   ├── Poyo.Server/     # .NET 10 Server
+│   │   │   ├── Controllers/ # MVC + API Controllers
+│   │   │   ├── Middleware/  # Auth, Error handling
+│   │   │   ├── Models/      # DTOs
+│   │   │   ├── Services/    # Business logic
+│   │   │   └── Views/       # Razor views
+│   │   └── poyo.client/     # React Client
+│   │       ├── src/
+│   │       │   ├── pages/   # React pages
+│   │       │   ├── hooks/   # Custom hooks (usePage, etc.)
+│   │       │   ├── hooks-api/ # TanStack Query hooks
+│   │       │   ├── services/ # API services
+│   │       │   └── providers/ # Context providers
+│   │       └── src/schemas/ # Auto-generated DTOs + Zod schemas
+│   ├── poyo/                # Project CLI (route management, build, generate)
+│   └── create-poyo-app/     # Scaffolder
+├── scripts/                 # Release tooling
+└── .github/workflows/       # CI (release pipeline)
 ```
 
 ---
@@ -424,12 +429,12 @@ pnpm run client:generate
 - **Requires:** Server running + `VITE_OPENAPI_URL` in `.env` (or pass a file: `poyo generate ./openapi.json`)
 - Use the generated schemas in forms with `zodResolver`
 
-### 3. Manifest Generation ⚠️ CRITICAL FOR PRODUCTION
+### 3. Build Asset Sync ⚠️ CRITICAL FOR PRODUCTION
 
-**Generates production asset manifest for server-side rendering**
+**Syncs the production bundle into the server's `wwwroot`**
 
 ```bash
-pnpm run generate:manifest
+pnpm run build   # client build + poyo build + server build
 ```
 
 **Why this is CRITICAL:**
@@ -479,8 +484,8 @@ Your Razor views need to reference these files, but the filenames change with ev
 ```
 
 **When it runs:**
-- ✅ Automatically after `pnpm run build` (via postbuild script)
-- ✅ Manually with `pnpm run generate:manifest`
+- ✅ Automatically as part of `pnpm run build` (`client:build && poyo build && server:build`)
+- ✅ Manually with `poyo build`
 
 **Files involved:**
 - Input: `poyo.client/dist/.vite/manifest.json` (Vite output)
