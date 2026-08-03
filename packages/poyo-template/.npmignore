@@ -1,0 +1,14 @@
+node_modules
+**/node_modules
+bin
+**/bin
+obj
+**/obj
+dist
+**/dist
+publish
+**/publish
+wwwroot/generated
+**/wwwroot/generated
+.env
+*.tgz

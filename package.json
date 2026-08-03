@@ -9,7 +9,9 @@
 		"lint": "biome lint .",
 		"lint:fix": "biome lint . --write",
 		"format": "biome format . && pnpm --filter poyo-template run server:format",
-		"format:fix": "biome format . --write && pnpm --filter poyo-template run server:format:fix"
+		"format:fix": "biome format . --write && pnpm --filter poyo-template run server:format:fix",
+		"test:release": "node --test scripts/assert-release-version.test.mjs",
+		"release:check": "node scripts/assert-release-version.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.11",

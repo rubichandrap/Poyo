@@ -4,8 +4,8 @@
 
 **Blocked by:** 04 — build and generate commands; 05 — rewrite create-poyo-app.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A GitHub Actions workflow triggered on a git tag runs `pnpm install`, compiles the TypeScript (`tsc`) for `poyo` and `create-poyo-app`, asserts all three `package.json` versions equal the tag, and publishes all three to public npm.
-- [ ] The stale GitHub-Packages `publish.yml` is removed.
-- [ ] Cutting a tag produces three installable packages at the same version.
+- [x] A GitHub Actions workflow triggered on a git tag runs `pnpm install`, compiles the TypeScript (`tsc`) for `poyo` and `create-poyo-app`, asserts all three `package.json` versions equal the tag, and publishes all three to public npm.
+- [x] The stale GitHub-Packages `publish.yml` is removed.
+- [x] Cutting a tag produces three installable packages at the same version.

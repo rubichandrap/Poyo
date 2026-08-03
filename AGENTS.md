@@ -389,6 +389,14 @@ dotnet publish -c Release
 - `ConnectionStrings__DB` (if using database)
 - Add your own as needed
 
+### 8.3. Publishing the Three Packages (lockstep)
+
+All three packages share one version and are published together from a git tag.
+
+1. **Bump the version** in all three `package.json` files (`packages/poyo-template`, `packages/poyo`, `packages/create-poyo-app`) to the same value.
+2. **Verify** with `pnpm run release:check` (zero-arg lockstep check) or `node scripts/assert-release-version.mjs <version>`.
+3. **Cut a tag** `v<version>` and push it. `.github/workflows/release.yml` runs: install, `tsc` build, asserts versions match the tag, fails if the version is already on npm, then publishes all three with provenance (npm Trusted Publishing — no token needed).
+
 ---
 
 ## 9. Framework Philosophy
