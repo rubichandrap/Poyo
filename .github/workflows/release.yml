@@ -34,6 +34,17 @@ jobs:
       - name: Assert package versions match the tag
         run: node scripts/assert-release-version.mjs "${GITHUB_REF_NAME#v}"
 
+      - name: Fail if any package lacks a README
+        run: |
+          set -e
+          for pkg in poyo-template poyo create-poyo-app; do
+            if [ ! -f "packages/${pkg}/README.md" ]; then
+              echo "::error::packages/${pkg} has no README.md; npm renders the readme from the package directory, so it would publish empty."
+              exit 1
+            fi
+          done
+          echo "All packages have a README.md."
+
       - name: Fail if the tag version is already published
         run: |
           set -e

@@ -112,6 +112,8 @@ Poyo/
 └── .github/workflows/       # CI (release pipeline)
 ```
 
+Each package ships its own `README.md` — npm renders the readme from the package directory, so the framework docs live here while `packages/*/README.md` document each artifact (and `poyo-template`'s becomes the README of every scaffolded project).
+
 ---
 
 ## 🚀 Quick Start

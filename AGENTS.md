@@ -396,7 +396,8 @@ All three packages share one version and are published together from a git tag.
 1. **Bump the version** in all three `package.json` files (`packages/poyo-template`, `packages/poyo`, `packages/create-poyo-app`) to the same value.
 2. **Add a changelog entry** for the new version in the root `CHANGELOG.md` and each package's `CHANGELOG.md` (Keep a Changelog format).
 3. **Verify** with `pnpm run release:check` (zero-arg lockstep check) or `node scripts/assert-release-version.mjs <version>`.
-4. **Cut a tag** `v<version>` and push it. `.github/workflows/release.yml` runs: install, `tsc` build, asserts versions match the tag, fails if the version is already on npm, then publishes all three via `pnpm publish` with `NPM_TOKEN` (a classic npm token secret — required because npm Trusted Publishing/OIDC cannot create brand-new packages), then creates a GitHub Release from the root `CHANGELOG.md` entry.
+4. **Ensure every package has a `README.md`** in its own directory (`packages/<pkg>/README.md`). npm renders the readme from the package directory — a missing file publishes an empty readme. The release workflow fails the build if any package lacks one. `poyo-template`'s README doubles as the README of every generated project (the scaffolder copies it wholesale), so keep it rename-safe: `Poyo`/`Poyo.Server`/`poyo.client` tokens are rewritten to the project name.
+5. **Cut a tag** `v<version>` and push it. `.github/workflows/release.yml` runs: install, `tsc` build, asserts versions match the tag, fails if the version is already on npm, then publishes all three via `pnpm publish` with `NPM_TOKEN` (a classic npm token secret — required because npm Trusted Publishing/OIDC cannot create brand-new packages), then creates a GitHub Release from the root `CHANGELOG.md` entry.
 
 ---
 
