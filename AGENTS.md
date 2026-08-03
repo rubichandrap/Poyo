@@ -430,4 +430,28 @@ When working with Poyo:
 
 ---
 
+## 11. Git & Commits
+
+### 11.1. Conventional Commits
+
+All commits MUST follow Conventional Commits:
+
+- **Format**: `<type>(<scope>): <subject>` — scope optional
+- **Types**: `feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `chore`, `build`, `ci`, `style`, `revert`
+- **Subject**: imperative mood ("add", "fix", "remove"), ≤72 chars, no trailing period
+- **Body**: only for non-obvious "why", breaking changes (`BREAKING CHANGE:`), or linked issues
+- **Reference issues**: `Closes #<n>`, `Refs #<n>`
+
+### 11.2. Branch Policy
+
+Never commit or push directly to `main`. Always:
+
+1. Create a feature branch: `git checkout -b <type>/<short-description>`
+2. Commit on that branch (Conventional Commits, see above)
+3. Push the branch and open a pull request into `main`
+
+Merging to `main` happens via PR (and ideally a review).
+
+---
+
 **Remember: Poyo is a foundation. Build what YOU need on top of it.**
