@@ -396,7 +396,7 @@ All three packages share one version and are published together from a git tag.
 1. **Bump the version** in all three `package.json` files (`packages/poyo-template`, `packages/poyo`, `packages/create-poyo-app`) to the same value.
 2. **Add a changelog entry** for the new version in the root `CHANGELOG.md` and each package's `CHANGELOG.md` (Keep a Changelog format).
 3. **Verify** with `pnpm run release:check` (zero-arg lockstep check) or `node scripts/assert-release-version.mjs <version>`.
-4. **Cut a tag** `v<version>` and push it. `.github/workflows/release.yml` runs: install, `tsc` build, asserts versions match the tag, fails if the version is already on npm, then publishes all three with provenance (npm Trusted Publishing — no token needed).
+4. **Cut a tag** `v<version>` and push it. `.github/workflows/publish.yml` runs: install, `tsc` build, asserts versions match the tag, fails if the version is already on npm, then publishes all three with provenance (npm Trusted Publishing — no token needed).
 
 ---
 
