@@ -15,6 +15,19 @@ const SCRIPT = path.join(
 	"assert-release-version.mjs",
 );
 
+const CURRENT_VERSION = JSON.parse(
+	fs.readFileSync(
+		path.join(
+			path.dirname(fileURLToPath(import.meta.url)),
+			"..",
+			"packages",
+			"poyo",
+			"package.json",
+		),
+		"utf-8",
+	),
+).version;
+
 function tempPackageJson(version) {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "poyo-version-"));
 	const pkgJson = path.join(dir, "package.json");
@@ -57,7 +70,7 @@ test("lockstep check reports packages that differ from the first", () => {
 });
 
 test("exits 0 on match and 1 on mismatch", () => {
-	const match = spawnSync(process.execPath, [SCRIPT, "0.0.3"], {
+	const match = spawnSync(process.execPath, [SCRIPT, CURRENT_VERSION], {
 		encoding: "utf-8",
 	});
 	assert.equal(match.status, 0);
