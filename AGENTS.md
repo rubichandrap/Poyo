@@ -297,21 +297,21 @@ pnpm run route:sync
 
 ## 5. Code Generation
 
-### 5.1. DTOs from OpenAPI
+### 5.1. DTOs + Zod Schemas from OpenAPI
 
 ```bash
-pnpm --filter poyo-template run client:generate:dtos
+pnpm --filter poyo-template run client:generate
 ```
 
-Generates TypeScript types from `/openapi/v1.json`
+Generates TypeScript DTOs from the server OpenAPI document (via `openapi-typescript`) and Zod validation schemas from those DTOs (via `openapi-zod-client`). Reads `VITE_OPENAPI_URL` from `.env`, or pass a local file: `poyo generate ./openapi.json`.
 
-### 5.2. Zod Schemas
+### 5.2. Client Build Sync
 
 ```bash
-pnpm --filter poyo-template run client:generate:schemas
+pnpm --filter poyo-template run build
 ```
 
-Generates Zod validation schemas from DTOs
+`poyo build` reads the Vite manifest, copies active assets into `wwwroot/generated`, prunes stale files, and rewrites `_ReactAssets.cshtml` with the current entry JS/CSS.
 
 ---
 

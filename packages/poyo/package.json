@@ -26,7 +26,9 @@
 	},
 	"dependencies": {
 		"@inquirer/prompts": "8.2.0",
-		"commander": "14.0.2"
+		"commander": "14.0.2",
+		"openapi-typescript": "7.13.0",
+		"openapi-zod-client": "1.18.3"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.11",

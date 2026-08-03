@@ -15,10 +15,14 @@ export interface RunResult {
 	stderr: string;
 }
 
-export function runCli(args: string[], options: { cwd: string }): RunResult {
+export function runCli(
+	args: string[],
+	options: { cwd: string; env?: Record<string, string> },
+): RunResult {
 	const result = spawnSync(process.execPath, [CLI_PATH, ...args], {
 		cwd: options.cwd,
 		encoding: "utf-8",
+		env: { ...process.env, ...options.env },
 	});
 	return {
 		status: result.status ?? -1,
@@ -83,6 +87,10 @@ export function existsFixtureFile(fixture: Fixture, relative: string): boolean {
 	return fs.existsSync(path.join(fixture.dir, relative));
 }
 
-export function execInFixture(fixture: Fixture, args: string[]): RunResult {
-	return runCli(args, { cwd: fixture.dir });
+export function execInFixture(
+	fixture: Fixture,
+	args: string[],
+	env?: Record<string, string>,
+): RunResult {
+	return runCli(args, { cwd: fixture.dir, env });
 }

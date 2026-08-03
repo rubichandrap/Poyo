@@ -55,7 +55,7 @@ pnpm run build
   ↓
 Vite compiles React → wwwroot/generated/index-[hash].js
   ↓
-generate-manifest.js creates _ReactAssets.cshtml
+poyo build creates _ReactAssets.cshtml
   ↓
 .NET MVC serves from wwwroot/ with correct hashed filenames ✅
 ```
@@ -409,31 +409,20 @@ Update Tailwind configuration in `poyo.client/src/index.css`:
 
 Poyo includes powerful code generation tools to keep your client and server in sync.
 
-### 1. DTO Generation
+### 1. DTO + Validation Schema Generation
 
-**Generates TypeScript types from OpenAPI specification**
+**Generates TypeScript DTOs and Zod schemas from the server's OpenAPI document**
 
 ```bash
-pnpm run generate:dtos
+pnpm run client:generate
 ```
 
-- Fetches OpenAPI spec from server
+- Fetches the OpenAPI spec (from `VITE_OPENAPI_URL` or a local file argument)
 - Generates TypeScript types using `openapi-typescript`
-- Outputs to `src/schemas/dtos.generated.ts`
-- **Requires:** Server running + `VITE_OPENAPI_URL` in `.env`
-
-### 2. Validation Schema Generation
-
-**Generates Zod validation schemas from TypeScript DTOs**
-
-```bash
-pnpm run generate:schemas
-```
-
-- Reads generated DTOs
-- Creates Zod schemas using `ts-to-zod`
-- Outputs to `src/schemas/validations.generated.ts`
-- Use in forms with `zodResolver`
+- Creates Zod validation schemas using `openapi-zod-client`
+- Outputs to `src/schemas/dtos.generated.ts` and `src/schemas/validations.generated.ts`
+- **Requires:** Server running + `VITE_OPENAPI_URL` in `.env` (or pass a file: `poyo generate ./openapi.json`)
+- Use the generated schemas in forms with `zodResolver`
 
 ### 3. Manifest Generation ⚠️ CRITICAL FOR PRODUCTION
 
@@ -463,7 +452,7 @@ dist/generated/
 Your Razor views need to reference these files, but the filenames change with every build!
 
 **The Solution:**
-`generate-manifest.js` reads Vite's manifest and generates `_ReactAssets.cshtml`:
+`poyo build` reads Vite's manifest and generates `_ReactAssets.cshtml`:
 
 ```cshtml
 <!-- Auto-generated - DO NOT EDIT -->
@@ -476,7 +465,7 @@ Your Razor views need to reference these files, but the filenames change with ev
 **How it works:**
 1. `pnpm run build` compiles React app
 2. Vite creates `.vite/manifest.json` with file mappings
-3. `generate-manifest.js` reads manifest
+3. `poyo build` reads manifest
 4. Generates `_ReactAssets.cshtml` with correct hashed filenames
 5. `_Layout.cshtml` includes this partial in production
 6. **Your app loads with correct assets!**
@@ -543,11 +532,11 @@ pnpm run route:sync
 ```bash
 pnpm run dev              # Start dev server
 pnpm run build            # Build for production
-pnpm run generate         # Generate DTOs + schemas
-pnpm run generate:dtos    # Generate TypeScript types from OpenAPI
-pnpm run generate:schemas # Generate Zod schemas from DTOs
-pnpm run generate:dtos    # Generate TypeScript types from OpenAPI
-pnpm run generate:schemas # Generate Zod schemas from DTOs
+```
+
+### Code Generation (from the template root)
+```bash
+pnpm run client:generate  # Generate TypeScript DTOs + Zod schemas from OpenAPI
 ```
 
 ### Route Management (Node)

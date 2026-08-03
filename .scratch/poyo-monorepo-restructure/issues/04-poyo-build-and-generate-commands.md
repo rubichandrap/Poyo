@@ -4,9 +4,9 @@
 
 **Blocked by:** 03 — route management commands.
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `poyo build` reads the Vite manifest, copies only active assets into `wwwroot/generated`, prunes stale files, and rewrites `_ReactAssets.cshtml` with the current entry JS/CSS.
-- [ ] `poyo generate` produces TypeScript DTOs from the server OpenAPI document and Zod validation schemas from those DTOs.
-- [ ] The template's `build` script runs `poyo build`; `scripts/generate-manifest.js` and the old codegen scripts are deleted.
-- [ ] Tests at the CLI seam: `build` and `generate` run against a temp fixture project, asserting manifest and generated output.
+- [x] `poyo build` reads the Vite manifest, copies only active assets into `wwwroot/generated`, prunes stale files, and rewrites `_ReactAssets.cshtml` with the current entry JS/CSS.
+- [x] `poyo generate` produces TypeScript DTOs from the server OpenAPI document and Zod validation schemas from those DTOs.
+- [x] The template's `build` script runs `poyo build`; `scripts/generate-manifest.js` and the old codegen scripts are deleted.
+- [x] Tests at the CLI seam: `build` and `generate` run against a temp fixture project, asserting manifest and generated output.
