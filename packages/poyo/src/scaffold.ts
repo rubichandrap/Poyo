@@ -61,7 +61,12 @@ export function ensureControllerAction(
 		fs.mkdirSync(paths.controllersDir, { recursive: true });
 		fs.writeFileSync(
 			controllerPath,
-			controllerTemplate(safeControllerName, actionName, viewPath),
+			controllerTemplate(
+				paths.serverNamespace,
+				safeControllerName,
+				actionName,
+				viewPath,
+			),
 		);
 		return safeControllerName;
 	}

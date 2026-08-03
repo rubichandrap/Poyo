@@ -31,13 +31,14 @@ export function viewTemplate(name: string): string {
 }
 
 export function controllerTemplate(
+	serverNamespace: string,
 	controllerName: string,
 	actionName: string,
 	viewPath: string,
 ): string {
 	return `using Microsoft.AspNetCore.Mvc;
 
-namespace Poyo.Server.Controllers;
+namespace ${serverNamespace}.Controllers;
 
 public class ${controllerName} : Controller
 {

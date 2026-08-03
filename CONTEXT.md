@@ -27,3 +27,7 @@ _Avoid_: consumer, target app, scaffolded app
 **Routes registry**:
 The `routes.json` file that maps URL paths to their React page and server view files. The single source of truth for route existence.
 _Avoid_: route table, route config
+
+**Project identity**:
+The facts the project CLI derives from a generated project rather than assuming from the template — the server namespace and the client/server directory names. Scaffolding renames the project, so tooling that hardcodes the template's names breaks in generated projects.
+_Avoid_: project name, namespace config
