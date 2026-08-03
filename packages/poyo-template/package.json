@@ -28,14 +28,13 @@
 		"dev:watch": "pnpm run server:watch",
 		"build": "pnpm run client:build && node ./scripts/generate-manifest.js && pnpm run server:build",
 		"generate": "pnpm run client:generate",
-		"route:add": "node ./scripts/manage-routes.js add",
-		"route:remove": "node ./scripts/manage-routes.js remove",
-		"route:update": "node ./scripts/manage-routes.js update",
-		"route:sync": "node ./scripts/manage-routes.js sync"
+		"route:add": "poyo route add",
+		"route:remove": "poyo route remove",
+		"route:update": "poyo route update",
+		"route:sync": "poyo route sync"
 	},
 	"devDependencies": {
-		"@inquirer/prompts": "8.2.0",
-		"commander": "14.0.2"
+		"@rubichandrap/poyo": "workspace:*"
 	},
 	"packageManager": "pnpm@9.15.9",
 	"engines": {

@@ -262,10 +262,10 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
 pnpm run route:add YourPage
 
 # Add with Custom Controller & Action
-node scripts/manage-routes.js add /Admin --controller AdminController --action Index
+pnpm run route:add /Admin --controller AdminController --action Index
 
 # Skip View Generation (if controller handles it)
-node scripts/manage-routes.js add /API/Proxy --controller ApiController --action Proxy --no-view
+pnpm run route:add /API/Proxy --controller ApiController --action Proxy --no-view
 ```
 
 ### 3. Flexible SEO System
