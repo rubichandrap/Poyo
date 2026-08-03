@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - pnpm workspace monorepo with three lockstep packages: `@rubichandrap/poyo-template`, `@rubichandrap/poyo`, `@rubichandrap/create-poyo-app`
 - `poyo` project CLI: route management (`route add/update/remove/sync`), build asset sync (`build`), and OpenAPI code generation (`generate`)
 - `create-poyo-app` scaffolder: creates a generated project from the template package
-- Lockstep release pipeline: tag-triggered GitHub Actions workflow that asserts all three package versions match the tag, then publishes to public npm with provenance (Trusted Publishing, no token needed)
+- Lockstep release pipeline: tag-triggered GitHub Actions workflow that asserts all three package versions match the tag, publishes to public npm via `pnpm publish` with an `NPM_TOKEN` secret, and creates a GitHub Release from the changelog
 - `scripts/assert-release-version.mjs` + `release:check` for verifying lockstep versions
 
 ### Changed

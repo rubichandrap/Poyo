@@ -1,4 +1,4 @@
-name: Publish Packages
+name: Release Packages
 
 on:
   push:
@@ -6,12 +6,13 @@ on:
       - "v*"
 
 permissions:
-  id-token: write
-  contents: read
+  contents: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
+    env:
+      NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
@@ -47,12 +48,34 @@ jobs:
 
       - name: Publish poyo-template
         working-directory: packages/poyo-template
-        run: npm publish --provenance --access public
+        run: pnpm publish --access public --no-git-checks
 
       - name: Publish poyo
         working-directory: packages/poyo
-        run: npm publish --provenance --access public
+        run: pnpm publish --access public --no-git-checks
 
       - name: Publish create-poyo-app
         working-directory: packages/create-poyo-app
-        run: npm publish --provenance --access public
+        run: pnpm publish --access public --no-git-checks
+
+      - name: Extract release notes
+        id: notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          body=$(awk -v v="## [${VERSION}]" '
+            index($0, v) == 1 { found=1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md)
+          if [ -z "$body" ]; then
+            body="Release ${GITHUB_REF_NAME}"
+          fi
+          printf '%s\n' "$body" > /tmp/release-notes.md
+
+      - name: Create GitHub Release
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file /tmp/release-notes.md
+        env:
+          GH_TOKEN: ${{ github.token }}
