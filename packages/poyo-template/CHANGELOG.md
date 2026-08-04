@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- The `routes.json` registry ships the v2 access model: a single `access` field (`public` | `guest` | `protected`) replaces the legacy `isPublic`/`isGuestOnly` flags; Home, Login, and Register are `guest`, Dashboard is `protected`, all with SEO declared in the registry
+- `RoutePolicy` maps `access` to policy instead of selecting controller actions; `RouteAccessFilter` enforces it universally (protected challenges anonymous users — LoginPath redirect for pages, 401 for API calls — guest redirects authenticated users to the landing path, public is open), custom-controller routes included
+- `SeoPolicyFilter` applies registry SEO to every route with the route name as the default title; views no longer hardcode titles
+- `PageController` collapses to a single `Index` action; Home becomes a normal registry route and `HomeController` is deleted; the fallback route loses its Home defaults so unmatched URLs 404 cleanly
+
+### Removed
+
+- `GuestOnlyAttribute` (guest behavior folded into the registry policy)
+
 ## [0.1.1] - 2026-08-03
 
 ### Fixed

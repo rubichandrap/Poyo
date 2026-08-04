@@ -19,7 +19,8 @@ Demo login: `demo` / `password`.
 ```
 Poyo.Server/      # ASP.NET Core MVC server
   Controllers/    #   view controllers (root) + API controllers (Api/)
-  Middleware/     #   auth attributes, global error handling
+  Routing/        #   RoutePolicy + universal access/SEO filters
+  Middleware/     #   global error handling
   Models/         #   DTOs
   Services/       #   business logic
   Views/          #   Razor views
@@ -34,7 +35,7 @@ routes.json       # route registry: URL path -> page + view
 
 ## Routes
 
-`routes.json` is the single source of truth for route existence. Each entry maps a URL path to its React page and Razor view, with flags for auth and SEO metadata:
+`routes.json` is the single source of truth for route existence. Each entry maps a URL path to its React page and Razor view, with an access model and SEO metadata:
 
 ```json
 {
@@ -44,15 +45,18 @@ routes.json       # route registry: URL path -> page + view
     "react": "src/pages/Dashboard/index.page.tsx",
     "view": "Views/Dashboard/Index.cshtml"
   },
-  "isPublic": false,
+  "access": "protected",
   "seo": { "title": "Dashboard", "description": "View your stats" }
 }
 ```
+
+`access` is one of `public` | `guest` | `protected` (default `protected`). The server enforces it for every registry route — custom-controller routes included — so no per-action attributes are needed: `protected` challenges anonymous users (redirect to login, 401 for API calls), `guest` redirects authenticated users to the landing page, `public` is open. Registry `seo` (title, description, meta, JSON-LD) is applied to every route, with the route name as the default title.
 
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 
 ```bash
 pnpm run route:add    User/Profile          # register route + scaffold page and view
+pnpm run route:add    /Login --guest        # guest route (login/landing pages)
 pnpm run route:add    /Admin --controller AdminController --action Index
 pnpm run route:remove User/Profile
 pnpm run route:update User/Profile --public true

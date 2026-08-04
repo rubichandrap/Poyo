@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- Generated projects inherit the v2 routes registry (single `access` field) and universal server-side access enforcement from the template
+
 ## [0.1.1] - 2026-08-03
 
 ### Fixed

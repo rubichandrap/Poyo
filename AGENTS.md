@@ -56,24 +56,32 @@ Poyo is intentionally minimal. It provides:
 - **Configuration**: Managed in `routes.json` under `"seo"` object.
 - **Do NOT**: Hardcode meta tags in views unless absolutely necessary.
 - **Do**: Use `routes.json` for titles, descriptions, OG tags, and JSON-LD.
+- **Universal**: `SeoPolicyFilter` applies the registry `seo` to every registry route (default and custom controller routes alike); the route name is the default title when `seo` is absent.
 
-### 2.3. Middleware & Attributes
+### 2.3. Middleware, Filters & Attributes
+
+**Registry-driven access (universal):**
+- Every route's `access` field (`public` | `guest` | `protected`) is enforced by `RouteAccessFilter` — there are no per-action access attributes (`GuestOnlyAttribute` was removed; guest behavior folded into the registry policy).
+- `protected` + anonymous → challenge (cookie config keeps the LoginPath redirect for pages and 401 for API calls)
+- `guest` + authenticated → redirect to the configured landing page (`Routes:LandingPath`, default `/Dashboard`)
+- `public` → open to everyone
+- Applies to custom-controller routes exactly like default ones.
 
 **Custom Attributes:**
-- `[GuestOnly]` - Redirects authenticated users (for login/landing pages)
 - `[ServerData]` - Injects data to `window.SERVER_DATA`
 - `[Authorize]` - Requires authentication (built-in)
 
 **Guest Routes:**
 - Use CLI: `pnpm run route:add -- /Register --guest`
-- Maps to `PageController.GuestIndex`
-- Redirects authenticated users to `/Dashboard`
+- Writes `access: "guest"` in the registry; no controller change needed (maps to `PageController.Index`)
 
-**Middleware:**
+**Middleware & Filters:**
+- `RouteAccessFilter` - Universal access enforcement from the registry (see above)
+- `SeoPolicyFilter` - Universal SEO application from the registry (see §2.2)
 - `GlobalExceptionHandler` - Catches unhandled exceptions
 - Cookie authentication - Simple demo auth
 
-### 2.3. Models & DTOs
+### 2.4. Models & DTOs
 
 **Structure:**
 ```
@@ -91,7 +99,7 @@ Models/
 - Keep DTOs simple (data only, no logic)
 - Use `required` for mandatory properties
 
-### 2.4. Services
+### 2.5. Services
 
 **Location**: `Services/[Domain]/`
 
@@ -255,9 +263,15 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     "react": "src/pages/Dashboard/index.page.tsx",
     "view": "Views/Dashboard/Index.cshtml"
   },
-  "isPublic": false
+  "access": "protected",
+  "seo": {
+    "title": "Dashboard",
+    "description": "View your stats"
+  }
 }
 ```
+
+`access` is one of `public` | `guest` | `protected` (default `protected`). Legacy `isPublic`/`isGuestOnly` flags are rejected as unknown fields — there is no migration shim.
 
 ### 4.2. Adding Routes
 
@@ -292,6 +306,7 @@ pnpm run route:sync
 ### 4.5. SEO Configuration
 - Add `"seo"` object to route in `routes.json`.
 - Supports `title`, `description`, `meta` (dictionary), and `jsonld`.
+- `SeoPolicyFilter` applies it to every registry route; without `seo`, the route name becomes the title.
 
 ---
 
@@ -322,7 +337,7 @@ pnpm --filter poyo-template run build
 **Demo Only:**
 - Hardcoded credentials (`demo`/`password`)
 - Cookie-based sessions
-- `[GuestOnly]` and `[Authorize]` attributes
+- Access enforced by the registry (`access` field via `RouteAccessFilter`), plus `[Authorize]` where needed
 
 ### 6.2. Replacing Auth
 

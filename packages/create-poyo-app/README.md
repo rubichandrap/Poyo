@@ -22,7 +22,7 @@ pnpm run dev:watch   # start the .NET watch server
 
 - React 19 + TypeScript + Vite client (`<name>.client/`)
 - ASP.NET Core MVC server (`<Name>.Server/`)
-- `routes.json` route registry with auth + SEO metadata
+- `routes.json` route registry with access model + SEO metadata
 - Demo cookie authentication (`demo` / `password`)
 - `usePage<T>()` server data injection
 - `poyo` CLI installed as a dev dependency (`route:*`, `build`, `generate` scripts)
