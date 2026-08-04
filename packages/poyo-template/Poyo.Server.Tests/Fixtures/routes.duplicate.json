@@ -1,0 +1,26 @@
+[
+	{
+		"path": "/Broken",
+		"name": "Broken",
+		"files": {
+			"react": "src/pages/Broken/index.page.tsx",
+			"view": "Views/Broken/Index.cshtml"
+		}
+	},
+	{
+		"path": "/Dashboard",
+		"name": "Dashboard",
+		"files": {
+			"react": "src/pages/Dashboard/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		}
+	},
+	{
+		"path": "/dashboard",
+		"name": "DashboardLower",
+		"files": {
+			"react": "src/pages/dashboard/index.page.tsx",
+			"view": "Views/dashboard/Index.cshtml"
+		}
+	}
+]

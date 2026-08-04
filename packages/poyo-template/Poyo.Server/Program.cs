@@ -118,6 +118,12 @@ if (builder.Environment.IsDevelopment())
     });
 }
 
+// Dynamic routing from the routes registry. RoutePolicy validates the
+// registry shape and fails startup loudly on malformed registries.
+var routesJsonPath = builder.Configuration["Routes:JsonPath"]
+    ?? Path.Combine(root, "routes.json");
+var routePolicy = Poyo.Server.Routing.RoutePolicy.Load(routesJsonPath);
+
 var app = builder.Build();
 
 app.UseDefaultFiles();
@@ -148,45 +154,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Dynamic Routing from routes.json
-try
-{
-    var routesJsonPath = Path.Combine(root, "routes.json");
-    if (File.Exists(routesJsonPath))
-    {
-        var routesJson = File.ReadAllText(routesJsonPath);
-        var routes = System.Text.Json.JsonSerializer.Deserialize<List<RouteDefinition>>(routesJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-        if (routes != null)
-        {
-            foreach (var route in routes)
-            {
-                if (route.Name.Equals("Home", StringComparison.OrdinalIgnoreCase)) continue;
-
-                var controllerName = !string.IsNullOrWhiteSpace(route.Controller) ? route.Controller : "Page";
-                var actionName = !string.IsNullOrWhiteSpace(route.Action)
-                    ? route.Action
-                    : (route.IsGuestOnly ? "GuestIndex" : (route.IsPublic ? "PublicIndex" : "Index"));
-
-                // Map route
-                app.MapControllerRoute(
-                    name: route.Name,
-                    pattern: route.Path.TrimStart('/'),
-                    defaults: new
-                    {
-                        controller = controllerName,
-                        action = actionName,
-                        viewPath = route.Files.View,
-                        pageName = route.Name,
-                        seo = route.Seo
-                    });
-            }
-        }
-    }
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Error loading routes.json: {ex.Message}");
-}
+routePolicy.MapRoutes(app);
 
 // MPA routes (Fallback for Home and others)
 app.MapControllerRoute(
@@ -195,9 +163,9 @@ app.MapControllerRoute(
 
 app.Run();
 
-// Helper record for deserialization
-internal record RouteDefinition(string Path, string Name, RouteFiles Files, bool IsPublic, bool IsGuestOnly, Poyo.Server.Models.SeoModel? Seo, string? Controller, string? Action);
-internal record RouteFiles(string View);
+public partial class Program
+{
+}
 
 
 

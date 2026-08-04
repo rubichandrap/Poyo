@@ -1,0 +1,20 @@
+[
+	{
+		"path": "/Serves",
+		"name": "Serves",
+		"files": {
+			"react": "src/pages/Serves/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"isPublic": true
+	},
+	{
+		"path": "/MissingView",
+		"name": "MissingView",
+		"files": {
+			"react": "src/pages/MissingView/index.page.tsx",
+			"view": "Views/DoesNotExist/Index.cshtml"
+		},
+		"isPublic": true
+	}
+]
