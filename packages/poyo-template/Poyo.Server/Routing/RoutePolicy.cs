@@ -15,6 +15,7 @@ public sealed class RoutePolicy
     {
         PropertyNameCaseInsensitive = true,
         UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
+        Converters = { new JsonStringEnumConverter(allowIntegerValues: false) },
     };
 
     private readonly IReadOnlyList<RouteDefinition> _routes;
@@ -64,6 +65,24 @@ public sealed class RoutePolicy
         return new RoutePolicy(routes);
     }
 
+    /// <summary>
+    /// Finds the registry route serving the given request path, or null
+    /// when the path is not a registry route (API, fallback, static).
+    /// Matches like ASP.NET routing: case-insensitive, trailing slashes
+    /// ignored.
+    /// </summary>
+    public RouteDefinition? Find(string path)
+    {
+        var normalized = path.TrimEnd('/');
+        if (normalized.Length == 0)
+        {
+            normalized = "/";
+        }
+
+        return _routes.FirstOrDefault(
+            r => r.Path.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+    }
+
     public void MapRoutes(IEndpointRouteBuilder endpoints)
     {
         foreach (var route in _routes)
@@ -79,11 +98,7 @@ public sealed class RoutePolicy
 
             var actionName = !string.IsNullOrWhiteSpace(route.Action)
                 ? route.Action
-                : route.IsGuestOnly
-                    ? "GuestIndex"
-                    : route.IsPublic
-                        ? "PublicIndex"
-                        : "Index";
+                : "Index";
 
             endpoints.MapControllerRoute(
                 name: route.Name,
@@ -93,8 +108,6 @@ public sealed class RoutePolicy
                     controller = controllerName,
                     action = actionName,
                     viewPath = route.Files.View,
-                    pageName = route.Name,
-                    seo = route.Seo
                 });
         }
     }

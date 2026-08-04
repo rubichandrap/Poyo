@@ -6,7 +6,7 @@
 			"react": "src/pages/Home/index.page.tsx",
 			"view": "Views/Home/Index.cshtml"
 		},
-		"isPublic": true
+		"access": "guest"
 	},
 	{
 		"path": "/Dashboard",
@@ -14,7 +14,8 @@
 		"files": {
 			"react": "src/pages/Dashboard/index.page.tsx",
 			"view": "Views/Dashboard/Index.cshtml"
-		}
+		},
+		"access": "protected"
 	},
 	{
 		"path": "/Login",
@@ -23,7 +24,7 @@
 			"react": "src/pages/Login/index.page.tsx",
 			"view": "Views/Login/Index.cshtml"
 		},
-		"isPublic": true
+		"access": "public"
 	},
 	{
 		"path": "/Register",
@@ -32,7 +33,7 @@
 			"react": "src/pages/Register/index.page.tsx",
 			"view": "Views/Register/Index.cshtml"
 		},
-		"isGuestOnly": true,
+		"access": "guest",
 		"seo": {
 			"description": "Page for Register",
 			"title": "Register"

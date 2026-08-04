@@ -6,7 +6,7 @@
 			"react": "src/pages/Serves/index.page.tsx",
 			"view": "Views/Dashboard/Index.cshtml"
 		},
-		"isPublic": true
+		"access": "public"
 	},
 	{
 		"path": "/MissingView",
@@ -15,6 +15,6 @@
 			"react": "src/pages/MissingView/index.page.tsx",
 			"view": "Views/DoesNotExist/Index.cshtml"
 		},
-		"isPublic": true
+		"access": "public"
 	}
 ]

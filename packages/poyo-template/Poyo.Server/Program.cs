@@ -45,8 +45,21 @@ if (builder.Environment.IsDevelopment())
     RequireEnv("Vite__Server__DevServerUrl");
 }
 
+// Dynamic routing from the routes registry. RoutePolicy validates the
+// registry shape and fails startup loudly on malformed registries.
+var routesJsonPath = builder.Configuration["Routes:JsonPath"]
+    ?? Path.Combine(root, "routes.json");
+var routePolicy = Poyo.Server.Routing.RoutePolicy.Load(routesJsonPath);
+builder.Services.AddSingleton(routePolicy);
+
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    // Universal enforcement of the registry access model and SEO for every
+    // registry route (default and custom controller routes alike).
+    options.Filters.Add<Poyo.Server.Routing.RouteAccessFilter>();
+    options.Filters.Add<Poyo.Server.Routing.SeoPolicyFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi(options =>
 {
@@ -117,12 +130,6 @@ if (builder.Environment.IsDevelopment())
         options.Server.Https = false;
     });
 }
-
-// Dynamic routing from the routes registry. RoutePolicy validates the
-// registry shape and fails startup loudly on malformed registries.
-var routesJsonPath = builder.Configuration["Routes:JsonPath"]
-    ?? Path.Combine(root, "routes.json");
-var routePolicy = Poyo.Server.Routing.RoutePolicy.Load(routesJsonPath);
 
 var app = builder.Build();
 

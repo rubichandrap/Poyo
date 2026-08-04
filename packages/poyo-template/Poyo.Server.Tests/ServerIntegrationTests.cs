@@ -33,7 +33,7 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
     }
 
     [Fact]
-    public async Task Login_serves_public_page()
+    public async Task Login_serves_page_when_anonymous()
     {
         var response = await CreateClient().GetAsync("/Login");
 

@@ -2,12 +2,18 @@ using Poyo.Server.Models;
 
 namespace Poyo.Server.Routing;
 
+public enum RouteAccess
+{
+    Protected,
+    Public,
+    Guest,
+}
+
 public record RouteDefinition(
     string Path,
     string Name,
     RouteFiles Files,
-    bool IsPublic,
-    bool IsGuestOnly,
+    RouteAccess Access = RouteAccess.Protected,
     SeoModel? Seo = null,
     string? Controller = null,
     string? Action = null);

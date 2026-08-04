@@ -1,0 +1,57 @@
+[
+	{
+		"path": "/Public",
+		"name": "Public",
+		"files": {
+			"react": "src/pages/Public/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "public",
+		"seo": {
+			"description": "A public page",
+			"title": "Public Page Title",
+			"meta": {
+				"og:title": "Public OG Title",
+				"keywords": "poyo, public"
+			}
+		}
+	},
+	{
+		"path": "/Guest",
+		"name": "Guest",
+		"files": {
+			"react": "src/pages/Guest/index.page.tsx",
+			"view": "Views/Login/Index.cshtml"
+		},
+		"access": "guest"
+	},
+	{
+		"path": "/Protected",
+		"name": "Protected",
+		"files": {
+			"react": "src/pages/Protected/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "protected"
+	},
+	{
+		"path": "/Custom",
+		"name": "Custom",
+		"files": {
+			"react": "src/pages/Custom/index.page.tsx",
+			"view": "Views/Home/Index.cshtml"
+		},
+		"access": "protected",
+		"controller": "Home",
+		"action": "Index"
+	},
+	{
+		"path": "/api/ProtectedApi",
+		"name": "ProtectedApi",
+		"files": {
+			"react": "src/pages/ProtectedApi/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "protected"
+	}
+]

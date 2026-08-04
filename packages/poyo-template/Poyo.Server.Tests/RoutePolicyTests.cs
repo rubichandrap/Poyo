@@ -13,8 +13,14 @@ public class RoutePolicyTests
         Assert.Equal(4, policy.Routes.Count);
         var home = policy.Routes.Single(r => r.Name == "Home");
         Assert.Equal("/", home.Path);
-        Assert.True(home.IsPublic);
+        Assert.Equal(RouteAccess.Guest, home.Access);
         Assert.Equal("Views/Home/Index.cshtml", home.Files.View);
+
+        Assert.Equal(RouteAccess.Protected, policy.Routes.Single(r => r.Name == "Dashboard").Access);
+        Assert.Equal(RouteAccess.Public, policy.Routes.Single(r => r.Name == "Login").Access);
+        var register = policy.Routes.Single(r => r.Name == "Register");
+        Assert.Equal(RouteAccess.Guest, register.Access);
+        Assert.Equal("Register", register.Seo?.Title);
     }
 
     [Fact]
@@ -64,12 +70,30 @@ public class RoutePolicyTests
     }
 
     [Fact]
+    public void Load_throws_on_legacy_access_flags()
+    {
+        var ex = Assert.Throws<RoutePolicyException>(
+            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.legacy.json")));
+
+        Assert.Contains("isPublic", ex.Message);
+    }
+
+    [Fact]
     public void Load_throws_on_wrong_type()
     {
         var ex = Assert.Throws<RoutePolicyException>(
             () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.wrong-type.json")));
 
-        Assert.Contains("isPublic", ex.Message);
+        Assert.Contains("access", ex.Message);
+    }
+
+    [Fact]
+    public void Load_throws_on_invalid_access_value()
+    {
+        var ex = Assert.Throws<RoutePolicyException>(
+            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.invalid-access.json")));
+
+        Assert.Contains("access", ex.Message);
     }
 
     [Fact]
@@ -80,5 +104,17 @@ public class RoutePolicyTests
 
         Assert.Contains("duplicate", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("/dashboard", ex.Message);
+    }
+
+    [Fact]
+    public void Find_matches_registry_path_case_insensitively()
+    {
+        var policy = RoutePolicy.Load(TestEnvironment.FixturePath("routes.valid.json"));
+
+        Assert.Equal("Dashboard", policy.Find("/dashboard")?.Name);
+        Assert.Equal("Dashboard", policy.Find("/dashboard/")?.Name);
+        Assert.Equal("Home", policy.Find("/")?.Name);
+        Assert.Null(policy.Find("/NotARoute"));
+        Assert.Null(policy.Find("/api/auth/login"));
     }
 }

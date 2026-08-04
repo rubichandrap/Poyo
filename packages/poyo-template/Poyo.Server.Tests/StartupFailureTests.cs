@@ -9,7 +9,9 @@ public class StartupFailureTests
     [Theory]
     [InlineData("routes.malformed.json", "malformed")]
     [InlineData("routes.unknown-field.json", "bogusField")]
-    [InlineData("routes.wrong-type.json", "isPublic")]
+    [InlineData("routes.legacy.json", "isPublic")]
+    [InlineData("routes.wrong-type.json", "access")]
+    [InlineData("routes.invalid-access.json", "access")]
     [InlineData("routes.duplicate.json", "duplicate")]
     public void Malformed_registry_fails_startup_loudly(string fixture, string messagePart)
     {

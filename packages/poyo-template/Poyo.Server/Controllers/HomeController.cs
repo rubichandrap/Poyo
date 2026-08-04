@@ -1,13 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
-using Poyo.Server.Middleware.Auth;
 
 namespace Poyo.Server.Controllers;
 
 public class HomeController(ILogger<HomeController> logger) : Controller
 {
     private readonly ILogger<HomeController> _logger = logger;
-
-    [GuestOnly]
 
     public IActionResult Index()
     {
@@ -23,4 +20,3 @@ public class HomeController(ILogger<HomeController> logger) : Controller
         return View();
     }
 }
-

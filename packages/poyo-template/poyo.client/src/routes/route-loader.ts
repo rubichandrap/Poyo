@@ -9,8 +9,7 @@ interface RouteEntry {
 		react: string;
 		view: string;
 	};
-	isPublic?: boolean;
-	isGuestOnly?: boolean;
+	access?: "public" | "guest" | "protected";
 	seo?: Record<string, unknown>;
 }
 
