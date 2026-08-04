@@ -9,6 +9,7 @@ const starter: Route[] = [
 			react: "src/pages/Dashboard/index.page.tsx",
 			view: "Views/Dashboard/Index.cshtml",
 		},
+		access: "protected",
 	},
 	{
 		path: "/Login",
@@ -17,7 +18,7 @@ const starter: Route[] = [
 			react: "src/pages/Login/index.page.tsx",
 			view: "Views/Login/Index.cshtml",
 		},
-		isPublic: true,
+		access: "public",
 	},
 ];
 
@@ -32,8 +33,8 @@ describe("poyo route update", () => {
 			"true",
 		]);
 		expect(
-			fixture.routesJson().find((r) => r.path === "/Dashboard")?.isPublic,
-		).toBe(true);
+			fixture.routesJson().find((r) => r.path === "/Dashboard")?.access,
+		).toBe("public");
 
 		execInFixture(fixture, [
 			"route",
@@ -43,16 +44,48 @@ describe("poyo route update", () => {
 			"false",
 		]);
 		expect(
-			fixture.routesJson().find((r) => r.path === "/Dashboard")?.isPublic,
-		).toBe(false);
+			fixture.routesJson().find((r) => r.path === "/Dashboard")?.access,
+		).toBe("protected");
 	});
 
 	it("toggles --guest", () => {
 		const fixture = makeFixture(starter);
 		execInFixture(fixture, ["route", "update", "/Login", "--guest", "true"]);
+		expect(fixture.routesJson().find((r) => r.path === "/Login")?.access).toBe(
+			"guest",
+		);
+	});
+
+	it("maps --guest false back to protected", () => {
+		const fixture = makeFixture([
+			{
+				path: "/Register",
+				name: "Register",
+				files: {
+					react: "src/pages/Register/index.page.tsx",
+					view: "Views/Register/Index.cshtml",
+				},
+				access: "guest",
+			},
+		]);
+		execInFixture(fixture, [
+			"route",
+			"update",
+			"/Register",
+			"--guest",
+			"false",
+		]);
 		expect(
-			fixture.routesJson().find((r) => r.path === "/Login")?.isGuestOnly,
-		).toBe(true);
+			fixture.routesJson().find((r) => r.path === "/Register")?.access,
+		).toBe("protected");
+	});
+
+	it("does not destroy sibling access state on --guest false", () => {
+		const fixture = makeFixture(starter);
+		execInFixture(fixture, ["route", "update", "/Login", "--guest", "false"]);
+		expect(fixture.routesJson().find((r) => r.path === "/Login")?.access).toBe(
+			"public",
+		);
 	});
 
 	it("matches routes with or without a leading slash", () => {
@@ -65,8 +98,8 @@ describe("poyo route update", () => {
 			"true",
 		]);
 		expect(
-			fixture.routesJson().find((r) => r.path === "/Dashboard")?.isPublic,
-		).toBe(true);
+			fixture.routesJson().find((r) => r.path === "/Dashboard")?.access,
+		).toBe("public");
 	});
 
 	it("leaves the file layout untouched", () => {
@@ -88,5 +121,35 @@ describe("poyo route update", () => {
 		]);
 		expect(result.status).toBe(1);
 		expect(result.stderr).toContain("Route not found");
+	});
+
+	it("rejects a non-boolean access value", () => {
+		const fixture = makeFixture(starter);
+		const result = execInFixture(fixture, [
+			"route",
+			"update",
+			"/Dashboard",
+			"--public",
+			"maybe",
+		]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("true");
+		expect(result.stderr).toContain("false");
+	});
+
+	it("rejects combining --public and --guest", () => {
+		const fixture = makeFixture(starter);
+		const result = execInFixture(fixture, [
+			"route",
+			"update",
+			"/Dashboard",
+			"--public",
+			"true",
+			"--guest",
+			"true",
+		]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("--public");
+		expect(result.stderr).toContain("--guest");
 	});
 });

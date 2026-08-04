@@ -18,6 +18,7 @@ const starter: Route[] = [
 			react: "src/pages/Dashboard/index.page.tsx",
 			view: "Views/Dashboard/Index.cshtml",
 		},
+		access: "protected",
 	},
 ];
 
