@@ -6,7 +6,11 @@
 			"react": "src/pages/Home/index.page.tsx",
 			"view": "Views/Home/Index.cshtml"
 		},
-		"access": "guest"
+		"access": "guest",
+		"seo": {
+			"description": "A minimal React + .NET 10 MPA starter framework",
+			"title": "Poyo Framework"
+		}
 	},
 	{
 		"path": "/Dashboard",

@@ -42,7 +42,7 @@
 			"view": "Views/Home/Index.cshtml"
 		},
 		"access": "protected",
-		"controller": "Home",
+		"controller": "Page",
 		"action": "Index"
 	},
 	{

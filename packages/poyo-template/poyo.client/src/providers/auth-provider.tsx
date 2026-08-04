@@ -52,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 		localStorage.removeItem("ui-token");
 		setUser(null);
 		// Force reload or redirect to ensure clean state
-		window.location.href = "/Home";
+		window.location.href = "/";
 	};
 
 	return (

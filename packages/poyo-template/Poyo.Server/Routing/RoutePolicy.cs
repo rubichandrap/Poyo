@@ -87,11 +87,6 @@ public sealed class RoutePolicy
     {
         foreach (var route in _routes)
         {
-            if (route.Name.Equals("Home", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             var controllerName = !string.IsNullOrWhiteSpace(route.Controller)
                 ? route.Controller
                 : "Page";

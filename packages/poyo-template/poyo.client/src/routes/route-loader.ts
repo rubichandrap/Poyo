@@ -104,6 +104,6 @@ export function findRouteGeneric(pathname: string) {
 
 	return routes.find((r) => {
 		const rPath = r.path.toLowerCase();
-		return rPath === lowerPath || (rPath === "/home" && lowerPath === "/");
+		return rPath === lowerPath;
 	});
 }

@@ -78,8 +78,8 @@ builder.Services.AddAuthentication(options =>
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 
         options.LoginPath = "/Login";
-        options.LogoutPath = "/Home";
-        options.AccessDeniedPath = "/Home";
+        options.LogoutPath = "/";
+        options.AccessDeniedPath = "/";
 
         // Override default redirect behavior for API calls
         options.Events.OnRedirectToLogin = context =>
@@ -163,10 +163,10 @@ app.MapControllers();
 // Dynamic Routing from routes.json
 routePolicy.MapRoutes(app);
 
-// MPA routes (Fallback for Home and others)
+// MPA routes (Fallback for unmatched URLs, clean 404)
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller}/{action}/{id?}");
 
 app.Run();
 

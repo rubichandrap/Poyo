@@ -22,6 +22,17 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
             AllowAutoRedirect = false,
         });
 
+    private static async Task LoginAsync(HttpClient client)
+    {
+        var login = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            username = "demo",
+            password = "password",
+        });
+
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+    }
+
     [Fact]
     public async Task Home_serves_the_guest_landing_page()
     {
@@ -29,7 +40,37 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
-        Assert.Contains("Home", await response.Content.ReadAsStringAsync());
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Home", body);
+        Assert.Contains("Poyo Framework", body);
+    }
+
+    [Fact]
+    public async Task Home_redirects_authenticated_users_to_landing_page()
+    {
+        var client = CreateClient();
+        await LoginAsync(client);
+
+        var response = await client.GetAsync("/");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Dashboard", response.Headers.Location?.ToString());
+    }
+
+    [Fact]
+    public async Task Home_route_returns_404()
+    {
+        var response = await CreateClient().GetAsync("/Home");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Unmatched_urls_return_404()
+    {
+        var response = await CreateClient().GetAsync("/DoesNotExist");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
@@ -63,14 +104,7 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
     public async Task Dashboard_serves_after_login()
     {
         var client = CreateClient();
-
-        var login = await client.PostAsJsonAsync("/api/auth/login", new
-        {
-            username = "demo",
-            password = "password",
-        });
-
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        await LoginAsync(client);
 
         var response = await client.GetAsync("/Dashboard");
 
