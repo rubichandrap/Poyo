@@ -17,6 +17,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `GuestOnlyAttribute` (guest behavior folded into the registry policy)
 
+### Fixed
+
+- `Microsoft.OpenApi` pinned to 2.7.5, above the transitive 2.0.0 from `Microsoft.AspNetCore.OpenApi` (GHSA-v5pm-xwqc-g5wc: crafted circular schema references crash the OpenAPI parser)
+- Generated projects install their client and server dependencies: the template now ships a `pnpm-workspace.yaml` listing `poyo.client` and `Poyo.Server`, so `pnpm install` covers the whole workspace instead of the project root only
+
 ## [0.1.1] - 2026-08-03
 
 ### Fixed

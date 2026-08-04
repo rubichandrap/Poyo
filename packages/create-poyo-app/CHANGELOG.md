@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Generated projects inherit the v2 routes registry (single `access` field) and universal server-side access enforcement from the template
+- The scaffolded project ships a `pnpm-workspace.yaml` (renamed to the project's client and server directories) so the workspace install covers the whole project
 
 ## [0.1.1] - 2026-08-03
 

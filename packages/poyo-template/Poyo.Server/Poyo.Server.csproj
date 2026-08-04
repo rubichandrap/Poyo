@@ -11,6 +11,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Razor.RuntimeCompilation" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.1" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.3" />
+    <!-- Pin above the transitive 2.0.0 from Microsoft.AspNetCore.OpenApi:
+         GHSA-v5pm-xwqc-g5wc (circular schema references crash the OpenAPI parser). -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.15.0" />
     <PackageReference Include="Vite.AspNetCore" Version="2.4.1" />
