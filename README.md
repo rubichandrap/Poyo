@@ -247,7 +247,7 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
     "react": "src/pages/Dashboard/index.page.tsx",
     "view": "Views/Dashboard/Index.cshtml"
   },
-  "isPublic": false,
+  "access": "protected",
   "controller": "DashboardController", // Optional: Use custom controller
   "action": "Index",                   // Optional: Custom action
   "seo": {                             // Optional: SEO Metadata
@@ -263,10 +263,15 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
 }
 ```
 
+`access` is one of `public` | `guest` | `protected` (default `protected`). `guest` routes (login, landing pages) redirect authenticated users away; `protected` routes redirect anonymous users to the login page; `public` routes are open to everyone. Access and SEO are enforced server-side for every registry route — custom-controller routes included — so no per-action attributes are needed. Legacy `isPublic`/`isGuestOnly` flags are rejected as unknown fields.
+
 **CLI Commands:**
 ```bash
 # Basic Add
 pnpm run route:add YourPage
+
+# Add a guest route (login/landing pages)
+pnpm run route:add /Login --guest
 
 # Add with Custom Controller & Action
 pnpm run route:add /Admin --controller AdminController --action Index
@@ -301,13 +306,20 @@ Poyo uses a hybrid approach to balance security and usability:
     *   **Why?** Instant UI updates. React knows to show "Logout" instead of "Login" immediately without waiting for a server roundtrip.
     *   **Security:** This is **NOT** used for access control. The Server validates the **Cookie** (or Bearer token). If the cookie is missing/invalid, the request fails even if the UI token exists.
 
-```csharp
-[GuestOnly]  // Redirects authenticated users
-public IActionResult Login() => View();
+Access rules live in `routes.json`, not on actions. A universal filter enforces them for every registry route:
 
-[Authorize]  // Requires authentication
-public IActionResult Dashboard() => View();
+```json
+{
+  "path": "/Login",
+  "name": "Login",
+  "files": { "react": "src/pages/Login/index.page.tsx", "view": "Views/Login/Index.cshtml" },
+  "access": "guest"
+}
 ```
+
+- `protected` (default): anonymous users are challenged → redirected to the login page (or 401 for API calls)
+- `guest`: authenticated users are redirected to the landing page (`/Dashboard` by default)
+- `public`: open to everyone
 
 ---
 
@@ -355,7 +367,7 @@ public IActionResult Dashboard() => View();
 - Demo auth service (replace with your own)
 - MVC routing
 - Server data injection (`[ServerData]` attribute)
-- Guest-only pages (`[GuestOnly]` attribute)
+- Registry-driven access model (`access` in `routes.json`, enforced universally)
 - Error handling
 - JSend response wrapper
 

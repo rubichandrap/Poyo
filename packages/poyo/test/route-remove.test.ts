@@ -16,6 +16,7 @@ const starter: Route[] = [
 			react: "src/pages/About/index.page.tsx",
 			view: "Views/About/Index.cshtml",
 		},
+		access: "protected",
 	},
 	{
 		path: "/Reports",
@@ -24,6 +25,7 @@ const starter: Route[] = [
 			react: "src/pages/Reports/index.page.tsx",
 			view: "Views/Reports/Index.cshtml",
 		},
+		access: "protected",
 		controller: "ReportsController",
 		action: "Index",
 	},

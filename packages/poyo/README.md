@@ -18,7 +18,7 @@ poyo --version
 
 poyo route add    User/Profile                       # register route, scaffold page + view
 poyo route add    /Admin -c AdminController -a Index # custom controller
-poyo route add    /Login --guest                     # guest-only (redirects authenticated users)
+poyo route add    /Login --guest                     # guest access (login/landing pages)
 poyo route add    User/Profile --no-view             # skip view generation
 poyo route update User/Profile --public true
 poyo route remove User/Profile                       # prompt to delete files
@@ -33,7 +33,7 @@ poyo generate ./openapi.json   # ... from a local file (defaults to VITE_OPENAPI
 
 ## Route management
 
-`poyo route add` appends an entry to `routes.json` and scaffolds the matching React page and Razor view. Routes support auth flags (`--public`, `--guest`), flat or folder page layouts (`--flat`), and custom controllers (`--controller` + `--action`).
+`poyo route add` appends an entry to `routes.json` and scaffolds the matching React page and Razor view. Routes carry an `access` field — one of `public` | `guest` | `protected` (default `protected`), set with the `--public`/`--guest` flags — plus flat or folder page layouts (`--flat`) and custom controllers (`--controller` + `--action`). Legacy `isPublic`/`isGuestOnly` fields are rejected as unknown, not migrated.
 
 `poyo route sync` runs both directions: forward (fix missing files, rescaffold) and reverse (detect untracked pages, offer to register them).
 

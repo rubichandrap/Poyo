@@ -108,9 +108,9 @@ export default function DashboardPage() {
 							<ul className="space-y-2 text-sm text-slate-500">
 								<li>• .NET 10 with minimal API</li>
 								<li>• Cookie authentication</li>
-								<li>• MVC routing</li>
+								<li>• Registry-driven routing</li>
 								<li>• Server data injection</li>
-								<li>• GuestOnly attribute</li>
+								<li>• Access model in routes.json</li>
 							</ul>
 						</div>
 						<div>

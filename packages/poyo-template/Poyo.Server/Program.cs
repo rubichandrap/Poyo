@@ -45,8 +45,21 @@ if (builder.Environment.IsDevelopment())
     RequireEnv("Vite__Server__DevServerUrl");
 }
 
+// Dynamic routing from the routes registry. RoutePolicy validates the
+// registry shape and fails startup loudly on malformed registries.
+var routesJsonPath = builder.Configuration["Routes:JsonPath"]
+    ?? Path.Combine(root, "routes.json");
+var routePolicy = Poyo.Server.Routing.RoutePolicy.Load(routesJsonPath);
+builder.Services.AddSingleton(routePolicy);
+
 // Add services to the container.
-builder.Services.AddControllersWithViews();
+builder.Services.AddControllersWithViews(options =>
+{
+    // Universal enforcement of the registry access model and SEO for every
+    // registry route (default and custom controller routes alike).
+    options.Filters.Add<Poyo.Server.Routing.RouteAccessFilter>();
+    options.Filters.Add<Poyo.Server.Routing.SeoPolicyFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi(options =>
 {
@@ -65,8 +78,8 @@ builder.Services.AddAuthentication(options =>
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 
         options.LoginPath = "/Login";
-        options.LogoutPath = "/Home";
-        options.AccessDeniedPath = "/Home";
+        options.LogoutPath = "/";
+        options.AccessDeniedPath = "/";
 
         // Override default redirect behavior for API calls
         options.Events.OnRedirectToLogin = context =>
@@ -148,56 +161,18 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Dynamic Routing from routes.json
-try
-{
-    var routesJsonPath = Path.Combine(root, "routes.json");
-    if (File.Exists(routesJsonPath))
-    {
-        var routesJson = File.ReadAllText(routesJsonPath);
-        var routes = System.Text.Json.JsonSerializer.Deserialize<List<RouteDefinition>>(routesJson, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+routePolicy.MapRoutes(app);
 
-        if (routes != null)
-        {
-            foreach (var route in routes)
-            {
-                if (route.Name.Equals("Home", StringComparison.OrdinalIgnoreCase)) continue;
-
-                var controllerName = !string.IsNullOrWhiteSpace(route.Controller) ? route.Controller : "Page";
-                var actionName = !string.IsNullOrWhiteSpace(route.Action)
-                    ? route.Action
-                    : (route.IsGuestOnly ? "GuestIndex" : (route.IsPublic ? "PublicIndex" : "Index"));
-
-                // Map route
-                app.MapControllerRoute(
-                    name: route.Name,
-                    pattern: route.Path.TrimStart('/'),
-                    defaults: new
-                    {
-                        controller = controllerName,
-                        action = actionName,
-                        viewPath = route.Files.View,
-                        pageName = route.Name,
-                        seo = route.Seo
-                    });
-            }
-        }
-    }
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Error loading routes.json: {ex.Message}");
-}
-
-// MPA routes (Fallback for Home and others)
+// MPA routes (Fallback for unmatched URLs, clean 404)
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
+    pattern: "{controller}/{action}/{id?}");
 
 app.Run();
 
-// Helper record for deserialization
-internal record RouteDefinition(string Path, string Name, RouteFiles Files, bool IsPublic, bool IsGuestOnly, Poyo.Server.Models.SeoModel? Seo, string? Controller, string? Action);
-internal record RouteFiles(string View);
+public partial class Program
+{
+}
 
 
 

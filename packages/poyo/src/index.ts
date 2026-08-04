@@ -18,7 +18,10 @@ async function runTopLevel(command: Command, args: string[]): Promise<void> {
 }
 
 async function main(): Promise<void> {
-	const [command, ...rest] = process.argv.slice(2);
+	// pnpm run forwards a literal "--" token before the script's args;
+	// commander would treat it as end-of-options, so drop stray ones.
+	const argv = process.argv.slice(2).filter((arg) => arg !== "--");
+	const [command, ...rest] = argv;
 
 	if (!command || command === "--help" || command === "-h") {
 		process.stdout.write(HELP);

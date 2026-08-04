@@ -16,6 +16,7 @@ const starter: Route[] = [
 			react: "src/pages/Home/index.page.tsx",
 			view: "Views/Home/Index.cshtml",
 		},
+		access: "protected",
 	},
 ];
 
@@ -80,6 +81,7 @@ describe("poyo route sync", () => {
 			react: "src/pages/About/index.page.tsx",
 			view: "Views/About/Index.cshtml",
 		});
+		expect(routes.find((r) => r.path === "/About")?.access).toBe("protected");
 		expect(routes.find((r) => r.path === "/About")).not.toHaveProperty(
 			"reactFile",
 		);

@@ -10,5 +10,7 @@ publish
 **/publish
 wwwroot/generated
 **/wwwroot/generated
+Poyo.Server.Tests
+**/Poyo.Server.Tests
 .env
 *.tgz

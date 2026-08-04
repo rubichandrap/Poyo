@@ -18,6 +18,7 @@
 			"!**/.github",
 			"!**/.husky",
 			"!**/.vscode",
+			"!**/Poyo.Server.Tests/Fixtures",
 			"!**/package-lock.json",
 			"!**/*.generated.ts"
 		]

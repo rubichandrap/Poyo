@@ -1,0 +1,42 @@
+[
+	{
+		"path": "/",
+		"name": "Home",
+		"files": {
+			"react": "src/pages/Home/index.page.tsx",
+			"view": "Views/Home/Index.cshtml"
+		},
+		"access": "guest"
+	},
+	{
+		"path": "/Dashboard",
+		"name": "Dashboard",
+		"files": {
+			"react": "src/pages/Dashboard/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "protected"
+	},
+	{
+		"path": "/Login",
+		"name": "Login",
+		"files": {
+			"react": "src/pages/Login/index.page.tsx",
+			"view": "Views/Login/Index.cshtml"
+		},
+		"access": "public"
+	},
+	{
+		"path": "/Register",
+		"name": "Register",
+		"files": {
+			"react": "src/pages/Register/index.page.tsx",
+			"view": "Views/Register/Index.cshtml"
+		},
+		"access": "guest",
+		"seo": {
+			"description": "Page for Register",
+			"title": "Register"
+		}
+	}
+]

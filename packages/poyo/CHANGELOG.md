@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-08-04
+
+### Changed
+
+- The route manager writes the v2 registry: a single `access` field (`public` | `guest` | `protected`, default `protected`) replaces the `isPublic`/`isGuestOnly` flags, and `--public`/`--guest` map onto it
+- Registry validation rejects legacy `isPublic`/`isGuestOnly` fields as unknown — no migration shim, no version marker; invalid `access` values and duplicate case-insensitive paths fail loudly
+
+### Fixed
+
+- `pnpm run <script> -- <args>` invocation: pnpm forwards a literal `--` token that commander treated as end-of-options, so flags after it were parsed as positionals ("too many arguments"); stray `--` tokens are now dropped before parsing
+
 ## [0.1.1] - 2026-08-03
 
 ### Fixed
@@ -31,5 +42,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - The old `scripts/manage-routes.js` Node route manager
 
+[0.2.0]: https://github.com/rubichandrap/Poyo/releases/tag/v0.2.0
 [0.1.0]: https://github.com/rubichandrap/Poyo/releases/tag/v0.1.0
 [0.1.1]: https://github.com/rubichandrap/Poyo/releases/tag/v0.1.1

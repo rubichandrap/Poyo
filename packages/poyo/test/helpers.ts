@@ -40,8 +40,7 @@ export interface Route {
 	path: string;
 	name: string;
 	files: { react: string; view: string };
-	isPublic?: boolean;
-	isGuestOnly?: boolean;
+	access: "public" | "guest" | "protected";
 	controller?: string;
 	action?: string;
 	seo?: { title?: string; description?: string; meta?: Record<string, string> };

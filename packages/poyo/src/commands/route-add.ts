@@ -3,7 +3,7 @@ import { getPaths } from "../config.js";
 import { CliError } from "../error.js";
 import { toRouteName, toRoutePath } from "../naming.js";
 import { readRoutes, writeRoutes } from "../registry.js";
-import type { Route } from "../routes.js";
+import { accessFromFlags, type Route } from "../routes.js";
 import { ensureControllerAction, scaffoldRouteFiles } from "../scaffold.js";
 import { defaultSeo } from "../templates.js";
 import { resolveRouteFiles } from "../naming.js";
@@ -27,6 +27,7 @@ export function addCommand(): Command {
 		.action((urlPath: string, options) => {
 			const name = toRouteName(urlPath);
 			const routePath = toRoutePath(name);
+			const access = accessFromFlags(options.public, options.guest);
 
 			const paths = getPaths();
 			const routes = readRoutes(paths);
@@ -57,8 +58,7 @@ export function addCommand(): Command {
 				path: routePath,
 				name,
 				files,
-				isPublic: options.public || false,
-				isGuestOnly: options.guest || false,
+				access,
 				...(controller && { controller, action: options.action }),
 				seo: defaultSeo(name),
 			};

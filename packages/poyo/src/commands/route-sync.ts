@@ -4,7 +4,7 @@ import { Command } from "commander";
 import { getPaths, type ProjectPaths } from "../config.js";
 import { toRouteName, toRoutePath } from "../naming.js";
 import { readRoutes, writeRoutes } from "../registry.js";
-import type { Route } from "../routes.js";
+import { DEFAULT_ACCESS, type Route } from "../routes.js";
 import {
 	deleteEmptyParents,
 	findFiles,
@@ -97,7 +97,7 @@ function inferRoutesFromUntracked(report: SyncReport): UntrackedCandidate[] {
 				path: toRoutePath(name),
 				name,
 				files: { react: reactFile, view: finalView },
-				isPublic: false,
+				access: DEFAULT_ACCESS,
 				seo: defaultSeo(name),
 			},
 		});

@@ -9,8 +9,7 @@ interface RouteEntry {
 		react: string;
 		view: string;
 	};
-	isPublic?: boolean;
-	isGuestOnly?: boolean;
+	access?: "public" | "guest" | "protected";
 	seo?: Record<string, unknown>;
 }
 
@@ -105,6 +104,6 @@ export function findRouteGeneric(pathname: string) {
 
 	return routes.find((r) => {
 		const rPath = r.path.toLowerCase();
-		return rPath === lowerPath || (rPath === "/home" && lowerPath === "/");
+		return rPath === lowerPath;
 	});
 }

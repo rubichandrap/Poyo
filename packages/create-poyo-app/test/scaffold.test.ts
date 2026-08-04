@@ -116,4 +116,15 @@ describe("create-poyo-app", () => {
 		const env = readFile(cwd, "MyApp/.env");
 		expect(env).toContain("VITE_APP_NAME=MyApp");
 	});
+
+	it("ships a workspace manifest listing the renamed client and server", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		const ws = readFile(cwd, "MyApp/pnpm-workspace.yaml");
+		expect(ws).toContain("myapp.client");
+		expect(ws).toContain("MyApp.Server");
+		expect(ws).not.toContain("Poyo");
+		expect(ws).not.toContain("poyo.client");
+	});
 });
