@@ -101,6 +101,21 @@ describe("poyo route add", () => {
 		expect(route?.access).toBe("protected");
 	});
 
+	it("accepts a stray '--' forwarded by pnpm before the path and flags", () => {
+		const fixture = makeFixture(starter);
+		const result = execInFixture(fixture, [
+			"route",
+			"add",
+			"--",
+			"/GuestPage",
+			"--guest",
+		]);
+
+		expect(result.status).toBe(0);
+		const route = fixture.routesJson().find((r) => r.path === "/GuestPage");
+		expect(route).toMatchObject({ access: "guest" });
+	});
+
 	it("rejects combining --public and --guest", () => {
 		const fixture = makeFixture(starter);
 		const result = execInFixture(fixture, [
