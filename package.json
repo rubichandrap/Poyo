@@ -10,7 +10,7 @@
 		"lint:fix": "biome lint . --write",
 		"format": "biome format . && pnpm --filter poyo-template run server:format",
 		"format:fix": "biome format . --write && pnpm --filter poyo-template run server:format:fix",
-		"test:release": "node --test scripts/assert-release-version.test.mjs",
+		"test:release": "node --test scripts/assert-release-version.test.mjs scripts/fixture-e2e.test.mjs",
 		"release:check": "node scripts/assert-release-version.mjs"
 	},
 	"devDependencies": {
