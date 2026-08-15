@@ -51,5 +51,7 @@ describe("usePage", () => {
 		expectTypeOf(usePage<{ message: string }>()).toEqualTypeOf<{
 			message: string;
 		} | null>();
+		// The package owns the Window.SERVER_DATA global: `unknown`, not `any`.
+		expectTypeOf<Window["SERVER_DATA"]>().toEqualTypeOf<unknown | undefined>();
 	});
 });
