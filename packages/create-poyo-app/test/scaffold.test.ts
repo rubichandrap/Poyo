@@ -1,4 +1,7 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { rewriteClientPackageJson } from "../src/rewrite.js";
 import {
 	OWN_VERSION,
 	exists,
@@ -139,5 +142,56 @@ describe("create-poyo-app", () => {
 		expect(ws).toContain("MyApp.Server");
 		expect(ws).not.toContain("Poyo");
 		expect(ws).not.toContain("poyo.client");
+	});
+
+	describe("client manifest rewrite (unit seam)", () => {
+		function writeClientManifest(
+			cwd: string,
+			manifest: Record<string, unknown>,
+		): string {
+			const clientDir = path.join(cwd, "myapp.client");
+			fs.mkdirSync(clientDir, { recursive: true });
+			const pkgPath = path.join(clientDir, "package.json");
+			fs.writeFileSync(pkgPath, `${JSON.stringify(manifest, null, 2)}\n`);
+			return pkgPath;
+		}
+
+		it("pins a workspace:* poyo dependency to the released version", () => {
+			const cwd = makeTempDir();
+			writeClientManifest(cwd, {
+				name: "myapp.client",
+				devDependencies: { "@rubichandrap/poyo": "workspace:*" },
+			});
+
+			rewriteClientPackageJson(cwd, "myapp", OWN_VERSION);
+
+			const pkg = readJson(cwd, "myapp.client/package.json") as {
+				devDependencies: Record<string, string>;
+			};
+			expect(pkg.devDependencies["@rubichandrap/poyo"]).toBe(OWN_VERSION);
+		});
+
+		it("leaves the client manifest untouched when the poyo dependency is absent", () => {
+			const cwd = makeTempDir();
+			// Deliberately non-canonical formatting (tabs, like the real
+			// template): the skip must be a true no-write, not a
+			// re-serialization that happens to round-trip.
+			const original = [
+				"{",
+				'	"name": "myapp.client",',
+				'	"devDependencies": {',
+				'		"typescript": "5.9.3"',
+				"	}",
+				"}",
+				"",
+			].join("\n");
+			const pkgPath = path.join(cwd, "myapp.client", "package.json");
+			fs.mkdirSync(path.dirname(pkgPath), { recursive: true });
+			fs.writeFileSync(pkgPath, original);
+
+			rewriteClientPackageJson(cwd, "myapp", OWN_VERSION);
+
+			expect(fs.readFileSync(pkgPath, "utf-8")).toBe(original);
+		});
 	});
 });
