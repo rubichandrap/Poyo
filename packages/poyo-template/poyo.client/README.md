@@ -15,9 +15,6 @@ src/
 ├── pages/              # 📄 Application Pages (One per route)
 │   └── [Feature]/
 │       └── index.page.tsx  # The page component
-├── hooks/              # 🎣 Custom Hooks
-│   ├── use-page.ts     # The MOST IMPORTANT hook (Server Data)
-│   └── ...
 ├── hooks-api/          # ⚡ Data Fetching (TanStack Query)
 │   ├── auth/           # Auth-related mutations/queries
 │   └── index.ts        # Central export
@@ -46,7 +43,7 @@ In Poyo, the server injects data directly into the HTML when the page loads. Thi
 **How to use it:**
 
 ```typescript
-import { usePage } from "@/hooks/use-page";
+import { usePage } from "@rubichandrap/poyo/runtime";
 
 // 1. Define the shape of data you expect from the server
 interface DashboardData {

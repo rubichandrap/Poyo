@@ -132,9 +132,6 @@ src/
 ├── pages/              # React pages (one per route)
 │   └── [PageName]/
 │       └── index.page.tsx
-├── hooks/              # Custom hooks
-│   ├── use-page.ts     # Server data hook
-│   └── index.ts
 ├── hooks-api/          # TanStack Query hooks
 │   ├── auth/
 │   └── index.ts
@@ -173,9 +170,13 @@ export default function DashboardPage() {
 
 ### 3.3. Server Data Hook
 
+**Source**: `usePage` ships from the framework package — `@rubichandrap/poyo/runtime` — not from the project. The package also declares `Window.SERVER_DATA?: unknown` globally.
+
 **Usage:**
 ```typescript
 // Server injects data via ViewBag.ServerData
+import { usePage } from "@rubichandrap/poyo/runtime";
+
 const data = usePage<{ message: string }>();
 ```
 

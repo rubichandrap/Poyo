@@ -12,7 +12,9 @@ describe("project path detection", () => {
 		const paths = getPaths(fixture.dir);
 		expect(paths.clientDir.endsWith("myapp.client")).toBe(true);
 		expect(paths.serverDir.endsWith("MyApp.Server")).toBe(true);
-		expect(paths.controllersDir.endsWith("MyApp.Server/Controllers")).toBe(true);
+		expect(paths.controllersDir.endsWith("MyApp.Server/Controllers")).toBe(
+			true,
+		);
 	});
 
 	it("falls back to the legacy poyo names", () => {

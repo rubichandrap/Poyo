@@ -1,7 +1,7 @@
 {
 	"name": "@rubichandrap/poyo",
 	"version": "0.2.0",
-	"description": "The Poyo project CLI: route management, build glue, and OpenAPI-to-TypeScript codegen.",
+	"description": "The Poyo project CLI and client runtime: route management, build glue, OpenAPI-to-TypeScript codegen, and the usePage server-data accessor.",
 	"private": false,
 	"repository": {
 		"type": "git",
@@ -12,11 +12,20 @@
 		"poyo": "./dist/index.js"
 	},
 	"exports": {
-		".": "./dist/index.js"
+		".": "./dist/index.js",
+		"./runtime": "./dist/runtime.js"
 	},
 	"files": [
 		"dist"
 	],
+	"peerDependencies": {
+		"react": ">=18"
+	},
+	"peerDependenciesMeta": {
+		"react": {
+			"optional": true
+		}
+	},
 	"scripts": {
 		"build": "tsc -p tsconfig.json",
 		"dev": "tsx src/index.ts",

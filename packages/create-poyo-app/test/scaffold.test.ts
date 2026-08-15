@@ -66,6 +66,19 @@ describe("create-poyo-app", () => {
 		expect(pkg.devDependencies["@rubichandrap/poyo"]).not.toBe("workspace:*");
 	});
 
+	it("rewrites the client's poyo devDependency to the released version", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		const client = readJson(cwd, "MyApp/myapp.client/package.json") as {
+			devDependencies: Record<string, string>;
+		};
+		expect(client.devDependencies["@rubichandrap/poyo"]).toBe(OWN_VERSION);
+		expect(client.devDependencies["@rubichandrap/poyo"]).not.toBe(
+			"workspace:*",
+		);
+	});
+
 	it("renames the sub-package.json names", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });

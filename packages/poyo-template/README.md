@@ -26,7 +26,6 @@ Poyo.Server/      # ASP.NET Core MVC server
   Views/          #   Razor views
 poyo.client/      # React client (Vite + TypeScript + Tailwind)
   src/pages/      #   one React page per route
-  src/hooks/      #   custom hooks, incl. usePage<T>()
   src/hooks-api/  #   TanStack Query hooks
   src/services/   #   API services
   src/schemas/    #   generated DTOs + Zod schemas
@@ -75,13 +74,15 @@ pnpm run route:sync                        # reconcile routes.json with files on
 
 ## Server data
 
-Pass data from the server to React without an initial API call. Set `ViewBag.ServerData` in the view, then read it client-side with `usePage<T>()`:
+Pass data from the server to React without an initial API call. Set `ViewBag.ServerData` in the view, then read it client-side with `usePage<T>()` — shipped from `@rubichandrap/poyo/runtime`:
 
 ```csharp
 ViewBag.ServerData = JsonSerializer.Serialize(new { message = "Hello from server!" });
 ```
 
 ```tsx
+import { usePage } from "@rubichandrap/poyo/runtime";
+
 const data = usePage<{ message: string }>();
 ```
 

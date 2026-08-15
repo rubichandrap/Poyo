@@ -348,7 +348,7 @@ Access rules live in `routes.json`, not on actions. A universal filter enforces 
 - `routes.json` - Route definitions
 - `Poyo.Server/Program.cs` - Server configuration
 - `poyo.client/src/app.tsx` - Client entry point
-- `poyo.client/src/hooks/use-page.ts` - Server data hook
+- `@rubichandrap/poyo/runtime` - Server data hook (`usePage`, from the framework package)
 
 ### Important Directories
 

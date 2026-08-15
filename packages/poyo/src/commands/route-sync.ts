@@ -105,10 +105,7 @@ function inferRoutesFromUntracked(report: SyncReport): UntrackedCandidate[] {
 	return candidates;
 }
 
-function writeDiscrepancyReport(
-	paths: ProjectPaths,
-	report: SyncReport,
-): void {
+function writeDiscrepancyReport(paths: ProjectPaths, report: SyncReport): void {
 	process.stdout.write("[WARN] Discrepancies found:\n");
 	for (const { route, missingFiles } of report.missingRoutes) {
 		process.stdout.write(
@@ -265,9 +262,7 @@ async function runAction(
 					`[INFO] Untracked MVC views with no matching React page (manual intervention needed):\n`,
 				);
 				for (const view of orphanViews) {
-					process.stdout.write(
-						`  - ${paths.toProjectPath("server", view)}\n`,
-					);
+					process.stdout.write(`  - ${paths.toProjectPath("server", view)}\n`);
 				}
 			}
 
