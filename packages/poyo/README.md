@@ -1,6 +1,6 @@
 # @rubichandrap/poyo
 
-The Poyo project CLI: route management, production asset sync, and OpenAPI-to-TypeScript code generation. Installed as a dev dependency in projects created from the Poyo template — the analogue of `next` in a Next.js project.
+The Poyo framework package: the project CLI (route management, production asset sync, and OpenAPI-to-TypeScript code generation) plus the client runtime (`usePage` from `@rubichandrap/poyo/runtime`). Installed as a dev dependency in projects created from the Poyo template — the analogue of `next` in a Next.js project.
 
 ## Install
 

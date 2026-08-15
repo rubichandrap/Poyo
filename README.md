@@ -101,12 +101,11 @@ Poyo/
 │   │   └── poyo.client/     # React Client
 │   │       ├── src/
 │   │       │   ├── pages/   # React pages
-│   │       │   ├── hooks/   # Custom hooks (usePage, etc.)
 │   │       │   ├── hooks-api/ # TanStack Query hooks
 │   │       │   ├── services/ # API services
 │   │       │   └── providers/ # Context providers
 │   │       └── src/schemas/ # Auto-generated DTOs + Zod schemas
-│   ├── poyo/                # Project CLI (route management, build, generate)
+│   ├── poyo/                # Framework package (CLI + client runtime)
 │   └── create-poyo-app/     # Scaffolder
 ├── scripts/                 # Release tooling
 └── .github/workflows/       # CI (release pipeline)

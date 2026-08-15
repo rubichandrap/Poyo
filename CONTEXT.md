@@ -16,8 +16,8 @@ _Avoid_: CLI, generator, create tool
 The clean project skeleton (React client, .NET server, routes registry) with zero tooling. Developed live as a workspace package, copied wholesale into generated projects.
 _Avoid_: starter, boilerplate, template files
 
-**Project CLI**:
-The `poyo` package of dev tooling installed into generated projects — route management, build glue, and OpenAPI-to-TypeScript codegen. The analogue of `next` in a Next.js project.
+**Framework package**:
+The `poyo` package installed into generated projects — the CLI (route management, build glue, and OpenAPI-to-TypeScript codegen) plus the client runtime (`@rubichandrap/poyo/runtime`, the `usePage` accessor). The analogue of `next` in a Next.js project.
 _Avoid_: CLI tool, devtool, poyo binary
 
 **Route**:
@@ -25,7 +25,7 @@ A single entry in the Routes registry: a URL path, a name, the React page and se
 _Avoid_: page, endpoint, page definition
 
 **Route manager**:
-The part of the project CLI that mutates the routes registry and scaffolds the page, view, and controller files for a route.
+The part of the framework package's CLI that mutates the routes registry and scaffolds the page, view, and controller files for a route.
 _Avoid_: route generator, route script
 
 **Route policy**:
@@ -33,13 +33,17 @@ The server's translation of a Route into an ASP.NET route mapping — which cont
 _Avoid_: route mapper, route interpreter, dynamic routing
 
 **Generated project**:
-A standalone project produced by the scaffolder: the template plus the project CLI as a dev dependency.
+A standalone project produced by the scaffolder: the template plus the framework package as a dev dependency.
 _Avoid_: consumer, target app, scaffolded app
+
+**Page data**:
+The per-page payload the server injects for React pages: `ViewBag.ServerData` serialized with System.Text.Json into `window.SERVER_DATA` by the layout, read once per page load by `usePage` from the framework package's runtime. A one-shot bootstrap channel — fresh data flows through the API path.
+_Avoid_: server state, props injection, hydration data
 
 **Routes registry**:
 The `routes.json` file that maps URL paths to their React page and server view files. The single source of truth for route existence.
 _Avoid_: route table, route config
 
 **Project identity**:
-The facts the project CLI derives from a generated project rather than assuming from the template — the server namespace and the client/server directory names. Scaffolding renames the project, so tooling that hardcodes the template's names breaks in generated projects.
+The facts the package's CLI derives from a generated project rather than assuming from the template — the server namespace and the client/server directory names. Scaffolding renames the project, so tooling that hardcodes the template's names breaks in generated projects.
 _Avoid_: project name, namespace config
