@@ -373,7 +373,7 @@ pnpm --filter poyo-template run build
 ### 7.2. DON'T
 
 ❌ Add business logic to the framework
-❌ Use `any` type in TypeScript
+❌ Use `any` type in TypeScript — one deliberate exception: the client runtime's `PageLoader`/`AppRoute` use `ComponentType<any>` because page props are unknown and vary per page and React's `lazy()` requires it; each use is marked with a `biome-ignore` comment.
 ❌ Bypass validation
 ❌ Make API calls without TanStack Query
 ❌ Add UI component libraries (keep it minimal)
