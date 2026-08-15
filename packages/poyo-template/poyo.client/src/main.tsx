@@ -4,7 +4,7 @@ import "./index.css";
 import App from "./app.tsx";
 
 // Render React app and replace the entire content
-const rootElement = document.getElementById("root");
+const rootElement = document.getElementById("react-root");
 if (rootElement) {
 	// Clear the existing content
 	rootElement.innerHTML = "";
