@@ -1,6 +1,5 @@
 /**
- * Client runtime for generated Poyo projects — shipped as the
- * "@rubichandrap/poyo/runtime" subpath export.
+ * Accessor for server-injected page data.
  *
  * The server serializes `ViewBag.ServerData` into `window.SERVER_DATA`
  * (see `_Layout.cshtml`); `usePage` reads that channel once per page load.

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
-import { usePage } from "../src/runtime.js";
+import { usePage } from "../src/runtime/index.js";
 
 afterEach(() => {
 	vi.unstubAllGlobals();

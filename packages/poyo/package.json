@@ -13,7 +13,7 @@
 	},
 	"exports": {
 		".": "./dist/index.js",
-		"./runtime": "./dist/runtime.js"
+		"./runtime": "./dist/runtime/index.js"
 	},
 	"files": [
 		"dist"
