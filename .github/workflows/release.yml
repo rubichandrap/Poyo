@@ -69,15 +69,15 @@ jobs:
 
       - name: Publish poyo-template
         working-directory: packages/poyo-template
-        run: pnpm publish --access public --no-git-checks --tag ${{ steps.disttag.outputs.tag }}
+        run: npm publish --access public --tag ${{ steps.disttag.outputs.tag }}
 
       - name: Publish poyo
         working-directory: packages/poyo
-        run: pnpm publish --access public --no-git-checks --tag ${{ steps.disttag.outputs.tag }}
+        run: npm publish --access public --tag ${{ steps.disttag.outputs.tag }}
 
       - name: Publish create-poyo-app
         working-directory: packages/create-poyo-app
-        run: pnpm publish --access public --no-git-checks --tag ${{ steps.disttag.outputs.tag }}
+        run: npm publish --access public --tag ${{ steps.disttag.outputs.tag }}
 
       - name: Extract release notes
         id: notes
