@@ -57,17 +57,27 @@ jobs:
           done
           echo "Version ${VERSION} is not yet published on npm."
 
+      - name: Compute npm dist-tag
+        id: disttag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" == *-* ]]; then
+            echo "tag=next" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=latest" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish poyo-template
         working-directory: packages/poyo-template
-        run: pnpm publish --access public --no-git-checks
+        run: pnpm publish --access public --no-git-checks --tag ${{ steps.disttag.outputs.tag }}
 
       - name: Publish poyo
         working-directory: packages/poyo
-        run: pnpm publish --access public --no-git-checks
+        run: pnpm publish --access public --no-git-checks --tag ${{ steps.disttag.outputs.tag }}
 
       - name: Publish create-poyo-app
         working-directory: packages/create-poyo-app
-        run: pnpm publish --access public --no-git-checks
+        run: pnpm publish --access public --no-git-checks --tag ${{ steps.disttag.outputs.tag }}
 
       - name: Extract release notes
         id: notes
