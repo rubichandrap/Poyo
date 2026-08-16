@@ -4,6 +4,12 @@ All notable changes to the Poyo monorepo are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1-rc.1] - 2026-08-16
+
+### Fixed
+
+- The published `create-poyo-app` resolves `@rubichandrap/poyo-template` as the release version instead of the raw `workspace:*` protocol — 0.3.0 shipped the leak (npm publish does not rewrite workspace deps; pnpm publish does) and standalone installs (`npx`/`pnpm dlx`) failed with `ERR_PNPM_WORKSPACE_PKG_NOT_FOUND`. Publishing is back on `pnpm publish`, and the release fixture now gates the published scaffolder installs standalone.
+
 ## [0.3.0] - 2026-08-16
 
 ### Added
@@ -56,6 +62,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The stale GitHub-Packages `publish.yml` workflow
 - The old whole-repo-copy scaffolder (`cli/create-poyo-app.js`)
 
+[0.3.1-rc.1]: https://github.com/rubichandrap/Poyo/releases/tag/v0.3.1-rc.1
 [0.3.0]: https://github.com/rubichandrap/Poyo/releases/tag/v0.3.0
 [0.2.0]: https://github.com/rubichandrap/Poyo/releases/tag/v0.2.0
 [0.1.0]: https://github.com/rubichandrap/Poyo/releases/tag/v0.1.0

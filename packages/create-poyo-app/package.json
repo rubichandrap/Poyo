@@ -1,6 +1,6 @@
 {
 	"name": "@rubichandrap/create-poyo-app",
-	"version": "0.3.0",
+	"version": "0.3.1-rc.1",
 	"description": "Scaffold a new Poyo project from the template package.",
 	"private": false,
 	"repository": {
