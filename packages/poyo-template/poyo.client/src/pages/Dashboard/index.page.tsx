@@ -1,4 +1,4 @@
-import { usePage } from "~/hooks";
+import { usePage } from "@rubichandrap/poyo/runtime";
 import { useLogout } from "~/hooks-api/auth";
 
 interface DashboardData {

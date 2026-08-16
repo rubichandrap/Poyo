@@ -1,6 +1,6 @@
 # @rubichandrap/poyo
 
-The Poyo project CLI: route management, production asset sync, and OpenAPI-to-TypeScript code generation. Installed as a dev dependency in projects created from the Poyo template — the analogue of `next` in a Next.js project.
+The Poyo framework package: the project CLI (route management, production asset sync, and OpenAPI-to-TypeScript code generation) plus the client runtime (`usePage` from `@rubichandrap/poyo/runtime`). Installed as a dev dependency in projects created from the Poyo template — the analogue of `next` in a Next.js project.
 
 ## Install
 
@@ -40,6 +40,18 @@ poyo generate ./openapi.json   # ... from a local file (defaults to VITE_OPENAPI
 ## Build sync
 
 `poyo build` reads the Vite manifest, copies the built assets into `wwwroot/generated`, prunes stale files, and rewrites `_ReactAssets.cshtml` with the current entry JS/CSS — so Razor views always reference the correct hashed filenames.
+
+## Client runtime
+
+The package also ships the browser runtime generated projects import — the analogue of `next/router` in a Next.js project:
+
+```tsx
+import { usePage } from "@rubichandrap/poyo/runtime";
+
+const data = usePage<{ message: string }>(); // typed server data, or null
+```
+
+`usePage<T>()` reads `window.SERVER_DATA` — the channel the server fills from `ViewBag.ServerData` — once per page load. It is SSR-safe (returns `null` without a `window`) and resolves to `null` for missing, null, array, or primitive payloads; only a plain object is returned. The package declares `Window.SERVER_DATA?: unknown` globally, and `react` is an optional peer dependency — the module itself imports nothing and is safe for any bundler.
 
 ## Development
 

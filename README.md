@@ -101,12 +101,11 @@ Poyo/
 │   │   └── poyo.client/     # React Client
 │   │       ├── src/
 │   │       │   ├── pages/   # React pages
-│   │       │   ├── hooks/   # Custom hooks (usePage, etc.)
 │   │       │   ├── hooks-api/ # TanStack Query hooks
 │   │       │   ├── services/ # API services
 │   │       │   └── providers/ # Context providers
 │   │       └── src/schemas/ # Auto-generated DTOs + Zod schemas
-│   ├── poyo/                # Project CLI (route management, build, generate)
+│   ├── poyo/                # Framework package (CLI + client runtime)
 │   └── create-poyo-app/     # Scaffolder
 ├── scripts/                 # Release tooling
 └── .github/workflows/       # CI (release pipeline)
@@ -348,7 +347,7 @@ Access rules live in `routes.json`, not on actions. A universal filter enforces 
 - `routes.json` - Route definitions
 - `Poyo.Server/Program.cs` - Server configuration
 - `poyo.client/src/app.tsx` - Client entry point
-- `poyo.client/src/hooks/use-page.ts` - Server data hook
+- `@rubichandrap/poyo/runtime` - Server data hook (`usePage`, from the framework package)
 
 ### Important Directories
 

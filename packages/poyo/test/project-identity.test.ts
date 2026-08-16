@@ -35,11 +35,7 @@ function renamedFixture(): ReturnType<typeof makeFixture> {
 		clientDir: "myapp.client",
 		serverDir: "MyApp.Server",
 	});
-	writeFixtureFile(
-		fixture,
-		"MyApp.Server/MyApp.Server.csproj",
-		CS_PROJECT(),
-	);
+	writeFixtureFile(fixture, "MyApp.Server/MyApp.Server.csproj", CS_PROJECT());
 	return fixture;
 }
 
@@ -206,11 +202,7 @@ describe("project identity seam", () => {
 		);
 		expect(paths.resolveSide("src/pages/About/index.page.tsx")).toBe("client");
 		expect(paths.resolveSide("Views/About/Index.cshtml")).toBe("server");
-		expect(paths.dirOf("client")).toBe(
-			path.join(fixture.dir, "myapp.client"),
-		);
-		expect(paths.dirOf("server")).toBe(
-			path.join(fixture.dir, "MyApp.Server"),
-		);
+		expect(paths.dirOf("client")).toBe(path.join(fixture.dir, "myapp.client"));
+		expect(paths.dirOf("server")).toBe(path.join(fixture.dir, "MyApp.Server"));
 	});
 });

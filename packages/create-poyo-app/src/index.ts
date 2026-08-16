@@ -5,12 +5,11 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { Command } from "commander";
 import { CliError } from "./error.js";
+import { rewriteClientPackageJson, rewritePackageJson } from "./rewrite.js";
 
 const require = createRequire(import.meta.url);
 
 const TEMPLATE_PKG = "@rubichandrap/poyo-template/package.json";
-const POYO_PKG = "@rubichandrap/poyo";
-const FRESH_VERSION = "0.0.1";
 
 // Mirrors the gitignored build artifacts so the copy matches the published
 // template package, not the dev workspace with its generated output.
@@ -115,29 +114,6 @@ function renameTree(dir: string, rules: RenameRule[]): void {
 	}
 }
 
-function rewritePackageJson(
-	targetDir: string,
-	projectPascal: string,
-	projectLower: string,
-	poyoVersion: string,
-): void {
-	const pkgPath = path.join(targetDir, "package.json");
-	const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8")) as Record<
-		string,
-		unknown
-	>;
-	pkg.name = projectLower;
-	pkg.version = FRESH_VERSION;
-	pkg.description = `Project ${projectPascal} created from the Poyo template`;
-	pkg.private = true;
-	delete pkg.bin;
-	delete pkg.files;
-	const devDeps = (pkg.devDependencies ?? {}) as Record<string, string>;
-	devDeps[POYO_PKG] = poyoVersion;
-	pkg.devDependencies = devDeps;
-	fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
-}
-
 function installDependencies(targetDir: string): void {
 	const result = spawnSync("pnpm", ["install"], {
 		cwd: targetDir,
@@ -167,6 +143,7 @@ export function createProject(
 	copyRecursive(templateDir, targetDir);
 	renameTree(targetDir, rules);
 	rewritePackageJson(targetDir, pascal, lower, poyoVersion);
+	rewriteClientPackageJson(targetDir, lower, poyoVersion);
 
 	if (!options.skipInstall) {
 		installDependencies(targetDir);

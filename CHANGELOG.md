@@ -4,6 +4,17 @@ All notable changes to the Poyo monorepo are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Client runtime subpath: `usePage` ships from `@rubichandrap/poyo` as `./runtime` (ADR 0005); generated projects import the accessor from the framework package, and the template's local copy is deleted
+- Release-time fixture e2e (`pnpm run test:release`): scaffolds a real project, installs `@rubichandrap/poyo` from npm at the release version, and asserts the resolved package and the `usePage` accessor in the built client bundle — red until the version is published (the npm-resolution proof)
+
+### Changed
+
+- The scaffolder pins the generated client's `@rubichandrap/poyo` devDependency to the release version at generate time (silent-skip when the template doesn't declare it)
+
 ## [0.2.0] - 2026-08-04
 
 ### Changed

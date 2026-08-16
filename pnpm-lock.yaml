@@ -57,6 +57,9 @@ importers:
       openapi-zod-client:
         specifier: 1.18.3
         version: 1.18.3(react@19.1.1)
+      react:
+        specifier: '>=18'
+        version: 19.1.1
     devDependencies:
       '@biomejs/biome':
         specifier: 2.3.11
@@ -90,6 +93,9 @@ importers:
       '@hookform/resolvers':
         specifier: 5.2.2
         version: 5.2.2(react-hook-form@7.70.0(react@19.1.1))
+      '@rubichandrap/poyo':
+        specifier: workspace:*
+        version: link:../../poyo
       '@tailwindcss/postcss':
         specifier: 4.1.18
         version: 4.1.18
