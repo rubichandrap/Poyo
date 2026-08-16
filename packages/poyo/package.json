@@ -1,6 +1,6 @@
 {
 	"name": "@rubichandrap/poyo",
-	"version": "0.3.0-rc.1",
+	"version": "0.3.0",
 	"description": "The Poyo project CLI and client runtime: route management, build glue, OpenAPI-to-TypeScript codegen, and the usePage server-data accessor.",
 	"private": false,
 	"repository": {
