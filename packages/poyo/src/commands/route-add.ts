@@ -3,6 +3,7 @@ import { getPaths } from "../config.js";
 import { CliError } from "../error.js";
 import { toRouteName, toRoutePath } from "../naming.js";
 import { readRoutes, writeRoutes } from "../registry.js";
+import { writeRouteManifest } from "../route-manifest.js";
 import { accessFromFlags, type Route } from "../routes.js";
 import { ensureControllerAction, scaffoldRouteFiles } from "../scaffold.js";
 import { defaultSeo } from "../templates.js";
@@ -65,6 +66,7 @@ export function addCommand(): Command {
 
 			routes.push(route);
 			writeRoutes(paths, routes);
+			writeRouteManifest(paths);
 
 			scaffoldRouteFiles(paths, name, files, {
 				noView: options.view === false,

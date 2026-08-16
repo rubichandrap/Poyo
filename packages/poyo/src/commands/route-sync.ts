@@ -4,6 +4,7 @@ import { Command } from "commander";
 import { getPaths, type ProjectPaths } from "../config.js";
 import { toRouteName, toRoutePath } from "../naming.js";
 import { readRoutes, writeRoutes } from "../registry.js";
+import { writeRouteManifest } from "../route-manifest.js";
 import { DEFAULT_ACCESS, type Route } from "../routes.js";
 import {
 	deleteEmptyParents,
@@ -234,6 +235,7 @@ async function runAction(
 				paths,
 				routes.filter((r) => !pathsToRemove.has(r.path)),
 			);
+			writeRouteManifest(paths);
 			break;
 		}
 
@@ -277,6 +279,7 @@ async function runAction(
 				}
 			}
 			writeRoutes(paths, routes);
+			writeRouteManifest(paths);
 			break;
 		}
 

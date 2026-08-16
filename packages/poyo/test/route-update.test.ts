@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { execInFixture, makeFixture, type Route } from "./helpers.js";
+import {
+	execInFixture,
+	makeFixture,
+	readFixtureFile,
+	type Route,
+} from "./helpers.js";
 
 const starter: Route[] = [
 	{
@@ -46,6 +51,24 @@ describe("poyo route update", () => {
 		expect(
 			fixture.routesJson().find((r) => r.path === "/Dashboard")?.access,
 		).toBe("protected");
+	});
+
+	it("re-emits the route manifest after updating a route", () => {
+		const fixture = makeFixture(starter);
+		const result = execInFixture(fixture, [
+			"route",
+			"update",
+			"/Dashboard",
+			"--public",
+			"true",
+		]);
+
+		expect(result.status).toBe(0);
+		const manifest = readFixtureFile(
+			fixture,
+			"poyo.client/src/routes/routes.generated.ts",
+		);
+		expect(manifest).toContain('"access": "public"');
 	});
 
 	it("toggles --guest", () => {

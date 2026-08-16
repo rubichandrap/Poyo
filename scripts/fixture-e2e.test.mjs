@@ -11,9 +11,11 @@
  *   3. `pnpm install` resolves that version from npm — the version is read
  *      back from node_modules and its realpath must not be the monorepo
  *      (a workspace link would pass the install but prove nothing).
- *   4. The resolved package ships the `./runtime` subpath (dist/runtime/).
- *   5. The built client bundle carries the accessor: the `usePage` export
- *      name and its `window.SERVER_DATA` channel both appear in the output.
+ *   4. The resolved package ships the `./runtime` subpath (dist/runtime/),
+ *      including the route-table module (dist/runtime/route-table.js).
+ *   5. The built client bundle carries the runtime surface: the `usePage`
+ *      accessor, its `window.SERVER_DATA` channel, and the route-table
+ *      module's `[RouteTable]` diagnostics all appear in the output.
  *
  * This test is a publish-time gate, wired into `pnpm run test:release`. It is
  * RED until the release version is published: an unpublished version fails
@@ -180,6 +182,14 @@ test(
 					`${POYO_PKG}@${version} on npm predates the client runtime (ADR 0005); ` +
 					"the gate stays red until a version shipping dist/runtime/ is published",
 			);
+			assert.ok(
+				fs.existsSync(
+					path.join(resolvedDir, "dist", "runtime", "route-table.js"),
+				),
+				"dist/runtime/route-table.js is missing from the resolved package — " +
+					`${POYO_PKG}@${version} on npm predates the route table (ADR 0006); ` +
+					"the gate stays red until a version shipping dist/runtime/route-table.js is published",
+			);
 
 			// 5. Build the client and prove the accessor ships in the bundle.
 			const build = run("pnpm", ["run", "client:build"], fixture, 300_000);
@@ -198,6 +208,16 @@ test(
 				bundle,
 				/SERVER_DATA/,
 				"usePage's window.SERVER_DATA channel missing from the built bundle",
+			);
+			// The route-table module's own diagnostic prefix: the minifier
+			// renames the createRouteTable identifier, so the literal
+			// [RouteTable] prefix from route-table.ts is the stable proof
+			// that the module shipped in the bundle.
+			assert.match(
+				bundle,
+				/\[RouteTable\]/,
+				"route-table module missing from the built client bundle " +
+					"([RouteTable] diagnostics absent)",
 			);
 
 			fs.rmSync(tmpRoot, { recursive: true, force: true });

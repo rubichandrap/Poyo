@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - The client consumes `usePage` from `@rubichandrap/poyo/runtime`; the local `src/hooks/use-page.ts` and `src/types/window.d.ts` are deleted
+- The route loader becomes a thin Vite-boundary adapter: route resolution ships from `@rubichandrap/poyo/runtime` (`createRouteTable`, ADR 0006); the client gains `predev`/`prebuild` (`poyo generate`) emitting the gitignored typed manifest, the server injects the base path (`data-base-path`), views unify on `react-root`, and the hardcoded Home fallback is removed (the registry is the source of truth)
 
 ## [0.2.0] - 2026-08-04
 

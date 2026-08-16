@@ -2,7 +2,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useLogin } from "~/hooks-api/auth";
+import { appUrl } from "~/lib/base-url";
 import { isHttpError } from "~/lib/http";
+import { routePath } from "~/routes/routes.generated";
 import { schemas } from "~/schemas/validations.generated";
 
 type LoginFormData = z.infer<typeof schemas.LoginRequest>;
@@ -33,7 +35,7 @@ export default function LoginPage() {
 			});
 
 			if (response.status === "success") {
-				window.location.href = "/Dashboard";
+				window.location.href = appUrl(routePath("Dashboard"));
 			} else {
 				const msg = response.message || "Invalid credentials";
 
@@ -166,7 +168,7 @@ export default function LoginPage() {
 					{/* Back to Home */}
 					<div className="mt-8 text-center">
 						<a
-							href="/"
+							href={appUrl(routePath("Home"))}
 							className="text-sm font-semibold text-slate-400 hover:text-[#5ba4fc] transition-colors"
 						>
 							← Back to Home

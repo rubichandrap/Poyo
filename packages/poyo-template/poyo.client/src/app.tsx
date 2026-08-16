@@ -1,48 +1,43 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import { queryClient } from "./lib/react-query";
 import { AuthProvider, ThemeProvider } from "./providers";
 import { RouteComponent } from "./routes";
 import { findRouteByName, findRouteGeneric } from "./routes/route-loader";
 
+function PageNotFound() {
+	return (
+		<div className="flex items-center justify-center min-h-screen">
+			<div className="text-slate-600">Page not found</div>
+		</div>
+	);
+}
+
 function App() {
 	const currentRoute = useMemo(() => {
-		// 1. Try Server-Driven Routing (Single Source of Truth)
-		const rootEl = document.getElementById("root");
+		// 1. Server-driven routing: the server declares the page name on the mount root
+		const rootEl = document.getElementById("react-root");
 		const serverPageName = rootEl?.dataset.pageName;
 
 		if (serverPageName) {
-			const component = findRouteByName(serverPageName);
-			if (component) {
-				return {
-					path: window.location.pathname,
-					component: component,
-					pageName: serverPageName,
-				};
-			}
-			console.warn(
-				`Server requested page "${serverPageName}" but it was not found in client bundle.`,
-			);
+			const route = findRouteByName(serverPageName);
+			if (route) return route;
 		}
 
-		// 2. Fallback to Client-Side/Dev URL Matching
-		const route = findRouteGeneric(window.location.pathname);
-		if (route) return route;
-
-		// 3. Fallback to Home
-		return {
-			path: "/",
-			component: React.lazy(() => import("./pages/Home/index.page")),
-			pageName: "Home",
-		};
+		// 2. Standalone-dev fallback: URL matching
+		return findRouteGeneric(window.location.pathname);
 	}, []);
 
 	return (
 		<QueryClientProvider client={queryClient}>
 			<ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
 				<AuthProvider>
-					<RouteComponent route={currentRoute} />
+					{currentRoute ? (
+						<RouteComponent route={currentRoute} />
+					) : (
+						<PageNotFound />
+					)}
 				</AuthProvider>
 			</ThemeProvider>
 			<ReactQueryDevtools initialIsOpen={false} />

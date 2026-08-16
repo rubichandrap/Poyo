@@ -4,6 +4,7 @@ import { Command } from "commander";
 import type { OpenAPI3 } from "openapi-typescript";
 import { getPaths } from "../config.js";
 import { CliError } from "../error.js";
+import { writeRouteManifest } from "../route-manifest.js";
 
 type ZodOpenApiDoc = Parameters<
 	typeof import("openapi-zod-client").generateZodClientFromOpenAPI
@@ -12,7 +13,7 @@ type ZodOpenApiDoc = Parameters<
 export function generateCommand(): Command {
 	return new Command("generate")
 		.description(
-			"Generate TypeScript DTOs and Zod schemas from the server OpenAPI document",
+			"Generate the typed route table plus TypeScript DTOs and Zod schemas from the OpenAPI document",
 		)
 		.argument(
 			"[openapiSource]",
@@ -20,6 +21,9 @@ export function generateCommand(): Command {
 		)
 		.action(async (openapiSource?: string) => {
 			const paths = getPaths();
+			// The route table never needs the OpenAPI document; emit it first
+			// so a missing or failing OpenAPI source cannot leave it stale.
+			writeRouteManifest(paths);
 			await generateClient(paths.clientDir, openapiSource);
 		});
 }
@@ -31,14 +35,33 @@ export async function generateClient(
 	loadProjectEnv(clientDir);
 	const source = openapiSource ?? process.env.VITE_OPENAPI_URL;
 	if (!source) {
-		throw new CliError(
-			"Missing OpenAPI source. Pass it as an argument or set VITE_OPENAPI_URL.",
+		process.stdout.write(
+			"[INFO] No OpenAPI source provided — route manifest written, OpenAPI codegen skipped.\n",
 		);
+		return;
 	}
 
-	const document = await readOpenApiDocument(source);
+	// An explicitly passed source is the user's stated intent: failures stay
+	// loud. A source resolved from VITE_OPENAPI_URL is ambient config — in a
+	// fresh clone the dev server it points at is usually down, and predev/
+	// prebuild must survive that, so its failures degrade to a notice.
+	const explicit = openapiSource !== undefined;
+
+	let document: OpenAPI3;
+	try {
+		document = await readOpenApiDocument(source);
+	} catch (error) {
+		if (explicit) throw error;
+		noticeSkip(source, error);
+		return;
+	}
 	if (!(document.components as { schemas?: unknown } | undefined)?.schemas) {
-		throw new CliError("OpenAPI document has no components.schemas");
+		const message = "OpenAPI document has no components.schemas";
+		if (explicit) throw new CliError(message);
+		process.stderr.write(
+			`[WARN] OpenAPI codegen skipped (source from VITE_OPENAPI_URL): ${message}\n`,
+		);
+		return;
 	}
 
 	const {
@@ -64,6 +87,13 @@ export async function generateClient(
 	fs.writeFileSync(
 		path.join(schemasDir, "validations.generated.ts"),
 		zodSource,
+	);
+}
+
+function noticeSkip(source: string, error: unknown): void {
+	const message = error instanceof Error ? error.message : String(error);
+	process.stderr.write(
+		`[WARN] OpenAPI codegen skipped (could not read VITE_OPENAPI_URL source ${source}): ${message}\n`,
 	);
 }
 

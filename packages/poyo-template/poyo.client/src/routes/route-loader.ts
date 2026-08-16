@@ -1,109 +1,41 @@
-import { type ComponentType, type LazyExoticComponent, lazy } from "react";
-import routeManifestData from "../../../routes.json" with { type: "json" };
+import type { ComponentType } from "react";
+import {
+	createRouteTable,
+	type AppRoute,
+	type PageLoaders,
+} from "@rubichandrap/poyo/runtime";
+import { routeManifest } from "./routes.generated";
 
-// Define strict type for the route manifest
-interface RouteEntry {
-	path: string;
-	name: string;
-	files: {
-		react: string;
-		view: string;
-	};
-	access?: "public" | "guest" | "protected";
-	seo?: Record<string, unknown>;
-}
-
-const routeManifest = routeManifestData as RouteEntry[];
-
-// 1. Dynamic Import of all Page components using Vite's glob feature
-// We still need this to get the actual component loaders
-// biome-ignore lint/suspicious/noExplicitAny: The props of the component are unknown
+// Vite glob keys are relative to this module ("../pages/..."); the registry
+// speaks registry-space paths ("src/pages/..."). Re-key into registry space.
+// biome-ignore lint/suspicious/noExplicitAny: page props are unknown and vary per page; any keeps lazy() and JSX permissive.
 const pages = import.meta.glob<{ default: ComponentType<any> }>(
 	"../pages/**/*.page.tsx",
 );
 
-// 2. Build the Route Map dynamically based on routes.json (Source of Truth)
-export const routeMap: Record<
-	string,
-	// biome-ignore lint/suspicious/noExplicitAny: The props of the component are unknown
-	LazyExoticComponent<ComponentType<any>>
-> = {};
+const pageLoaders: PageLoaders = Object.fromEntries(
+	Object.entries(pages).map(([key, loader]) => [
+		key.replace("../pages/", "src/pages/"),
+		loader,
+	]),
+);
 
-export interface AppRoute {
-	path: string;
-	// biome-ignore lint/suspicious/noExplicitAny: The props of the component are unknown
-	component: LazyExoticComponent<ComponentType<any>>;
-	pageName: string;
-}
+// The server injects its hosting path on the mount root (or <body>) as
+// data-base-path; VITE_BASE_URL is the standalone-dev fallback; "/" is the
+// default. createRouteTable normalizes and matches it case-insensitively.
+const mountRoot = document.getElementById("react-root");
+const baseUrl =
+	mountRoot?.dataset.basePath ??
+	document.body.dataset.basePath ??
+	(import.meta.env.VITE_BASE_URL as string | undefined) ??
+	"/";
 
-export const routes: AppRoute[] = [];
-
-// Helper to normalized path for glob lookup
-// routes.json: "src/pages/Dashboard/index.page.tsx"
-// glob key: "../pages/Dashboard/index.page.tsx"
-function getGlobKey(reactPath: string) {
-	// Remove "src/pages/" and prepend "../pages/"
-	return reactPath.replace("src/pages/", "../pages/");
-}
-
-routeManifest.forEach((route) => {
-	const globKey = getGlobKey(route.files.react);
-	const componentLoader = pages[globKey];
-
-	if (componentLoader) {
-		const Component = lazy(componentLoader);
-		routeMap[route.name] = Component;
-
-		routes.push({
-			path: route.path,
-			component: Component,
-			pageName: route.name,
-		});
-	} else {
-		console.warn(
-			`[RouteLoader] Warning: Route defined in routes.json but file not found: ${route.files.react}`,
-		);
-	}
-});
-
-// Logging specifically for Ghost Routes (Files that exist but are not in routes.json)
-if (import.meta.env.DEV) {
-	const manifestFiles = new Set(
-		routeManifest.map((r) => getGlobKey(r.files.react)),
-	);
-	for (const globKey in pages) {
-		if (!manifestFiles.has(globKey)) {
-			console.warn(
-				`[RouteLoader] Ghost Route detected: ${globKey} exists but is not in routes.json. It will be ignored.`,
-			);
-		}
-	}
-}
-
-/**
- * Find route by Server Page Name (O(1))
- * Usage: matches <div data-page-name="Dashboard">
- */
-export function findRouteByName(name: string) {
-	// Try exact match
-	if (routeMap[name]) return routeMap[name];
-
-	// Try case-insensitive lookup if needed (robustness)
-	const lowerName = name.toLowerCase();
-	const key = Object.keys(routeMap).find((k) => k.toLowerCase() === lowerName);
-	return key ? routeMap[key] : undefined;
-}
-
-/**
- * Find route by URL (Backup/Dev Mode)
- * Usage: matches window.location.pathname
- */
-export function findRouteGeneric(pathname: string) {
-	const normalizedPath = pathname.replace(/\/+$/, "") || "/";
-	const lowerPath = normalizedPath.toLowerCase();
-
-	return routes.find((r) => {
-		const rPath = r.path.toLowerCase();
-		return rPath === lowerPath;
+const { routes, routeMap, findRouteByName, findRouteGeneric } =
+	createRouteTable(routeManifest, pageLoaders, {
+		baseUrl,
+		dev: import.meta.env.DEV,
 	});
-}
+
+// Legacy surface — app.tsx and routes/index.tsx keep importing from here.
+export { routes, routeMap, findRouteByName, findRouteGeneric };
+export type { AppRoute };

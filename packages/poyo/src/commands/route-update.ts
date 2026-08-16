@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { getPaths } from "../config.js";
 import { CliError } from "../error.js";
 import { findRoute, readRoutes, writeRoutes } from "../registry.js";
+import { writeRouteManifest } from "../route-manifest.js";
 import { applyAccessFlag, assertSingleAccessFlag } from "../routes.js";
 
 function parseBooleanFlag(value: unknown, flag: string): boolean {
@@ -46,6 +47,7 @@ export function updateCommand(): Command {
 				if (access !== route.access) {
 					route.access = access;
 					writeRoutes(paths, routes);
+					writeRouteManifest(paths);
 				}
 			}
 		});

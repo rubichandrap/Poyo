@@ -4,6 +4,7 @@ import { getPaths } from "../config.js";
 import { CliError } from "../error.js";
 import { findRoute } from "../registry.js";
 import { readRoutes, writeRoutes } from "../registry.js";
+import { writeRouteManifest } from "../route-manifest.js";
 import { deleteEmptyParents } from "../scaffold.js";
 
 export function removeCommand(): Command {
@@ -75,6 +76,7 @@ export function removeCommand(): Command {
 			const index = routes.findIndex((r) => r.path === route.path);
 			routes.splice(index, 1);
 			writeRoutes(paths, routes);
+			writeRouteManifest(paths);
 
 			if (!deleteFiles) {
 				process.stdout.write(

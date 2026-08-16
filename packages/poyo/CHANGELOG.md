@@ -9,6 +9,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - `./runtime` subpath: the client runtime ships from the framework package — `usePage`, the server-data accessor, as a dependency-free module with `react` as an optional peer and `Window.SERVER_DATA?: unknown` global typing (ADR 0005)
+- Route table runtime API (ADR 0006): `createRouteTable(manifest, loaders, options)` — per-load binding of registry entries to lazy components with exact-name-then-case-insensitive lookups, base-path normalization/stripping, dev-only ghost detection and unknown-page `onError` reporting, and warn+skip for missing page files
+- `poyo generate` emits the typed route manifest (`src/routes/routes.generated.ts`, gitignored — literal unions + `routePath()`); every `poyo route` command re-emits it, and the OpenAPI codegen now runs only when a source is provided (no source → skip with a notice)
 
 ## [0.2.0] - 2026-08-04
 

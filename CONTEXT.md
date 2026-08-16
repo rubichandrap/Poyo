@@ -42,7 +42,15 @@ _Avoid_: server state, props injection, hydration data
 
 **Routes registry**:
 The `routes.json` file that maps URL paths to their React page and server view files. The single source of truth for route existence.
-_Avoid_: route table, route config
+_Avoid_: route map, route config
+
+**Route table**:
+The client runtime's per-load binding produced by `createRouteTable` from the framework package (`@rubichandrap/poyo/runtime`): the registry mapped to lazy components plus name/path lookups. Derived from the registry, never the source of truth.
+_Avoid_: routes registry
+
+**Route loader**:
+The thin Vite-boundary adapter in generated projects (`src/routes/route-loader.ts`): globs the page files, resolves the base path, calls `createRouteTable`, and re-exports its API.
+_Avoid_: route engine, route resolver
 
 **Project identity**:
 The facts the package's CLI derives from a generated project rather than assuming from the template — the server namespace and the client/server directory names. Scaffolding renames the project, so tooling that hardcodes the template's names breaks in generated projects.

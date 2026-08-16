@@ -117,4 +117,21 @@ describe("poyo route remove", () => {
 		expect(result.status).toBe(1);
 		expect(result.stderr).toContain("Route not found");
 	});
+	it("re-emits the route manifest after removing a route", () => {
+		const fixture = fixtureWithFiles();
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/About",
+			"--keep-files",
+		]);
+
+		expect(result.status).toBe(0);
+		const manifest = readFixtureFile(
+			fixture,
+			"poyo.client/src/routes/routes.generated.ts",
+		);
+		expect(manifest).not.toContain("About");
+		expect(manifest).toContain('export type RouteName = "Reports";');
+	});
 });
