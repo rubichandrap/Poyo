@@ -227,3 +227,62 @@ test(
 		}
 	},
 );
+
+test(
+	"published create-poyo-app installs standalone and scaffolds a project",
+	// pnpm dlx downloads the published package and installs it with its
+	// dependencies — the one path the local-CLI test above cannot see.
+	// Catches a workspace:* protocol leaking into the published manifest
+	// (0.3.0 shipped exactly that; pnpm publish rewrites workspace deps,
+	// npm publish does not). Red until a working version is published.
+	{ timeout: 300_000 },
+	() => {
+		const version = releaseVersion();
+		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "poyo-dlx-"));
+		const fixture = path.join(tmpRoot, "SmokeDlx");
+		try {
+			const dlx = run(
+				"pnpm",
+				[
+					"dlx",
+					`@rubichandrap/create-poyo-app@${version}`,
+					"SmokeDlx",
+					"--skip-install",
+				],
+				tmpRoot,
+				240_000,
+			);
+			if (dlx.status !== 0) {
+				const published = run(
+					"npm",
+					["view", `@rubichandrap/create-poyo-app@${version}`, "version"],
+					REPO_ROOT,
+					60_000,
+				);
+				const missingFromRegistry =
+					published.status !== 0 &&
+					/404|no match found/i.test(published.output);
+				if (missingFromRegistry) {
+					throw new Error(
+						`[RED-UNTIL-PUBLISHED] @rubichandrap/create-poyo-app@${version} ` +
+							"is not on npm yet — publish the release first.",
+					);
+				}
+				throw new Error(
+					`published create-poyo-app@${version} failed to install/run ` +
+						`standalone (workspace:* leaked?):\n${dlx.output}`,
+				);
+			}
+			const rootPkg = readJson(path.join(fixture, "package.json"));
+			assert.equal(
+				rootPkg.devDependencies[POYO_PKG],
+				version,
+				"root manifest not pinned to the release version",
+			);
+			fs.rmSync(tmpRoot, { recursive: true, force: true });
+		} catch (error) {
+			console.error(`Fixture left at ${fixture} for debugging.`);
+			throw error;
+		}
+	},
+);
