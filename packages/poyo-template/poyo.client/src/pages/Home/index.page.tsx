@@ -1,4 +1,6 @@
 import poyoLogo from "~/assets/poyo.png";
+import { appUrl } from "~/lib/base-url";
+import { routePath } from "~/routes/routes.generated";
 
 export default function HomePage() {
 	return (
@@ -26,7 +28,7 @@ export default function HomePage() {
 				{/* Primary Actions */}
 				<div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
 					<a
-						href="/Login"
+						href={appUrl(routePath("Login"))}
 						className="inline-flex items-center justify-center px-10 py-4 rounded-2xl bg-[#5ba4fc] text-white font-bold hover:bg-[#4a93ed] transition-all shadow-lg shadow-sky-200 hover:shadow-sky-300 hover:-translate-y-1"
 					>
 						Try Demo Login

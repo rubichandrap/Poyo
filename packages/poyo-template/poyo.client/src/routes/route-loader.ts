@@ -1,13 +1,10 @@
 import type { ComponentType } from "react";
-import routeManifestData from "../../../routes.json" with { type: "json" };
 import {
 	createRouteTable,
 	type AppRoute,
 	type PageLoaders,
-	type RouteEntry,
 } from "@rubichandrap/poyo/runtime";
-
-const routeManifest = routeManifestData as readonly RouteEntry[];
+import { routeManifest } from "./routes.generated";
 
 // Vite glob keys are relative to this module ("../pages/..."); the registry
 // speaks registry-space paths ("src/pages/..."). Re-key into registry space.

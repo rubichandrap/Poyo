@@ -48,6 +48,21 @@ describe("poyo route add", () => {
 		).toBe(true);
 	});
 
+	it("re-emits the route manifest after adding a route", () => {
+		const fixture = makeFixture(starter);
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+
+		expect(result.status).toBe(0);
+		const manifest = readFixtureFile(
+			fixture,
+			"poyo.client/src/routes/routes.generated.ts",
+		);
+		expect(manifest).toContain(
+			'export type RouteName = "About" | "Dashboard";',
+		);
+		expect(manifest).toContain('"About": "/About",');
+	});
+
 	it("handles nested paths with PascalCase conversion", () => {
 		const fixture = makeFixture(starter);
 		const result = execInFixture(fixture, ["route", "add", "/admin/users"]);
