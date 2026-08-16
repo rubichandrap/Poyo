@@ -9,6 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Client runtime subpath: `usePage` ships from `@rubichandrap/poyo` as `./runtime` (ADR 0005); generated projects import the accessor from the framework package, and the template's local copy is deleted
+- Route resolution ships in the client runtime (ADR 0006): `createRouteTable` from `@rubichandrap/poyo/runtime`; the template's `route-loader.ts` slims to a Vite-boundary adapter, `poyo generate` emits the gitignored typed route manifest (`RouteName`/`RoutePath` unions + `routePath()`), every route command re-emits it, and the server injects the base path (`data-base-path`) so subpath deployments bind correctly
 - Release-time fixture e2e (`pnpm run test:release`): scaffolds a real project, installs `@rubichandrap/poyo` from npm at the release version, and asserts the resolved package and the `usePage` accessor in the built client bundle — red until the version is published (the npm-resolution proof)
 
 ### Changed

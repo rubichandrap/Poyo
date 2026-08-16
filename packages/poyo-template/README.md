@@ -26,6 +26,7 @@ Poyo.Server/      # ASP.NET Core MVC server
   Views/          #   Razor views
 poyo.client/      # React client (Vite + TypeScript + Tailwind)
   src/pages/      #   one React page per route
+  src/routes/     #   route adapter (route-loader.ts) + generated manifest
   src/hooks-api/  #   TanStack Query hooks
   src/services/   #   API services
   src/schemas/    #   generated DTOs + Zod schemas
@@ -50,6 +51,8 @@ routes.json       # route registry: URL path -> page + view
 ```
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). The server enforces it for every registry route — custom-controller routes included — so no per-action attributes are needed: `protected` challenges anonymous users (redirect to login, 401 for API calls), `guest` redirects authenticated users to the landing page, `public` is open. Registry `seo` (title, description, meta, JSON-LD) is applied to every route, with the route name as the default title.
+
+On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it globs the page files, resolves the server-injected base path (`data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), and calls `createRouteTable` from `@rubichandrap/poyo/runtime` — route resolution ships from the framework package, not from this project. `poyo generate` (run by `predev`/`prebuild` and every route command) writes the typed manifest `src/routes/routes.generated.ts` (gitignored) with `RouteName`/`RoutePath` unions and a `routePath()` helper — use `routePath("Login")` for static links so a renamed route breaks the build instead of 404ing.
 
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 
