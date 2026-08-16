@@ -69,15 +69,18 @@ jobs:
 
       - name: Publish poyo-template
         working-directory: packages/poyo-template
-        run: npm publish --access public --tag ${{ steps.disttag.outputs.tag }}
+        # pnpm publish rewrites workspace:* deps to the actual version —
+        # npm publish does NOT, and 0.3.0 shipped the raw workspace:*
+        # protocol, breaking standalone installs of the scaffolder.
+        run: pnpm publish --access public --no-git-checks --tag ${{ steps.disttag.outputs.tag }}
 
       - name: Publish poyo
         working-directory: packages/poyo
-        run: npm publish --access public --tag ${{ steps.disttag.outputs.tag }}
+        run: pnpm publish --access public --no-git-checks --tag ${{ steps.disttag.outputs.tag }}
 
       - name: Publish create-poyo-app
         working-directory: packages/create-poyo-app
-        run: npm publish --access public --tag ${{ steps.disttag.outputs.tag }}
+        run: pnpm publish --access public --no-git-checks --tag ${{ steps.disttag.outputs.tag }}
 
       - name: Extract release notes
         id: notes
