@@ -4,10 +4,10 @@
 
 **Blocked by:** None — can proceed in parallel.
 
-**Status:** open
+**Status:** closed
 
-- [ ] Create `OpenApiSnapshotExportHostedService` in `Poyo.Server/Hosting/`
-- [ ] Export OpenAPI document in-process via `IOpenApiDocumentProvider` and `OpenApiJsonWriter` (no BOM, formatted JSON)
-- [ ] Register hosted service in `Program.cs` for Development and Staging environments
-- [ ] Support `OPENAPI_EXPORT_PATH` override and `OpenApi:ExportSnapshot=false` configuration opt-out
-- [ ] Server boot writes a valid OpenAPI document to the snapshot location without HTTP requests
+- [x] Create `OpenApiSnapshotExportHostedService` in `Poyo.Server/Hosting/`
+- [x] Export OpenAPI document in-process via `IOpenApiDocumentProvider` and `OpenApiJsonWriter` (no BOM, formatted JSON)
+- [x] Register hosted service in `Program.cs` for Development and Staging environments
+- [x] Support `OPENAPI_EXPORT_PATH` override and `OpenApi:ExportSnapshot=false` configuration opt-out
+- [x] Server boot writes a valid OpenAPI document to the snapshot location without HTTP requests

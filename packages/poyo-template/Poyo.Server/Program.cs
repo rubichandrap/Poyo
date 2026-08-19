@@ -66,6 +66,11 @@ builder.Services.AddOpenApi(options =>
     options.OpenApiVersion = OpenApiSpecVersion.OpenApi3_0;
 });
 
+if (builder.Environment.IsDevelopment() || builder.Environment.IsStaging())
+{
+    builder.Services.AddHostedService<Poyo.Server.Hosting.OpenApiSnapshotExportHostedService>();
+}
+
 // Add authentication
 builder.Services.AddAuthentication(options =>
 {

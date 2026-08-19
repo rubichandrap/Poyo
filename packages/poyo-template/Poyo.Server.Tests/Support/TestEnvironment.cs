@@ -23,13 +23,39 @@ internal static class TestEnvironment
     /// </summary>
     public static WebApplicationFactory<Program> CreateServerAndStart(string routesJsonPath)
     {
+        return CreateServer(routesJsonPath: routesJsonPath, startClient: true);
+    }
+
+    public static WebApplicationFactory<Program> CreateServer(
+        string? routesJsonPath = null,
+        string? environment = null,
+        Action<Microsoft.AspNetCore.Hosting.IWebHostBuilder>? configureBuilder = null,
+        bool startClient = false)
+    {
         lock (Gate)
         {
             EnsureConfigured();
-            Environment.SetEnvironmentVariable("Routes__JsonPath", routesJsonPath);
+            Environment.SetEnvironmentVariable("Routes__JsonPath", routesJsonPath ?? TemplateRoutesPath());
+            if (environment != null)
+            {
+                Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", environment);
+                if (environment == "Development")
+                {
+                    Environment.SetEnvironmentVariable("Vite__Server__DevServerUrl", "http://localhost:5173");
+                }
+            }
+
             var factory = new WebApplicationFactory<Program>();
-            factory.CreateClient();
-            return factory;
+            var customizedFactory = configureBuilder != null
+                ? factory.WithWebHostBuilder(configureBuilder)
+                : factory;
+
+            if (startClient)
+            {
+                customizedFactory.CreateClient();
+            }
+
+            return customizedFactory;
         }
     }
 
