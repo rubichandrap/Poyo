@@ -55,7 +55,7 @@ describe("poyo route add", () => {
 		expect(result.status).toBe(0);
 		const manifest = readFixtureFile(
 			fixture,
-			"poyo.client/src/routes/routes.generated.ts",
+			"poyo.client/routes.generated.ts",
 		);
 		expect(manifest).toContain(
 			'export type RouteName = "About" | "Dashboard";',

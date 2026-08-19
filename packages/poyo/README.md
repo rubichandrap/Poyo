@@ -37,7 +37,7 @@ poyo generate ./openapi.json   # ... from a local file (defaults to VITE_OPENAPI
 
 `poyo route sync` runs both directions: forward (fix missing files, rescaffold) and reverse (detect untracked pages, offer to register them).
 
-Every route command re-emits the typed route manifest (`src/routes/routes.generated.ts`, gitignored) — the registry stays the only edited source of truth.
+Every route command re-emits the typed route manifest (`<client>/routes.generated.ts`) — the registry stays the only edited source of truth.
 
 ## Build sync
 

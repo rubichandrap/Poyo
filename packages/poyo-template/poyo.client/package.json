@@ -4,7 +4,6 @@
 	"version": "0.0.3",
 	"type": "module",
 	"scripts": {
-		"predev": "poyo generate",
 		"dev": "vite",
 		"prebuild": "poyo generate",
 		"build": "cross-env BUILDING_VITE=1 tsc -b && vite build",

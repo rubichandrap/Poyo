@@ -118,9 +118,9 @@ describe("poyo generate", () => {
 		expect(
 			existsFixtureFile(fixture, "poyo.client/src/schemas/dtos.generated.ts"),
 		).toBe(false);
-		expect(
-			existsFixtureFile(fixture, "poyo.client/src/routes/routes.generated.ts"),
-		).toBe(true);
+		expect(existsFixtureFile(fixture, "poyo.client/routes.generated.ts")).toBe(
+			true,
+		);
 	});
 
 	it("degrades to a notice when the env-sourced OpenAPI source fails", () => {
@@ -130,9 +130,9 @@ describe("poyo generate", () => {
 		});
 		expect(result.status).toBe(0);
 		expect(result.stderr).toContain("OpenAPI codegen skipped");
-		expect(
-			existsFixtureFile(fixture, "poyo.client/src/routes/routes.generated.ts"),
-		).toBe(true);
+		expect(existsFixtureFile(fixture, "poyo.client/routes.generated.ts")).toBe(
+			true,
+		);
 	});
 
 	it("emits routes.generated.ts with literal unions and a routePath helper", () => {
@@ -161,7 +161,7 @@ describe("poyo generate", () => {
 
 		const manifest = readFixtureFile(
 			fixture,
-			"poyo.client/src/routes/routes.generated.ts",
+			"poyo.client/routes.generated.ts",
 		);
 		expect(manifest).toContain("export const routeManifest =");
 		expect(manifest).toContain("as const satisfies readonly RouteEntry[]");
@@ -187,7 +187,7 @@ describe("poyo generate", () => {
 
 		const manifest = readFixtureFile(
 			fixture,
-			"poyo.client/src/routes/routes.generated.ts",
+			"poyo.client/routes.generated.ts",
 		);
 		expect(manifest).toContain("export type RouteName = never;");
 		expect(manifest).toContain("export type RoutePath = never;");

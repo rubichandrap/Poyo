@@ -23,6 +23,3 @@ dist-ssr
 *.sln
 *.sw?
 
-# Route table codegen (run `poyo generate`; source of truth is routes.json — commit that file, not this one)
-src/routes/routes.generated.ts
-

@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -142,6 +143,50 @@ describe("create-poyo-app", () => {
 		expect(ws).toContain("MyApp.Server");
 		expect(ws).not.toContain("Poyo");
 		expect(ws).not.toContain("poyo.client");
+	});
+
+	it("copies the committed route table to the client package root without predev hook", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		expect(exists(cwd, "MyApp/myapp.client/routes.generated.ts")).toBe(true);
+		expect(
+			exists(cwd, "MyApp/myapp.client/src/routes/routes.generated.ts"),
+		).toBe(false);
+
+		const manifest = readFile(cwd, "MyApp/myapp.client/routes.generated.ts");
+		expect(manifest).toContain("export const routeManifest =");
+		expect(manifest).toContain(
+			"export function routePath(name: RouteName): RoutePath",
+		);
+
+		const clientPkg = readJson(cwd, "MyApp/myapp.client/package.json") as {
+			scripts: Record<string, string>;
+		};
+		expect(clientPkg.scripts.predev).toBeUndefined();
+	});
+
+	it("freshly scaffolded client type-checks without any generate step", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		const clientDir = path.join(cwd, "MyApp", "myapp.client");
+		const templateClientModules = path.resolve(
+			import.meta.dirname,
+			"../../poyo-template/poyo.client/node_modules",
+		);
+		expect(fs.existsSync(templateClientModules)).toBe(true);
+		fs.symlinkSync(
+			templateClientModules,
+			path.join(clientDir, "node_modules"),
+			"junction",
+		);
+		const tscBin = path.join(templateClientModules, ".bin", "tsc");
+		const result = spawnSync(tscBin, ["-p", "tsconfig.app.json", "--noEmit"], {
+			cwd: clientDir,
+			encoding: "utf-8",
+		});
+		expect(result.status).toBe(0);
 	});
 
 	describe("client manifest rewrite (unit seam)", () => {
