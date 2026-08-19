@@ -10,7 +10,7 @@ Usage: poyo <command> [options]
 Commands:
   route     Manage the routes registry (add, update, remove, sync)
   build     Sync the client bundle into the server's wwwroot
-  generate  Generate TypeScript DTOs and Zod schemas from the OpenAPI document
+  generate  Generate TypeScript DTOs and Zod schemas from the OpenAPI snapshot
 `;
 
 async function runTopLevel(command: Command, args: string[]): Promise<void> {

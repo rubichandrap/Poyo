@@ -66,18 +66,23 @@ const minimalOpenApi = {
 	},
 };
 
-function fixtureWithOpenApi(
+function fixtureWithSnapshot(
 	doc: unknown = minimalOpenApi,
+	routes: Parameters<typeof makeFixture>[0] = [],
 ): ReturnType<typeof makeFixture> {
-	const fixture = makeFixture();
-	writeFixtureFile(fixture, "openapi.json", JSON.stringify(doc));
+	const fixture = makeFixture(routes);
+	writeFixtureFile(
+		fixture,
+		"poyo.client/openapi/openapi.json",
+		JSON.stringify(doc),
+	);
 	return fixture;
 }
 
 describe("poyo generate", () => {
-	it("produces dtos.generated.ts with the schemas as TS types", () => {
-		const fixture = fixtureWithOpenApi();
-		const result = execInFixture(fixture, ["generate", "openapi.json"]);
+	it("produces dtos.generated.ts with the schemas as TS types from snapshot by default", () => {
+		const fixture = fixtureWithSnapshot();
+		const result = execInFixture(fixture, ["generate"]);
 
 		expect(result.status).toBe(0);
 		const dtos = readFixtureFile(
@@ -89,9 +94,9 @@ describe("poyo generate", () => {
 		expect(dtos).toContain('"/api/Auth/Login"');
 	});
 
-	it("produces validations.generated.ts with Zod schemas", () => {
-		const fixture = fixtureWithOpenApi();
-		const result = execInFixture(fixture, ["generate", "openapi.json"]);
+	it("produces validations.generated.ts with Zod schemas from snapshot by default", () => {
+		const fixture = fixtureWithSnapshot();
+		const result = execInFixture(fixture, ["generate"]);
 
 		expect(result.status).toBe(0);
 		const validations = readFixtureFile(
@@ -103,40 +108,65 @@ describe("poyo generate", () => {
 		expect(validations).toContain('from "@zodios/core"');
 	});
 
-	it("fails clearly when the OpenAPI file is missing", () => {
+	it("supports positional argument override for one-off documents", () => {
+		const fixture = makeFixture();
+		writeFixtureFile(
+			fixture,
+			"custom-spec.json",
+			JSON.stringify(minimalOpenApi),
+		);
+		const result = execInFixture(fixture, ["generate", "custom-spec.json"]);
+
+		expect(result.status).toBe(0);
+		const dtos = readFixtureFile(
+			fixture,
+			"poyo.client/src/schemas/dtos.generated.ts",
+		);
+		expect(dtos).toContain("LoginRequest:");
+	});
+
+	it("fails clearly when the snapshot is missing", () => {
+		const fixture = makeFixture();
+		const result = execInFixture(fixture, ["generate"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("OpenAPI document not found");
+	});
+
+	it("fails clearly when an explicit positional OpenAPI file is missing", () => {
 		const fixture = makeFixture();
 		const result = execInFixture(fixture, ["generate", "nope.json"]);
 		expect(result.status).toBe(1);
 		expect(result.stderr).toContain("OpenAPI document not found");
 	});
 
-	it("skips OpenAPI codegen with a notice when no source is given", () => {
-		const fixture = makeFixture();
-		const result = execInFixture(fixture, ["generate"]);
-		expect(result.status).toBe(0);
-		expect(result.stdout).toContain("OpenAPI codegen skipped");
-		expect(
-			existsFixtureFile(fixture, "poyo.client/src/schemas/dtos.generated.ts"),
-		).toBe(false);
-		expect(existsFixtureFile(fixture, "poyo.client/routes.generated.ts")).toBe(
-			true,
-		);
-	});
-
-	it("degrades to a notice when the env-sourced OpenAPI source fails", () => {
-		const fixture = makeFixture();
+	it("runs 100% offline and ignores VITE_OPENAPI_URL in environment", () => {
+		const fixture = fixtureWithSnapshot();
 		const result = execInFixture(fixture, ["generate"], {
-			VITE_OPENAPI_URL: "nope.json",
+			VITE_OPENAPI_URL: "http://invalid-dead-host:99999/spec.json",
 		});
 		expect(result.status).toBe(0);
-		expect(result.stderr).toContain("OpenAPI codegen skipped");
-		expect(existsFixtureFile(fixture, "poyo.client/routes.generated.ts")).toBe(
-			true,
+		const dtos = readFixtureFile(
+			fixture,
+			"poyo.client/src/schemas/dtos.generated.ts",
+		);
+		expect(dtos).toContain("LoginRequest:");
+	});
+
+	it("fails when OpenAPI document has no components.schemas", () => {
+		const fixture = fixtureWithSnapshot({
+			openapi: "3.0.1",
+			info: { title: "Test", version: "1.0.0" },
+			paths: {},
+		});
+		const result = execInFixture(fixture, ["generate"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain(
+			"OpenAPI document has no components.schemas",
 		);
 	});
 
 	it("emits routes.generated.ts with literal unions and a routePath helper", () => {
-		const fixture = makeFixture([
+		const fixture = fixtureWithSnapshot(minimalOpenApi, [
 			{
 				path: "/Dashboard",
 				name: "Dashboard",
@@ -181,7 +211,7 @@ describe("poyo generate", () => {
 	});
 
 	it("emits never unions for an empty registry", () => {
-		const fixture = makeFixture();
+		const fixture = fixtureWithSnapshot();
 		const result = execInFixture(fixture, ["generate"]);
 		expect(result.status).toBe(0);
 
@@ -191,16 +221,5 @@ describe("poyo generate", () => {
 		);
 		expect(manifest).toContain("export type RouteName = never;");
 		expect(manifest).toContain("export type RoutePath = never;");
-	});
-
-	it("uses VITE_OPENAPI_URL when no argument is given", () => {
-		const fixture = fixtureWithOpenApi();
-		const result = execInFixture(fixture, ["generate"], {
-			VITE_OPENAPI_URL: "openapi.json",
-		});
-		expect(result.status).toBe(0);
-		expect(
-			readFixtureFile(fixture, "poyo.client/src/schemas/dtos.generated.ts"),
-		).toContain("LoginRequest:");
 	});
 });

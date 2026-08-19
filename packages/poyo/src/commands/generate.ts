@@ -13,11 +13,11 @@ type ZodOpenApiDoc = Parameters<
 export function generateCommand(): Command {
 	return new Command("generate")
 		.description(
-			"Generate the typed route table plus TypeScript DTOs and Zod schemas from the OpenAPI document",
+			"Generate the typed route table plus TypeScript DTOs and Zod schemas from the OpenAPI snapshot",
 		)
 		.argument(
 			"[openapiSource]",
-			"OpenAPI document file path or URL (defaults to VITE_OPENAPI_URL)",
+			"OpenAPI document file path (defaults to openapi/openapi.json snapshot)",
 		)
 		.action(async (openapiSource?: string) => {
 			const paths = getPaths();
@@ -32,36 +32,33 @@ export async function generateClient(
 	clientDir: string,
 	openapiSource?: string,
 ): Promise<void> {
-	loadProjectEnv(clientDir);
-	const source = openapiSource ?? process.env.VITE_OPENAPI_URL;
-	if (!source) {
-		process.stdout.write(
-			"[INFO] No OpenAPI source provided — route manifest written, OpenAPI codegen skipped.\n",
-		);
-		return;
+	const defaultSnapshot = path.join(clientDir, "openapi", "openapi.json");
+	const source = openapiSource
+		? path.resolve(process.cwd(), openapiSource)
+		: defaultSnapshot;
+
+	if (!fs.existsSync(source)) {
+		throw new CliError(`OpenAPI document not found: ${source}`);
 	}
 
-	// An explicitly passed source is the user's stated intent: failures stay
-	// loud. A source resolved from VITE_OPENAPI_URL is ambient config — in a
-	// fresh clone the dev server it points at is usually down, and predev/
-	// prebuild must survive that, so its failures degrade to a notice.
-	const explicit = openapiSource !== undefined;
+	let raw: string;
+	try {
+		raw = fs.readFileSync(source, "utf-8");
+	} catch (error) {
+		throw new CliError(
+			`Could not read OpenAPI document: ${errorMessage(error)}`,
+		);
+	}
 
 	let document: OpenAPI3;
 	try {
-		document = await readOpenApiDocument(source);
+		document = JSON.parse(raw) as OpenAPI3;
 	} catch (error) {
-		if (explicit) throw error;
-		noticeSkip(source, error);
-		return;
+		throw new CliError(`Invalid OpenAPI document JSON: ${errorMessage(error)}`);
 	}
+
 	if (!(document.components as { schemas?: unknown } | undefined)?.schemas) {
-		const message = "OpenAPI document has no components.schemas";
-		if (explicit) throw new CliError(message);
-		process.stderr.write(
-			`[WARN] OpenAPI codegen skipped (source from VITE_OPENAPI_URL): ${message}\n`,
-		);
-		return;
+		throw new CliError("OpenAPI document has no components.schemas");
 	}
 
 	const {
@@ -90,41 +87,6 @@ export async function generateClient(
 	);
 }
 
-function noticeSkip(source: string, error: unknown): void {
-	const message = error instanceof Error ? error.message : String(error);
-	process.stderr.write(
-		`[WARN] OpenAPI codegen skipped (could not read VITE_OPENAPI_URL source ${source}): ${message}\n`,
-	);
-}
-
-function loadProjectEnv(clientDir: string): void {
-	const projectRoot = path.dirname(clientDir);
-	const envPath = path.join(projectRoot, ".env");
-	if (fs.existsSync(envPath)) {
-		process.loadEnvFile(envPath);
-	}
-}
-
-async function readOpenApiDocument(source: string): Promise<OpenAPI3> {
-	let raw: string;
-	if (/^https?:\/\//.test(source)) {
-		const response = await fetch(source);
-		if (!response.ok) {
-			throw new CliError(
-				`Failed to fetch OpenAPI document from ${source}: ${response.status}`,
-			);
-		}
-		raw = await response.text();
-	} else {
-		if (!fs.existsSync(source)) {
-			throw new CliError(`OpenAPI document not found: ${source}`);
-		}
-		raw = fs.readFileSync(source, "utf-8");
-	}
-	try {
-		return JSON.parse(raw) as OpenAPI3;
-	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
-		throw new CliError(`Invalid OpenAPI document JSON: ${message}`);
-	}
+function errorMessage(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
 }

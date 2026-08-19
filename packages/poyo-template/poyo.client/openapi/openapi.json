@@ -1,0 +1,296 @@
+{
+	"openapi": "3.0.4",
+	"info": {
+		"title": "Poyo.Server | v1",
+		"version": "1.0.0"
+	},
+	"paths": {
+		"/api/Auth/Login": {
+			"post": {
+				"tags": ["Auth"],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/LoginRequest"
+							}
+						},
+						"text/json": {
+							"schema": {
+								"$ref": "#/components/schemas/LoginRequest"
+							}
+						},
+						"application/*+json": {
+							"schema": {
+								"$ref": "#/components/schemas/LoginRequest"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"text/plain": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfLoginResponse"
+								}
+							},
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfLoginResponse"
+								}
+							},
+							"text/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfLoginResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"text/plain": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfObject"
+								}
+							},
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfObject"
+								}
+							},
+							"text/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfObject"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/Auth/Refresh": {
+			"post": {
+				"tags": ["Auth"],
+				"requestBody": {
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RefreshRequest"
+							}
+						},
+						"text/json": {
+							"schema": {
+								"$ref": "#/components/schemas/RefreshRequest"
+							}
+						},
+						"application/*+json": {
+							"schema": {
+								"$ref": "#/components/schemas/RefreshRequest"
+							}
+						}
+					},
+					"required": true
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"text/plain": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfLoginResponse"
+								}
+							},
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfLoginResponse"
+								}
+							},
+							"text/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfLoginResponse"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "Unauthorized",
+						"content": {
+							"text/plain": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfObject"
+								}
+							},
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfObject"
+								}
+							},
+							"text/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfObject"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/api/Auth/Logout": {
+			"post": {
+				"tags": ["Auth"],
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"text/plain": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfLogoutResponse"
+								}
+							},
+							"application/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfLogoutResponse"
+								}
+							},
+							"text/json": {
+								"schema": {
+									"$ref": "#/components/schemas/JSendResponseOfLogoutResponse"
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	},
+	"components": {
+		"schemas": {
+			"JSendResponseOfLoginResponse": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "string"
+					},
+					"data": {
+						"type": "object",
+						"oneOf": [
+							{
+								"$ref": "#/components/schemas/LoginResponse"
+							}
+						],
+						"nullable": true
+					},
+					"message": {
+						"type": "string",
+						"nullable": true
+					}
+				}
+			},
+			"JSendResponseOfLogoutResponse": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "string"
+					},
+					"data": {
+						"type": "object",
+						"oneOf": [
+							{
+								"$ref": "#/components/schemas/LogoutResponse"
+							}
+						],
+						"nullable": true
+					},
+					"message": {
+						"type": "string",
+						"nullable": true
+					}
+				}
+			},
+			"JSendResponseOfObject": {
+				"type": "object",
+				"properties": {
+					"status": {
+						"type": "string"
+					},
+					"data": {},
+					"message": {
+						"type": "string",
+						"nullable": true
+					}
+				}
+			},
+			"LoginRequest": {
+				"required": ["username", "password"],
+				"type": "object",
+				"properties": {
+					"username": {
+						"maxLength": 150,
+						"minLength": 0,
+						"type": "string"
+					},
+					"password": {
+						"maxLength": 100,
+						"minLength": 2,
+						"type": "string"
+					},
+					"rememberMe": {
+						"type": "boolean"
+					},
+					"appType": {
+						"type": "string"
+					}
+				}
+			},
+			"LoginResponse": {
+				"type": "object",
+				"properties": {
+					"token": {
+						"type": "string"
+					},
+					"refreshToken": {
+						"type": "string"
+					},
+					"expiration": {
+						"type": "string",
+						"format": "date-time"
+					},
+					"username": {
+						"type": "string"
+					}
+				}
+			},
+			"LogoutResponse": {
+				"type": "object",
+				"properties": {
+					"message": {
+						"type": "string"
+					},
+					"success": {
+						"type": "boolean"
+					}
+				}
+			},
+			"RefreshRequest": {
+				"type": "object",
+				"properties": {
+					"token": {
+						"type": "string"
+					},
+					"refreshToken": {
+						"type": "string"
+					}
+				}
+			}
+		}
+	},
+	"tags": [
+		{
+			"name": "Auth"
+		}
+	]
+}

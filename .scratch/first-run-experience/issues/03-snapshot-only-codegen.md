@@ -4,12 +4,12 @@
 
 **Blocked by:** 02 — Commit the client route table at the client package root.
 
-**Status:** open
+**Status:** closed
 
-- [ ] OpenAPI source resolution in `poyo generate` reads committed snapshot `openapi/openapi.json` only
-- [ ] `VITE_OPENAPI_URL` and ambient network calls removed from `poyo generate`
-- [ ] Positional override still works for one-off documents (`poyo generate ./custom-spec.json`)
-- [ ] Missing snapshot yields a descriptive CLI error
-- [ ] `src/schemas/dtos.generated.ts` and `src/schemas/validations.generated.ts` added to `.gitignore`
-- [ ] `openapi/openapi.json` committed in `packages/poyo-template/poyo.client/openapi/`
-- [ ] CLI unit suite proves codegen runs with no network access and ignores any environment URL
+- [x] OpenAPI source resolution in `poyo generate` reads committed snapshot `openapi/openapi.json` only
+- [x] `VITE_OPENAPI_URL` and ambient network calls removed from `poyo generate`
+- [x] Positional override still works for one-off documents (`poyo generate ./custom-spec.json`)
+- [x] Missing snapshot yields a descriptive CLI error
+- [x] `src/schemas/dtos.generated.ts` and `src/schemas/validations.generated.ts` added to `.gitignore`
+- [x] `openapi/openapi.json` committed in `packages/poyo-template/poyo.client/openapi/`
+- [x] CLI unit suite proves codegen runs with no network access and ignores any environment URL

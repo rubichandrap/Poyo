@@ -166,6 +166,16 @@ describe("create-poyo-app", () => {
 		expect(clientPkg.scripts.predev).toBeUndefined();
 	});
 
+	it("copies the committed openapi snapshot and gitignores generated schemas", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		expect(exists(cwd, "MyApp/myapp.client/openapi/openapi.json")).toBe(true);
+		const gitignore = readFile(cwd, "MyApp/myapp.client/.gitignore");
+		expect(gitignore).toContain("src/schemas/dtos.generated.ts");
+		expect(gitignore).toContain("src/schemas/validations.generated.ts");
+	});
+
 	it("freshly scaffolded client type-checks without any generate step", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });
