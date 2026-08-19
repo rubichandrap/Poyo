@@ -9,10 +9,10 @@
 
 **Blocked by:** 02, 03, 04
 
-**Status:** open
+**Status:** closed
 
-- [ ] Scaffolder (`packages/create-poyo-app/src/index.ts`) copies `.env.example` to `.env`
-- [ ] Root `README.md` updated with `@latest` command and `pnpm run server:watch`
-- [ ] `packages/poyo-template/README.md` updated with dev workflow and `@latest` references
-- [ ] `packages/create-poyo-app/README.md` updated with `@latest` invocation
-- [ ] Scaffolder unit test suite verifies `.env` creation
+- [x] Scaffolder (`packages/create-poyo-app/src/index.ts`) copies `.env.example` to `.env`
+- [x] Root `README.md` updated with `@latest` command and `pnpm run server:watch`
+- [x] `packages/poyo-template/README.md` updated with dev workflow and `@latest` references
+- [x] `packages/create-poyo-app/README.md` updated with `@latest` invocation
+- [x] Scaffolder unit test suite verifies `.env` creation

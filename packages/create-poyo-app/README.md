@@ -5,10 +5,13 @@ Scaffold a new Poyo project from the template package. The generated project is 
 ## Usage
 
 ```bash
-npx @rubichandrap/create-poyo-app MyApp
+npx @rubichandrap/create-poyo-app@latest MyApp
+# or: pnpm dlx @rubichandrap/create-poyo-app@latest MyApp
+# or: pnpm create @rubichandrap/poyo-app@latest MyApp
+
 cd MyApp
 pnpm run restore     # install JS dependencies and restore .NET packages
-pnpm run dev:watch   # start the .NET watch server
+pnpm run dev:watch   # start the .NET watch server (recommended full-stack MPA dev; alias for server:watch)
 ```
 
 ### Options
@@ -23,6 +26,9 @@ pnpm run dev:watch   # start the .NET watch server
 - React 19 + TypeScript + Vite client (`<name>.client/`)
 - ASP.NET Core MVC server (`<Name>.Server/`)
 - `routes.json` route registry with access model + SEO metadata
+- Committed typed route manifest (`routes.generated.ts`) and offline OpenAPI snapshot (`openapi/openapi.json`)
+- Automatic `.env` bootstrapping from `.env.example`
+- In-process OpenAPI snapshot export on server boot (development/staging)
 - Demo cookie authentication (`demo` / `password`)
 - `usePage<T>()` server data injection
 - `poyo` CLI installed as a dev dependency (`route:*`, `build`, `generate` scripts)

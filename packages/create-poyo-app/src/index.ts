@@ -124,6 +124,14 @@ function installDependencies(targetDir: string): void {
 	}
 }
 
+export function ensureEnvFile(targetDir: string): void {
+	const envPath = path.join(targetDir, ".env");
+	const envExamplePath = path.join(targetDir, ".env.example");
+	if (!fs.existsSync(envPath) && fs.existsSync(envExamplePath)) {
+		fs.copyFileSync(envExamplePath, envPath);
+	}
+}
+
 export function createProject(
 	projectName: string,
 	options: { skipInstall: boolean },
@@ -141,6 +149,7 @@ export function createProject(
 	const rules = renameRules(pascal, lower);
 
 	copyRecursive(templateDir, targetDir);
+	ensureEnvFile(targetDir);
 	renameTree(targetDir, rules);
 	rewritePackageJson(targetDir, pascal, lower, poyoVersion);
 	rewriteClientPackageJson(targetDir, lower, poyoVersion);
@@ -153,7 +162,7 @@ export function createProject(
 		`Created ${projectName} from Poyo template (poyo@${poyoVersion}).\n`,
 	);
 	process.stdout.write(
-		`Next: cd ${projectName} && pnpm run restore && pnpm run dev\n`,
+		`Next: cd ${projectName} && pnpm run restore && pnpm run dev:watch\n`,
 	);
 }
 
