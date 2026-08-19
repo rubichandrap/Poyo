@@ -4,10 +4,11 @@
 
 **Blocked by:** 02, 03, 04, 05
 
-**Status:** open
+**Status:** closed
 
-- [ ] Fixture e2e asserts a fresh scaffold has `routes.generated.ts` at client root and is not gitignored
-- [ ] Fixture builds offline without any live API server or network requests
-- [ ] Server boot produces a valid OpenAPI snapshot at `openapi/openapi.json`
-- [ ] Served HTML declares page name and base path, and hydration binds properly
-- [ ] Full fixture test suite (`pnpm run test:release`) green
+- [x] Fixture e2e asserts a fresh scaffold has `routes.generated.ts` at client root and is not gitignored
+- [x] Fixture builds offline without any live API server or network requests
+- [x] Server boot produces a valid OpenAPI snapshot at `openapi/openapi.json`
+- [x] Served HTML declares page name and base path, and hydration binds properly
+- [x] Full fixture test suite (`pnpm run test:release`) green (configured release gate)
+
