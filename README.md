@@ -625,31 +625,31 @@ MIT License - Use freely for any purpose
 
 - ✅ A React + .NET MPA foundation
 - ✅ Clear server/client separation of concerns
-- ✅ A showcase of React + .NET integration done right
+- ✅ A reference integration of React + .NET
 - ✅ A base you extend with your own auth, database, and business logic
 
 ---
 
-## 🔀 Not sure which to pick? Poyo vs JsxCore
+## Poyo vs JsxCore
 
-If you're coming from Razor and want "React instead of Razor" with **one build and no Node in production**, look at [**JsxCore**](https://github.com/davidwhitney/JsxCore) first. It runs React/Preact as an ASP.NET **view engine**: the same component renders on the server (in-process via the Jint JS engine, no Node) and in the browser for hydration, TypeScript compiles with a native `tsc` binary, there is **no bundler** (the browser resolves ES modules natively), view model types are **generated from your C#** so the two can't drift, and .NET globals are callable directly from a view.
+If you're coming from Razor and want React in place of Razor with one build and no Node in production, look at [JsxCore](https://github.com/davidwhitney/JsxCore) first. It runs React or Preact as an ASP.NET view engine. The same component renders on the server (in-process via the Jint JS engine, no Node) and in the browser for hydration. TypeScript compiles with a native `tsc` binary, there is no bundler (the browser resolves ES modules natively), view model types are generated from your C# so the two can't drift, and .NET globals are callable directly from a view.
 
-Poyo takes the opposite stance: the React client is a **fully separate Vite project** and the .NET server only ships HTML + `window.SERVER_DATA`. React never runs on the server — hydration happens in the browser. That keeps the client free to use the entire Vite/React ecosystem (TanStack Query, React Hook Form + Zod, code-splitting, any plugin) and lets your .NET and React teams work independently. The boundary between the two is just a data contract: server data injection (`usePage<T>()`) plus JSend APIs.
+Poyo takes the opposite approach. The React client is a separate Vite project and the .NET server only ships HTML plus `window.SERVER_DATA`. React never runs on the server. The browser does the hydration, which leaves the client free to use the whole Vite/React ecosystem (TanStack Query, React Hook Form + Zod, code-splitting, any plugin) and lets the .NET and React teams work independently. The boundary between the two is a data contract: server data injection (`usePage<T>()`) plus JSend APIs.
 
 | | **Poyo** | **JsxCore** |
 |---|---|---|
 | Mental model | React client + .NET MVC server, loosely coupled | React/Preact as an ASP.NET view engine |
-| Where React runs | Browser only (hydration) | Server (in-process via Jint) **and** browser |
+| Where React runs | Browser only (hydration) | Server (in-process via Jint) and browser |
 | Build toolchain | Two: Vite (client) + .NET (server) | One: .NET SDK (no Node, no bundler) |
 | TS compile | Vite / `tsc` in the client project | Native `tsc` binary fetched by the package |
-| Model typing | OpenAPI snapshot → DTOs + Zod (you maintain) | Generated from C# automatically (no drift) |
+| Model typing | OpenAPI snapshot to DTOs + Zod (you maintain) | Generated from C# automatically (no drift) |
 | .NET interop | Via API calls + `SERVER_DATA` | Direct CLR globals callable from the view |
-| Client freedoms | Full Vite/React ecosystem, code-splitting, plugins | Constrained to what runs in Jint ∩ browser |
+| Client freedoms | Full Vite/React ecosystem, code-splitting, plugins | Constrained to what runs in Jint and the browser |
 | Best when | You want a standalone React client + structured MPA | You want React with zero Node and one build |
 
-**Choose JsxCore if** you want React without leaving the .NET build, no Node in production, and C#-generated view types.
+Choose JsxCore if you want React without leaving the .NET build, no Node in production, and C#-generated view types.
 
-**Choose Poyo if** you want a first-class, decoupled React client with the full Vite/React toolchain and a registry-driven MPA (routes, access, SEO, validation) — and are fine running two build systems.
+Choose Poyo if you want a decoupled React client with the full Vite/React toolchain and a registry-driven MPA (routes, access, SEO, validation), and you are fine running two build systems.
 
 ---
 
