@@ -329,7 +329,7 @@ pnpm run route:sync
 pnpm --filter poyo-template run client:generate
 ```
 
-Generates TypeScript DTOs from the server OpenAPI document (via `openapi-typescript`) and Zod validation schemas from those DTOs (via `openapi-zod-client`). Reads `VITE_OPENAPI_URL` from `.env`, or pass a local file: `poyo generate ./openapi.json`. `poyo generate` always emits the typed route manifest (§3.7); the OpenAPI codegen runs only when a source is provided — no source skips it with a notice, not an error (that is what `predev`/`prebuild` rely on).
+Generates TypeScript DTOs from the server OpenAPI document (via `openapi-typescript`) and Zod validation schemas from those DTOs (via `openapi-zod-client`). By default, reads the committed OpenAPI snapshot at `openapi/openapi.json` offline without requiring a running server; pass a custom local file as an argument (`poyo generate ./custom.json`) to override. `Poyo.Server` exports fresh snapshots directly to `openapi/openapi.json` on boot in Development/Staging environments. `poyo generate` also emits the typed route manifest at the client root (`routes.generated.ts`, §3.7).
 
 ### 5.2. Client Build Sync
 
