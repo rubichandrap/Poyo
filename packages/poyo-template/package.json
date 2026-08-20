@@ -1,6 +1,6 @@
 {
 	"name": "@rubichandrap/poyo-template",
-	"version": "0.4.0-rc.1",
+	"version": "0.4.0-rc.2",
 	"description": "The Poyo skeleton: React client, .NET server, and routes registry.",
 	"private": false,
 	"repository": {
