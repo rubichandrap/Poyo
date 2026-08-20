@@ -1,7 +1,7 @@
 # 01 — First-run experience: committed client route table + offline codegen
 
 Type: task
-Status: open
+Status: closed
 Blocked by: (none)
 
 Spec: `.scratch/first-run-experience/spec.md`
