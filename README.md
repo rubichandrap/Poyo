@@ -2,51 +2,48 @@
 
 **A minimal React + .NET 10 Multi-Page Application (MPA) starter framework**
 
-Poyo is an ultra-lightweight framework for building server-rendered React applications with .NET. It provides the essential scaffolding for MPA architecture without imposing opinions on authentication, database, or business logic.
+Poyo is a minimal framework for building server-rendered React applications with .NET. It provides MPA scaffolding without dictating auth, database, or business logic.
 
 ---
 
-## 🎯 The Problem Poyo Solves
+## The Problem Poyo Solves
 
 **ASP.NET MVC can only serve static files from `wwwroot/`**
 
-When building React apps with .NET MVC, you face a critical challenge:
+When building React apps with .NET MVC, you run into a structural mismatch:
 
 ```
-❌ THE PROBLEM:
-- ASP.NET MVC only serves static files from wwwroot/
-- React source code lives in a separate client project
-- You can't directly reference React components from Razor views
-- You need to build React → copy to wwwroot → reference in views
-- Manual process, breaks hot reload, painful developer experience
+ASP.NET MVC only serves static files from wwwroot/
+React source lives in a separate client project
+You can't reference React components from Razor views directly
+The workflow becomes: build React → copy to wwwroot → reference in views
+This breaks hot reload and creates a painful dev loop
 ```
 
-**Traditional Workarounds:**
-1. **Separate deployments** - React SPA + .NET API (loses MPA benefits)
-2. **Manual copying** - Build React, copy to wwwroot (tedious, error-prone)
-3. **Complex build scripts** - Custom tooling (hard to maintain)
+Workarounds:
+1. Separate deployments (React SPA + .NET API) — loses MPA benefits
+2. Manual copying — build React, copy to wwwroot (tedious, error-prone)
+3. Complex build scripts — custom tooling, hard to maintain
 
 ---
 
-## ✨ How Poyo Solves It
+## How Poyo Solves It
 
-**Poyo provides a complete integration between React (Vite) and .NET MVC:**
+Poyo integrates React (Vite) with .NET MVC:
 
 ```
-✅ THE SOLUTION:
-1. React source code in poyo.client/ (separate project)
+1. React source lives in poyo.client/ (separate project)
 2. Vite compiles React → wwwroot/generated/ (automatic)
 3. Manifest generation maps hashed files → Razor partials
 4. Hot reload works in development (Vite dev server)
 5. Production builds automatically update references
-6. Zero manual intervention required!
 ```
 
 **Development Mode:**
 ```
 User → .NET MVC → Razor View → Vite Dev Server (localhost:5173)
                                     ↓
-                              React Hot Reload ✨
+                              React Hot Reload
 ```
 
 **Production Mode:**
@@ -57,31 +54,25 @@ Vite compiles React → wwwroot/generated/index-[hash].js
   ↓
 poyo build creates _ReactAssets.cshtml
   ↓
-.NET MVC serves from wwwroot/ with correct hashed filenames ✅
+.NET MVC serves from wwwroot/ with correct hashed filenames
 ```
 
-**Key Features:**
-- 🔥 **Hot Module Replacement** - React changes reload instantly in dev
-- 📦 **Automatic Asset Management** - Hashed filenames handled automatically
-- 🚀 **Server-Side Rendering** - SEO-friendly, fast initial load
-- 🎯 **Type-Safe Integration** - TypeScript types from OpenAPI
-- 🔐 **Server Data Injection** - Pass data to React without API calls
-- 🛠️ **Route Management** - Sync routes between server and client
+Key features: HMR in development, automatic hashed-filename management, server-side rendering for SEO, TypeScript types from OpenAPI, server data injection (pass data to React without API calls), and CLI route management.
 
 ---
 
-## ✨ Features
+## Features
 
-- **🚀 Multi-Page Architecture** - Server-side routing with React hydration for SEO-friendly pages
-- **🔐 Demo Authentication** - Simple cookie-based auth example (replace with your own)
-- **📦 Server Data Injection** - Pass data from server to client without API calls
-- **✨ Modern Stack** - React 19, TypeScript, Tailwind CSS v4, TanStack Query
-- **🎯 Type-Safe APIs** - Auto-generated TypeScript types from OpenAPI
-- **🛠️ Route Management** - CLI tools for managing routes between server and client
+- Multi-page architecture with server-side routing and React hydration
+- Demo cookie-based auth (replace with your own)
+- Server data injection — pass data to client without API calls
+- React 19, TypeScript, Tailwind CSS v4, TanStack Query
+- Auto-generated TypeScript types from OpenAPI
+- CLI route management between server and client
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 Poyo is a pnpm monorepo of three packages:
 
@@ -113,11 +104,11 @@ Poyo/
 └── .github/workflows/       # CI (release pipeline)
 ```
 
-Each package ships its own `README.md` — npm renders the readme from the package directory, so the framework docs live here while `packages/*/README.md` document each artifact (and `poyo-template`'s becomes the README of every scaffolded project).
+Each package ships its own `README.md`. npm renders from the package directory, so `packages/*/README.md` documents each artifact, and `poyo-template`'s README becomes the README of every scaffolded project.
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - .NET 10 SDK
@@ -145,8 +136,7 @@ pnpm run dev
 # or: pnpm run server:watch
 ```
 
-> **Why run `pnpm run generate`?**
-> The OpenAPI snapshot (`openapi/openapi.json`) and route table (`routes.generated.ts`) are committed to the repository, but generated TypeScript DTOs and Zod validation schemas (`src/schemas/dtos.generated.ts`, `src/schemas/validations.generated.ts`) are gitignored build artifacts. Running `pnpm run generate` generates these schemas offline directly from the snapshot, providing type-safe validation for pages (like the Login form) without needing an active backend server running.
+`pnpm run generate` creates TypeScript DTOs and Zod schemas from the committed OpenAPI snapshot. The snapshot and route table are committed; the generated schemas are gitignored. Run once after install. The server re-exports the snapshot on boot in dev/staging.
 
 ### Demo Credentials
 - Username: `demo`
@@ -154,13 +144,11 @@ pnpm run dev
 
 ---
 
-## 📚 Core Concepts
+## Core Concepts
 
 ### 1. Server Data Injection (Server-Driven UI)
 
-**Pass data from server to client without API calls - like Laravel Livewire!**
-
-Poyo allows you to inject server-side data directly into your React components, eliminating the need for initial API calls and enabling server-driven UI patterns.
+Inject server-side data directly into React components. No initial API call needed.
 
 **Server (C#):**
 ```csharp
@@ -207,8 +195,6 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
-    // Access server data immediately - no loading state needed!
-    // Validates that data is a non-null object
     const data = usePage<DashboardData>();
     
     if (!data) return <div>No data available</div>;
@@ -224,28 +210,17 @@ export default function DashboardPage() {
 }
 ```
 
-**How it works:**
+How it works:
 1. Server renders Razor view with data in `ViewBag.ServerData`
 2. `_Layout.cshtml` injects it as `window.SERVER_DATA`
 3. React hydrates and `usePage()` reads from `window.SERVER_DATA`
-4. **Validation:** `usePage()` ensures data is a valid object (returns `null` otherwise).
-5. **Zero API calls** for initial page load!
+4. `usePage()` returns `null` if data is missing or not a plain object
 
-**Benefits:**
-- ✅ **Faster initial render** - No loading spinners
-- ✅ **SEO-friendly** - Data is in HTML
-- ✅ **Type-safe** - TypeScript knows the shape
-- ✅ **Server-driven** - Like Livewire/Inertia.js
-- ✅ **Secure** - Data prepared server-side with auth context
+No loading spinners on initial render. Data is in the HTML for SEO. TypeScript knows the shape from your interface.
 
-**Use Cases:**
-- User profile data
-- Dashboard statistics
-- Notification counts
-- User preferences
-- Any data needed on page load
+Use it for anything you need on page load: profile data, dashboard stats, notification counts, preferences.
 
-### 2. Route Management (Enhanced)
+### 2. Route Management
 
 Routes are defined in `routes.json` and can now support **Custom Controllers** and **Flexible SEO**:
 
@@ -275,35 +250,22 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). `guest` routes (login, landing pages) redirect authenticated users away; `protected` routes redirect anonymous users to the login page; `public` routes are open to everyone. Access and SEO are enforced server-side for every registry route — custom-controller routes included — so no per-action attributes are needed. Legacy `isPublic`/`isGuestOnly` flags are rejected as unknown fields.
 
-**Client-side resolution:** route resolution ships from the framework package — `createRouteTable` from `@rubichandrap/poyo/runtime`. The generated project's `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it globs the pages, resolves the server-injected base path, and calls `createRouteTable` with the generated manifest. The typed manifest `poyo.client/routes.generated.ts` is committed at the client package root and kept fresh by every route command and `poyo generate` — use `routePath("Login")` for static links so a renamed or removed route is a build error instead of a 404.
+Route resolution ships from `@rubichandrap/poyo/runtime`. The generated project's `src/routes/route-loader.ts` globs pages, resolves the server-injected base path, and calls `createRouteTable` with the generated manifest. `routes.generated.ts` is committed at the client root and kept fresh by every route command and `poyo generate`. Use `routePath("Login")` for static links so a renamed or removed route is a build error instead of a 404.
 
-**CLI Commands:**
-```bash
-# Basic Add
-pnpm run route:add YourPage
+CLI commands: see the [Scripts](#scripts) section below.
 
-# Add a guest route (login/landing pages)
-pnpm run route:add /Login --guest
+### 3. Flexible SEO
 
-# Add with Custom Controller & Action
-pnpm run route:add /Admin --controller AdminController --action Index
-
-# Skip View Generation (if controller handles it)
-pnpm run route:add /API/Proxy --controller ApiController --action Proxy --no-view
-```
-
-### 3. Flexible SEO System
-
-Poyo now supports a data-driven SEO system. You don't need to touch `.cshtml` files for metadata.
+Data-driven SEO — no `.cshtml` edits for metadata.
 - **Title/Description**: Set in `routes.json`.
 - **Meta Tags**: Dictionary in `routes.json` (supports OpenGraph).
 - **JSON-LD**: Inject structured data scripts automatically.
 
 All metadata is injected server-side into `_Layout.cshtml` before the React app even loads, ensuring perfect SEO.
 
-### 3. Authentication Strategy
+### 4. Authentication
 
-Poyo uses a hybrid approach to balance security and usability:
+Hybrid auth strategy:
 
 1.  **Web (Browser): HttpOnly Cookies**
     *   **Why?** Protected against XSS (JavaScript can't read them). Browsers send them automatically.
@@ -313,12 +275,9 @@ Poyo uses a hybrid approach to balance security and usability:
     *   **Why?** flexible for native HTTP clients where cookies are clumsy.
     *   **How?** Login API returns a token. Mobile apps send it in `Authorization: Bearer <token>`.
 
-3.  **Client UI: "UI Token"**
-    *   **What?** A non-sensitive flag/token stored in `localStorage`.
-    *   **Why?** Instant UI updates. React knows to show "Logout" instead of "Login" immediately without waiting for a server roundtrip.
-    *   **Security:** This is **NOT** used for access control. The Server validates the **Cookie** (or Bearer token). If the cookie is missing/invalid, the request fails even if the UI token exists.
+3.  **Client UI: "UI Token"** — A non-sensitive flag in `localStorage` for instant UI state (showing Login/Logout). The server always validates the cookie or bearer token for access control, regardless of what the UI token says.
 
-Access rules live in `routes.json`, not on actions. A universal filter enforces them for every registry route:
+Access rules live in `routes.json`, enforced universally by a server-side filter:
 
 ```json
 {
@@ -335,7 +294,7 @@ Access rules live in `routes.json`, not on actions. A universal filter enforces 
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Server
 - .NET 10
@@ -353,7 +312,7 @@ Access rules live in `routes.json`, not on actions. A universal filter enforces 
 
 ---
 
-## 📖 Project Structure
+## Project Structure
 
 ### Key Files
 
@@ -375,7 +334,7 @@ Access rules live in `routes.json`, not on actions. A universal filter enforces 
 
 ---
 
-## 🎯 What's Included
+## What's Included
 
 ### Server Components
 - Cookie authentication
@@ -397,7 +356,7 @@ Access rules live in `routes.json`, not on actions. A universal filter enforces 
 
 ---
 
-## 🔧 Customization
+## Customization
 
 ### Replace Demo Auth
 
@@ -440,13 +399,13 @@ Update Tailwind configuration in `poyo.client/src/index.css`:
 
 ---
 
-## 🤖 Code Generation
+## Code Generation
 
-Poyo includes powerful code generation tools to keep your client and server in sync.
+Code generation keeps the client and server in sync.
 
-### 1. DTO + Validation Schema Generation
+### 1. DTO and Validation Schema Generation
 
-**Generates TypeScript DTOs and Zod schemas from the committed OpenAPI snapshot**
+Generates TypeScript DTOs and Zod schemas from the committed OpenAPI snapshot.
 
 ```bash
 pnpm run generate   # or: pnpm run client:generate
@@ -460,23 +419,17 @@ pnpm run generate   # or: pnpm run client:generate
 - Pass a custom local file if needed: `poyo generate ./custom-spec.json`
 - Use the generated schemas in forms with `zodResolver`
 
-### 2. Build Asset Sync ⚠️ CRITICAL FOR PRODUCTION
+### 2. Build Asset Sync
 
-**Syncs the production bundle into the server's `wwwroot`**
+Syncs the production bundle into the server's `wwwroot`.
 
 ```bash
 pnpm run build   # client build + poyo build + server build
 ```
 
-**Why this is CRITICAL:**
+In development, Vite serves assets directly from its dev server. In production, Vite builds with hashed filenames that change every build. The Razor views need to reference these files, but the filenames change.
 
-In **development**, Vite serves assets directly:
-```html
-<!-- Dev mode - Vite dev server -->
-<script type="module" src="http://localhost:5173/src/main.tsx"></script>
-```
-
-In **production**, Vite builds assets with hashed filenames:
+In production, Vite builds assets with hashed filenames:
 ```
 dist/generated/
 ├── index-C2LBw7bc.css      ← Hash changes every build!
@@ -484,10 +437,6 @@ dist/generated/
 └── vendor-SQrKxH4E.js       ← Hash changes every build!
 ```
 
-**The Problem:**
-Your Razor views need to reference these files, but the filenames change with every build!
-
-**The Solution:**
 `poyo build` reads Vite's manifest and generates `_ReactAssets.cshtml`:
 
 ```cshtml
@@ -498,71 +447,57 @@ Your Razor views need to reference these files, but the filenames change with ev
 <!-- Hashes updated automatically on every build! -->
 ```
 
-**How it works:**
-1. `pnpm run build` compiles React app
+How it works:
+1. `pnpm run build` compiles the React app
 2. Vite creates `.vite/manifest.json` with file mappings
-3. `poyo build` reads manifest
-4. Generates `_ReactAssets.cshtml` with correct hashed filenames
-5. `_Layout.cshtml` includes this partial in production
-6. **Your app loads with correct assets!**
+3. `poyo build` reads the manifest and generates `_ReactAssets.cshtml` with correct hashed filenames
+4. `_Layout.cshtml` includes this partial in production
 
-**What happens if you forget:**
-```
-❌ 404 errors - Assets not found
-❌ Old cached assets loaded
-❌ Broken production deployment
-❌ White screen of death
-```
+Without it: 404s, stale cached assets, or a broken deployment.
 
-**When it runs:**
-- ✅ Automatically as part of `pnpm run build` (`client:build && poyo build && server:build`)
-- ✅ Manually with `poyo build`
+Runs automatically as part of `pnpm run build`, or manually with `poyo build`.
 
-**Files involved:**
-- Input: `poyo.client/dist/.vite/manifest.json` (Vite output)
-- Output: `Poyo.Server/Views/Shared/_ReactAssets.cshtml` (Razor partial)
-- Used by: `Poyo.Server/Views/Shared/_Layout.cshtml` (in production)
+Input: `poyo.client/dist/.vite/manifest.json`. Output: `Poyo.Server/Views/Shared/_ReactAssets.cshtml`. Used by: `Poyo.Server/Views/Shared/_Layout.cshtml`.
 
-### 4. Route Management
+### 3. Route Management CLI
 
-**Add new route:**
+Add a route:
 ```bash
 pnpm run route:add User/Profile
 # OR (with flags)
 pnpm run route:add -- /Register --guest
 ```
 
-**Route commands from the monorepo:**
+From the monorepo root (template development):
 ```bash
 # From the repo root (template development)
 pnpm --filter poyo-template run route:add /User/Profile --guest
 ```
-*   In a generated project, run `pnpm run route:add /User/Profile --guest` directly from the project root.
+In a generated project, run `pnpm run route:add /User/Profile --guest` directly from the project root.
 
-
-**What this command does:**
+The command:
 1.  **Updates `routes.json`**: Adds entry mapping `/User/Profile` to the React page and Razor view.
 2.  **Scaffolds React Page**: Creates `poyo.client/src/pages/User/Profile/index.page.tsx`.
     *   *Optionally use `--flat` for `src/pages/User/profile.page.tsx` style.*
 3.  **Scaffolds Razor View**: Creates `Poyo.Server/Views/User/Profile/Index.cshtml`.
     *   *Sets up the `#react-root` div with `data-page-name="User/Profile"` for hydration.*
 
-**Remove route:**
+Remove a route:
 ```bash
 pnpm run route:remove User/Profile
 ```
-*   **Safe Deletion**: Prompts to optionally delete both the React page and MVC View (and empty folders).
+Prompts to optionally delete both the React page and MVC View.
 
-**Sync routes:**
+Sync routes:
 ```bash
 pnpm run route:sync
 ```
-*   **Forward Sync**: Checks for missing files and offers Rescaffold/Prune.
-*   **Reverse Sync**: Checks for "untracked" files (React pages not in `routes.json`) and offers to Add/Delete them.
+- Forward sync: checks for missing files, offers Rescaffold or Prune.
+- Reverse sync: checks for untracked React pages not in `routes.json`, offers to Add or Delete them.
 
 ---
 
-## 📝 Scripts
+## Scripts
 
 ### Project Root / Template
 ```bash
@@ -602,31 +537,21 @@ pnpm run client:type-check # Run TypeScript compiler check
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-This is a starter framework - fork it and make it your own!
-
----
-
-## 📄 License
-
-MIT License - Use freely for any purpose
+Fork it and make it your own.
 
 ---
 
-## 🎉 What Poyo Is NOT
+## License
 
-- ❌ Not a full-featured CMS
-- ❌ Not opinionated about database
-- ❌ Not opinionated about authentication
-- ❌ Not a replacement for Next.js/Remix (different architecture)
+MIT
 
-## ✅ What Poyo IS
+---
 
-- ✅ A React + .NET MPA foundation
-- ✅ Clear server/client separation of concerns
-- ✅ A reference integration of React + .NET
-- ✅ A base you extend with your own auth, database, and business logic
+## What Poyo Is and Isn't
+
+Poyo is a React + .NET MPA starter. It ships a route registry, server data injection, and Vite integration. It does not include a database, production auth, or UI components — you add those. It is not a full-featured CMS or a replacement for Next.js/Remix.
 
 ---
 
@@ -650,7 +575,3 @@ Poyo takes the opposite approach. The React client is a separate Vite project an
 Choose JsxCore if you want React without leaving the .NET build, no Node in production, and C#-generated view types.
 
 Choose Poyo if you want a decoupled React client with the full Vite/React toolchain and a registry-driven MPA (routes, access, SEO, validation), and you are fine running two build systems.
-
----
-
-**Built with ❤️ for developers who want control over their stack**
