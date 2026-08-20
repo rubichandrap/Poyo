@@ -4,6 +4,21 @@ All notable changes to the Poyo monorepo are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0-rc.1] - 2026-08-20
+
+### Added
+
+- Committed client route table: `routes.generated.ts` is committed at the client package root (`<client>/routes.generated.ts`) and un-ignored from `.gitignore`, eliminating TypeScript errors on fresh clones/scaffolds before the first build
+- Offline OpenAPI codegen: `poyo generate` generates TypeScript DTOs and Zod schemas offline from the committed `<client>/openapi/openapi.json` snapshot without requiring a running server; `dtos.generated.ts` and `validations.generated.ts` are gitignored
+- In-process OpenAPI snapshot export: `Poyo.Server` exports its OpenAPI document directly to `<client>/openapi/openapi.json` during development/staging boot via `OpenApiSnapshotExportHostedService` without network loopback requests
+- Scaffolder environment bootstrap: `create-poyo-app` automatically bootstraps `.env` from `.env.example` during project scaffolding, substituting the project name
+- Fixture E2E first-run validation: the release fixture verifies offline scaffold, offline codegen, offline typecheck and build, in-process snapshot export, and served page hydration attributes
+
+### Changed
+
+- Removed circular-deadlock `"predev": "poyo generate"` hook from `poyo.client/package.json` so `pnpm run server:watch` and `dotnet watch` boot without locking Vite server proxy
+- Documentation updated to recommend `create-poyo-app@latest` and highlight `server:watch` as the primary development workflow
+
 ## [0.3.1] - 2026-08-16
 
 ### Fixed
@@ -62,6 +77,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The stale GitHub-Packages `publish.yml` workflow
 - The old whole-repo-copy scaffolder (`cli/create-poyo-app.js`)
 
+[0.4.0-rc.1]: https://github.com/rubichandrap/Poyo/releases/tag/v0.4.0-rc.1
 [0.3.1]: https://github.com/rubichandrap/Poyo/releases/tag/v0.3.1
 [0.3.0]: https://github.com/rubichandrap/Poyo/releases/tag/v0.3.0
 [0.2.0]: https://github.com/rubichandrap/Poyo/releases/tag/v0.2.0

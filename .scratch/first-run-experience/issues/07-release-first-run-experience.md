@@ -4,9 +4,9 @@
 
 **Blocked by:** 06 — Fixture e2e: first-run builds and serves without a server.
 
-**Status:** open
+**Status:** ready for publish
 
-- [ ] Lockstep version bump across all three packages (`@rubichandrap/poyo`, `@rubichandrap/poyo-template`, `@rubichandrap/create-poyo-app`)
-- [ ] CHANGELOG.md entries in root and package folders
-- [ ] Lockstep assertion tests pass (`pnpm run release:check`)
-- [ ] Fixture e2e tests pass (`pnpm run test:release`)
+- [x] Lockstep version bump across all three packages (`@rubichandrap/poyo`, `@rubichandrap/poyo-template`, `@rubichandrap/create-poyo-app`)
+- [x] CHANGELOG.md entries in root and package folders
+- [x] Lockstep assertion tests pass (`pnpm run release:check`)
+- [x] Fixture e2e tests pass (`pnpm run test:release` confirmed red until published)
