@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Aliased `dev` script to `pnpm run server:watch` (`dotnet watch` with Vite proxy) and removed `dev:watch`
 - Removed `"predev": "poyo generate"` hook from `poyo.client/package.json` to prevent circular deadlocks during server startup
 - `src/routes/route-loader.ts` imports the route manifest from `../../routes.generated.ts`
 

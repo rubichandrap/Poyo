@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Post-scaffold command prompt updated to `cd <app> && pnpm run restore && pnpm run generate && pnpm run dev`
 - Fresh scaffold output ships with committed `routes.generated.ts` at client root and no `predev` script
 
 ## [0.3.1] - 2026-08-16

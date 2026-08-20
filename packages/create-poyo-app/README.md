@@ -11,7 +11,8 @@ npx @rubichandrap/create-poyo-app@latest MyApp
 
 cd MyApp
 pnpm run restore     # install JS dependencies and restore .NET packages
-pnpm run dev:watch   # start the .NET watch server (recommended full-stack MPA dev; alias for server:watch)
+pnpm run generate    # generate TypeScript DTOs and Zod schemas from offline OpenAPI snapshot
+pnpm run dev         # start the .NET watch server (full-stack MPA; alias for server:watch)
 ```
 
 ### Options

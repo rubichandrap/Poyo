@@ -137,10 +137,16 @@ cd MyApp
 # Install dependencies (React + .NET)
 pnpm run restore
 
-# Run development server (full-stack MPA: .NET MVC + Vite dev server)
-pnpm run dev:watch
+# Generate TypeScript DTOs and Zod schemas from the committed OpenAPI snapshot
+pnpm run generate
+
+# Run development server (full-stack MPA: .NET watch server + Vite dev server)
+pnpm run dev
 # or: pnpm run server:watch
 ```
+
+> **Why run `pnpm run generate`?**
+> The OpenAPI snapshot (`openapi/openapi.json`) and route table (`routes.generated.ts`) are committed to the repository, but generated TypeScript DTOs and Zod validation schemas (`src/schemas/dtos.generated.ts`, `src/schemas/validations.generated.ts`) are gitignored build artifacts. Running `pnpm run generate` generates these schemas offline directly from the snapshot, providing type-safe validation for pages (like the Login form) without needing an active backend server running.
 
 ### Demo Credentials
 - Username: `demo`
@@ -447,7 +453,7 @@ pnpm run generate   # or: pnpm run client:generate
 ```
 
 - Works completely offline out of the box using the committed OpenAPI snapshot at `poyo.client/openapi/openapi.json`
-- In development/staging, running the .NET server (`pnpm run dev:watch` or `pnpm run server:watch`) automatically exports the latest OpenAPI snapshot in-process on boot without loopback network calls
+- In development/staging, running the .NET server (`pnpm run dev` or `pnpm run server:watch`) automatically exports the latest OpenAPI snapshot in-process on boot without loopback network calls
 - Generates TypeScript types using `openapi-typescript`
 - Creates Zod validation schemas using `openapi-zod-client`
 - Outputs to `src/schemas/dtos.generated.ts` and `src/schemas/validations.generated.ts`
@@ -561,11 +567,11 @@ pnpm run route:sync
 ### Project Root / Template
 ```bash
 pnpm run restore          # Install JS dependencies and restore .NET packages
-pnpm run dev:watch        # Start .NET watch server (recommended full-stack MPA dev; alias for server:watch)
-pnpm run server:watch     # Start .NET server in watch mode (dotnet watch)
-pnpm run dev              # Start standalone Vite client dev server (alias for client:dev)
-pnpm run build            # Full production build (client build + asset sync + server build)
 pnpm run generate         # Generate TypeScript DTOs + Zod schemas from offline OpenAPI snapshot
+pnpm run dev              # Start .NET watch server (recommended full-stack MPA dev; alias for server:watch)
+pnpm run server:watch     # Start .NET server in watch mode (dotnet watch)
+pnpm run client:dev       # Start standalone Vite client dev server
+pnpm run build            # Full production build (client build + asset sync + server build)
 pnpm run client:generate  # Alias for generate
 ```
 

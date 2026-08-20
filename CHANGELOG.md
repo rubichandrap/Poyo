@@ -16,8 +16,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Removed circular-deadlock `"predev": "poyo generate"` hook from `poyo.client/package.json` so `pnpm run server:watch` and `dotnet watch` boot without locking Vite server proxy
-- Documentation updated to recommend `create-poyo-app@latest` and highlight `server:watch` as the primary development workflow
+- In `poyo-template`, `dev` is aliased directly to `server:watch` (`dotnet watch` with Vite proxy) and `dev:watch` is removed
+- Removed circular-deadlock `"predev": "poyo generate"` hook from `poyo.client/package.json` so `pnpm run dev` and `dotnet watch` boot without locking Vite server proxy
+- Scaffolder post-scaffold prompt updated to `pnpm run restore && pnpm run generate && pnpm run dev` so offline validation schemas are generated before booting
+- Documentation updated to recommend `create-poyo-app@latest` and document the `pnpm run generate` workflow
 
 ## [0.3.1] - 2026-08-16
 

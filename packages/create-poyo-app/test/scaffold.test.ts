@@ -19,6 +19,9 @@ describe("create-poyo-app", () => {
 		const result = runCli(["MyApp", "--skip-install"], { cwd });
 
 		expect(result.status).toBe(0);
+		expect(result.stdout).toContain(
+			"Next: cd MyApp && pnpm run restore && pnpm run generate && pnpm run dev",
+		);
 		expect(exists(cwd, "MyApp/package.json")).toBe(true);
 		expect(exists(cwd, "MyApp/MyApp.Server/Poyo.Server.csproj")).toBe(false);
 		expect(exists(cwd, "MyApp/MyApp.Server/MyApp.Server.csproj")).toBe(true);

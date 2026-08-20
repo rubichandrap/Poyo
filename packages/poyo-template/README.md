@@ -16,10 +16,13 @@ cd MyApp
 
 Development:
 ```bash
-pnpm run restore      # install JS dependencies and restore .NET packages
-pnpm run dev:watch    # start the .NET watch server (recommended full-stack MPA dev; alias for server:watch)
-# or: pnpm run dev    # start standalone Vite client dev server
+pnpm run restore   # install JS dependencies and restore .NET packages
+pnpm run generate  # generate TypeScript DTOs + Zod schemas from offline OpenAPI snapshot
+pnpm run dev       # start the .NET watch server (recommended full-stack MPA dev; alias for server:watch)
 ```
+
+> **Why `pnpm run generate`?**
+> The OpenAPI snapshot (`openapi/openapi.json`) and route table (`routes.generated.ts`) are committed, but generated TypeScript DTOs and Zod validation schemas (`src/schemas/dtos.generated.ts`, `src/schemas/validations.generated.ts`) are gitignored. Running `pnpm run generate` builds the validation schemas offline from the snapshot for type-safe validation (e.g. login form) without needing a backend running.
 
 Demo login: `demo` / `password`.
 
@@ -80,12 +83,12 @@ pnpm run route:sync                        # reconcile routes.json with files on
 
 | Script | Purpose |
 |---|---|
-| `pnpm run dev:watch` | .NET watch server (full-stack MPA: Razor views + Vite dev server; alias for `server:watch`) |
+| `pnpm run dev` | .NET watch server (full-stack MPA: Razor views + Vite dev server; alias for `server:watch`) |
 | `pnpm run server:watch` | .NET watch server (dotnet watch) |
-| `pnpm run dev` | standalone Vite client dev server (alias for `client:dev`) |
-| `pnpm run build` | client build + `poyo build` asset sync + server build |
+| `pnpm run client:dev` | standalone Vite client dev server |
 | `pnpm run generate` | generate TypeScript DTOs + Zod schemas from offline OpenAPI snapshot |
 | `pnpm run client:generate` | alias for `pnpm run generate` |
+| `pnpm run build` | client build + `poyo build` asset sync + server build |
 | `pnpm run route:*` | route management (`route:add`, `route:remove`, `route:update`, `route:sync`) |
 
 ## Server data

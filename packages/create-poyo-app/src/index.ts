@@ -162,7 +162,7 @@ export function createProject(
 		`Created ${projectName} from Poyo template (poyo@${poyoVersion}).\n`,
 	);
 	process.stdout.write(
-		`Next: cd ${projectName} && pnpm run restore && pnpm run dev:watch\n`,
+		`Next: cd ${projectName} && pnpm run restore && pnpm run generate && pnpm run dev\n`,
 	);
 }
 
