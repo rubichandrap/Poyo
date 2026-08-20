@@ -109,6 +109,27 @@ const data = usePage<{ message: string }>();
 
 `pnpm run generate` (or `pnpm run client:generate`) works offline by reading the committed OpenAPI snapshot at `poyo.client/openapi/openapi.json` and writing TypeScript DTOs and Zod schemas to `poyo.client/src/schemas/`. When running the server in development or staging (`pnpm run server:watch` / `pnpm run dev:watch`), the .NET server automatically exports the latest OpenAPI snapshot in-process on boot. You can also pass a custom local file: `poyo generate ./openapi.json`.
 
+## Poyo vs JsxCore
+
+If you're coming from Razor and want "React instead of Razor" with **one build and no Node in production**, look at [**JsxCore**](https://github.com/davidwhitney/JsxCore) first. It runs React/Preact as an ASP.NET **view engine**: the same component renders on the server (in-process via the Jint JS engine, no Node) and in the browser for hydration, TypeScript compiles with a native `tsc` binary, there is **no bundler** (the browser resolves ES modules natively), view model types are **generated from your C#** so the two can't drift, and .NET globals are callable directly from a view.
+
+Poyo takes the opposite stance: the React client is a **fully separate Vite project** and the .NET server only ships HTML + `window.SERVER_DATA`. React never runs on the server — hydration happens in the browser. That keeps the client free to use the entire Vite/React ecosystem (TanStack Query, React Hook Form + Zod, code-splitting, any plugin) and lets your .NET and React teams work independently. The boundary between the two is just a data contract: server data injection (`usePage<T>()`) plus JSend APIs.
+
+| | **Poyo** | **JsxCore** |
+|---|---|---|
+| Mental model | React client + .NET MVC server, loosely coupled | React/Preact as an ASP.NET view engine |
+| Where React runs | Browser only (hydration) | Server (in-process via Jint) **and** browser |
+| Build toolchain | Two: Vite (client) + .NET (server) | One: .NET SDK (no Node, no bundler) |
+| TS compile | Vite / `tsc` in the client project | Native `tsc` binary fetched by the package |
+| Model typing | OpenAPI snapshot → DTOs + Zod (you maintain) | Generated from C# automatically (no drift) |
+| .NET interop | Via API calls + `SERVER_DATA` | Direct CLR globals callable from the view |
+| Client freedoms | Full Vite/React ecosystem, code-splitting, plugins | Constrained to what runs in Jint ∩ browser |
+| Best when | You want a standalone React client + structured MPA | You want React with zero Node and one build |
+
+**Choose JsxCore if** you want React without leaving the .NET build, no Node in production, and C#-generated view types.
+
+**Choose Poyo if** you want a first-class, decoupled React client with the full Vite/React toolchain and a registry-driven MPA (routes, access, SEO, validation) — and are fine running two build systems.
+
 ## License
 
 MIT

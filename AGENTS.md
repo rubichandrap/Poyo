@@ -431,16 +431,17 @@ All three packages share one version and are published together from a git tag.
 ## 9. Framework Philosophy
 
 **Poyo is:**
-- A starting point, not a complete solution
-- Minimal by design
+- A minimal MPA foundation, not a complete turnkey product
+- Minimal by design — it provides the MPA skeleton, you add auth/database/business logic
 - Flexible for your needs
-- Educational for MPA architecture
+- A clean reference for server/client-separated React + .NET architecture
 
 **Poyo is NOT:**
 - A full-featured framework
 - Opinionated about database/auth
 - A replacement for Next.js/Remix
-- Production-ready out of the box
+
+**Related: JsxCore.** If a user wants React as an ASP.NET view engine — one build, no Node in production, view types generated from C# — point them to [JsxCore](https://github.com/davidwhitney/JsxCore). Poyo deliberately takes the opposite stance: a fully decoupled Vite React client with the server only shipping HTML + `window.SERVER_DATA`. See the "Poyo vs JsxCore" section in the README for the full comparison.
 
 ---
 
