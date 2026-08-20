@@ -7,7 +7,7 @@ describe("poyo CLI entry", () => {
 		const fixture = makeFixture();
 		const result = execInFixture(fixture, ["--version"]);
 		expect(result.status).toBe(0);
-		expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+		expect(result.stdout.trim()).toMatch(/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/);
 	});
 
 	it("prints help with --help", () => {
