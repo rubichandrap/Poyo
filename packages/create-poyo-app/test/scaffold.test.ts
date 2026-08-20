@@ -1,6 +1,8 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { ensureEnvFile } from "../src/index.js";
 import { rewriteClientPackageJson } from "../src/rewrite.js";
 import {
 	OWN_VERSION,
@@ -17,6 +19,9 @@ describe("create-poyo-app", () => {
 		const result = runCli(["MyApp", "--skip-install"], { cwd });
 
 		expect(result.status).toBe(0);
+		expect(result.stdout).toContain(
+			"Next: cd MyApp && pnpm run restore && pnpm run generate && pnpm run dev",
+		);
 		expect(exists(cwd, "MyApp/package.json")).toBe(true);
 		expect(exists(cwd, "MyApp/MyApp.Server/Poyo.Server.csproj")).toBe(false);
 		expect(exists(cwd, "MyApp/MyApp.Server/MyApp.Server.csproj")).toBe(true);
@@ -120,7 +125,7 @@ describe("create-poyo-app", () => {
 		expect(result.stderr).toContain("already exists");
 	});
 
-	it("keeps routes.json and .env intact", () => {
+	it("bootstraps .env and keeps routes.json intact", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });
 
@@ -128,6 +133,9 @@ describe("create-poyo-app", () => {
 			path: string;
 		}[];
 		expect(routes.some((r) => r.path === "/Dashboard")).toBe(true);
+
+		expect(exists(cwd, "MyApp/.env")).toBe(true);
+		expect(exists(cwd, "MyApp/.env.example")).toBe(true);
 
 		const env = readFile(cwd, "MyApp/.env");
 		expect(env).toContain("VITE_APP_NAME=MyApp");
@@ -142,6 +150,60 @@ describe("create-poyo-app", () => {
 		expect(ws).toContain("MyApp.Server");
 		expect(ws).not.toContain("Poyo");
 		expect(ws).not.toContain("poyo.client");
+	});
+
+	it("copies the committed route table to the client package root without predev hook", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		expect(exists(cwd, "MyApp/myapp.client/routes.generated.ts")).toBe(true);
+		expect(
+			exists(cwd, "MyApp/myapp.client/src/routes/routes.generated.ts"),
+		).toBe(false);
+
+		const manifest = readFile(cwd, "MyApp/myapp.client/routes.generated.ts");
+		expect(manifest).toContain("export const routeManifest =");
+		expect(manifest).toContain(
+			"export function routePath(name: RouteName): RoutePath",
+		);
+
+		const clientPkg = readJson(cwd, "MyApp/myapp.client/package.json") as {
+			scripts: Record<string, string>;
+		};
+		expect(clientPkg.scripts.predev).toBeUndefined();
+	});
+
+	it("copies the committed openapi snapshot and gitignores generated schemas", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		expect(exists(cwd, "MyApp/myapp.client/openapi/openapi.json")).toBe(true);
+		const gitignore = readFile(cwd, "MyApp/myapp.client/.gitignore");
+		expect(gitignore).toContain("src/schemas/dtos.generated.ts");
+		expect(gitignore).toContain("src/schemas/validations.generated.ts");
+	});
+
+	it("freshly scaffolded client type-checks without any generate step", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		const clientDir = path.join(cwd, "MyApp", "myapp.client");
+		const templateClientModules = path.resolve(
+			import.meta.dirname,
+			"../../poyo-template/poyo.client/node_modules",
+		);
+		expect(fs.existsSync(templateClientModules)).toBe(true);
+		fs.symlinkSync(
+			templateClientModules,
+			path.join(clientDir, "node_modules"),
+			"junction",
+		);
+		const tscBin = path.join(templateClientModules, ".bin", "tsc");
+		const result = spawnSync(tscBin, ["-p", "tsconfig.app.json", "--noEmit"], {
+			cwd: clientDir,
+			encoding: "utf-8",
+		});
+		expect(result.status).toBe(0);
 	});
 
 	describe("client manifest rewrite (unit seam)", () => {
@@ -192,6 +254,42 @@ describe("create-poyo-app", () => {
 			rewriteClientPackageJson(cwd, "myapp", OWN_VERSION);
 
 			expect(fs.readFileSync(pkgPath, "utf-8")).toBe(original);
+		});
+	});
+
+	describe("env bootstrapping (unit seam)", () => {
+		it("copies .env.example to .env if .env does not exist", () => {
+			const cwd = makeTempDir();
+			const examplePath = path.join(cwd, ".env.example");
+			fs.writeFileSync(examplePath, "VITE_APP_NAME=Poyo\nPORT=5000\n");
+
+			ensureEnvFile(cwd);
+
+			const envPath = path.join(cwd, ".env");
+			expect(fs.existsSync(envPath)).toBe(true);
+			expect(fs.readFileSync(envPath, "utf-8")).toBe(
+				"VITE_APP_NAME=Poyo\nPORT=5000\n",
+			);
+		});
+
+		it("preserves existing .env when already present", () => {
+			const cwd = makeTempDir();
+			const examplePath = path.join(cwd, ".env.example");
+			const envPath = path.join(cwd, ".env");
+			fs.writeFileSync(examplePath, "VITE_APP_NAME=Poyo\nPORT=5000\n");
+			fs.writeFileSync(envPath, "VITE_APP_NAME=Custom\nPORT=9999\n");
+
+			ensureEnvFile(cwd);
+
+			expect(fs.readFileSync(envPath, "utf-8")).toBe(
+				"VITE_APP_NAME=Custom\nPORT=9999\n",
+			);
+		});
+
+		it("does nothing if .env.example does not exist", () => {
+			const cwd = makeTempDir();
+			ensureEnvFile(cwd);
+			expect(fs.existsSync(path.join(cwd, ".env"))).toBe(false);
 		});
 	});
 });

@@ -6,11 +6,23 @@ A minimal React + .NET 10 Multi-Page Application (MPA) starter. Server-rendered 
 
 Prerequisites: Node.js 20+, .NET 10 SDK, and pnpm.
 
+To scaffold a new project:
 ```bash
-pnpm run restore      # install JS dependencies and restore .NET packages
-pnpm run dev          # Vite dev server with hot reload
-pnpm run dev:watch    # .NET watch server (serves the Razor views)
+npx @rubichandrap/create-poyo-app@latest MyApp
+# or: pnpm dlx @rubichandrap/create-poyo-app@latest MyApp
+# or: pnpm create @rubichandrap/poyo-app@latest MyApp
+cd MyApp
 ```
+
+Development:
+```bash
+pnpm run restore   # install JS dependencies and restore .NET packages
+pnpm run generate  # generate TypeScript DTOs + Zod schemas from offline OpenAPI snapshot
+pnpm run dev       # start the .NET watch server (recommended full-stack MPA dev; alias for server:watch)
+```
+
+> **Why `pnpm run generate`?**
+> The OpenAPI snapshot (`openapi/openapi.json`) and route table (`routes.generated.ts`) are committed, but generated TypeScript DTOs and Zod validation schemas (`src/schemas/dtos.generated.ts`, `src/schemas/validations.generated.ts`) are gitignored. Running `pnpm run generate` builds the validation schemas offline from the snapshot for type-safe validation (e.g. login form) without needing a backend running.
 
 Demo login: `demo` / `password`.
 
@@ -25,8 +37,10 @@ Poyo.Server/      # ASP.NET Core MVC server
   Services/       #   business logic
   Views/          #   Razor views
 poyo.client/      # React client (Vite + TypeScript + Tailwind)
+  routes.generated.ts # committed typed route manifest
+  openapi/        #   committed offline OpenAPI snapshot (openapi.json)
   src/pages/      #   one React page per route
-  src/routes/     #   route adapter (route-loader.ts) + generated manifest
+  src/routes/     #   route adapter (route-loader.ts)
   src/hooks-api/  #   TanStack Query hooks
   src/services/   #   API services
   src/schemas/    #   generated DTOs + Zod schemas
@@ -52,7 +66,7 @@ routes.json       # route registry: URL path -> page + view
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). The server enforces it for every registry route — custom-controller routes included — so no per-action attributes are needed: `protected` challenges anonymous users (redirect to login, 401 for API calls), `guest` redirects authenticated users to the landing page, `public` is open. Registry `seo` (title, description, meta, JSON-LD) is applied to every route, with the route name as the default title.
 
-On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it globs the page files, resolves the server-injected base path (`data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), and calls `createRouteTable` from `@rubichandrap/poyo/runtime` — route resolution ships from the framework package, not from this project. `poyo generate` (run by `predev`/`prebuild` and every route command) writes the typed manifest `src/routes/routes.generated.ts` (gitignored) with `RouteName`/`RoutePath` unions and a `routePath()` helper — use `routePath("Login")` for static links so a renamed route breaks the build instead of 404ing.
+On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it globs the page files, resolves the server-injected base path (`data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), and calls `createRouteTable` from `@rubichandrap/poyo/runtime` — route resolution ships from the framework package, not from this project. The typed manifest `routes.generated.ts` is committed at the client package root and kept fresh by every route command and `poyo generate` — use `routePath("Login")` for static links so a renamed route breaks the build instead of 404ing.
 
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 
@@ -69,11 +83,13 @@ pnpm run route:sync                        # reconcile routes.json with files on
 
 | Script | Purpose |
 |---|---|
-| `pnpm run dev` | Vite dev server |
-| `pnpm run dev:watch` | .NET watch server |
+| `pnpm run dev` | .NET watch server (full-stack MPA: Razor views + Vite dev server; alias for `server:watch`) |
+| `pnpm run server:watch` | .NET watch server (dotnet watch) |
+| `pnpm run client:dev` | standalone Vite client dev server |
+| `pnpm run generate` | generate TypeScript DTOs + Zod schemas from offline OpenAPI snapshot |
+| `pnpm run client:generate` | alias for `pnpm run generate` |
 | `pnpm run build` | client build + `poyo build` asset sync + server build |
-| `pnpm run client:generate` | generate TypeScript DTOs + Zod schemas from OpenAPI |
-| `pnpm run route:*` | route management |
+| `pnpm run route:*` | route management (`route:add`, `route:remove`, `route:update`, `route:sync`) |
 
 ## Server data
 
@@ -91,7 +107,7 @@ const data = usePage<{ message: string }>();
 
 ## Code generation
 
-`pnpm run client:generate` pulls the OpenAPI document from `VITE_OPENAPI_URL` (set in `.env`) and writes TypeScript DTOs and Zod schemas to `poyo.client/src/schemas/`. You can also pass a local file: `poyo generate ./openapi.json`.
+`pnpm run generate` (or `pnpm run client:generate`) works offline by reading the committed OpenAPI snapshot at `poyo.client/openapi/openapi.json` and writing TypeScript DTOs and Zod schemas to `poyo.client/src/schemas/`. When running the server in development or staging (`pnpm run server:watch` / `pnpm run dev:watch`), the .NET server automatically exports the latest OpenAPI snapshot in-process on boot. You can also pass a custom local file: `poyo generate ./openapi.json`.
 
 ## License
 

@@ -1,21 +1,27 @@
 /**
- * Release-time fixture e2e: the npm-resolution proof (issue #27).
+ * Release-time fixture e2e: the npm-resolution proof (issue #27) and
+ * first-run experience verification (issue #06).
  *
  * Scaffolds a real project with the local create-poyo-app CLI, runs
  * `pnpm install` inside it, and asserts the chain generated projects depend
  * on, end to end:
  *
  *   1. A real project is scaffolded with the local scaffolder's built CLI.
- *   2. The scaffolder pins `@rubichandrap/poyo` to the release version in
+ *   2. Fresh scaffold carries committed route table at client package root,
+ *      un-ignored in .gitignore, bootstrapped .env, no predev hook.
+ *   3. The scaffolder pins `@rubichandrap/poyo` to the release version in
  *      both the root and client manifests (workspace:* rewritten away).
- *   3. `pnpm install` resolves that version from npm — the version is read
+ *   4. `pnpm install` resolves that version from npm — the version is read
  *      back from node_modules and its realpath must not be the monorepo
  *      (a workspace link would pass the install but prove nothing).
- *   4. The resolved package ships the `./runtime` subpath (dist/runtime/),
+ *   5. The resolved package ships the `./runtime` subpath (dist/runtime/),
  *      including the route-table module (dist/runtime/route-table.js).
- *   5. The built client bundle carries the runtime surface: the `usePage`
- *      accessor, its `window.SERVER_DATA` channel, and the route-table
- *      module's `[RouteTable]` diagnostics all appear in the output.
+ *   6. Offline OpenAPI codegen (`pnpm run generate`) generates TS types and
+ *      Zod schemas from the committed snapshot without a running server.
+ *   7. Client type-checks and builds offline; bundle carries the runtime
+ *      surface (`usePage`, `window.SERVER_DATA`, `[RouteTable]`).
+ *   8. Server boot exports OpenAPI snapshot in-process without network requests.
+ *   9. Served page renders HTML with data-page-name and data-base-path.
  *
  * This test is a publish-time gate, wired into `pnpm run test:release`. It is
  * RED until the release version is published: an unpublished version fails
@@ -26,10 +32,11 @@
 
 import { before, test } from "node:test";
 import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = path.resolve(
@@ -40,11 +47,13 @@ const SCAFFOLDER_PKG = path.join(REPO_ROOT, "packages", "create-poyo-app");
 const SCAFFOLDER_BIN = path.join(SCAFFOLDER_PKG, "dist", "index.js");
 const POYO_PKG = "@rubichandrap/poyo";
 
-// The scaffolder's rename rule turns poyo.client into <lower>.client, so a
-// project named fixtureApp produces fixtureapp.client — pinned here so a
-// change to that rename rule fails this test loudly.
+// The scaffolder's rename rule turns poyo.client into <lower>.client and
+// Poyo.Server into <Pascal>.Server, so a project named fixtureApp produces
+// fixtureapp.client and FixtureApp.Server — pinned here so a change to that
+// rename rule fails this test loudly.
 const PROJECT_NAME = "fixtureApp";
 const CLIENT_DIR = "fixtureapp.client";
+const SERVER_DIR = "FixtureApp.Server";
 
 function readJson(file) {
 	return JSON.parse(fs.readFileSync(file, "utf-8"));
@@ -80,6 +89,24 @@ function collectFiles(dir, files = []) {
 	return files;
 }
 
+function getFreePort() {
+	return new Promise((resolve, reject) => {
+		const srv = net.createServer();
+		srv.listen(0, "127.0.0.1", () => {
+			const address = srv.address();
+			if (!address || typeof address === "string") {
+				srv.close(() => reject(new Error("Invalid server address")));
+				return;
+			}
+			const port = address.port;
+			srv.close((err) => {
+				if (err) reject(err);
+				else resolve(port);
+			});
+		});
+	});
+}
+
 before(() => {
 	// The fixture drives the local scaffolder's built CLI — the artifact that
 	// gets published — so build it fresh from source first.
@@ -95,13 +122,14 @@ before(() => {
 test(
 	"scaffolded project resolves the framework from npm and bundles the accessor",
 	// Must exceed the sum of the subprocess budgets (build 300s + scaffold
-	// 120s + install 600s + client build 300s = 1320s) so the per-step
-	// timeouts, not the outer test timeout, are the effective caps.
-	{ timeout: 1_500_000 },
-	() => {
+	// 120s + install 600s + client build 300s + server boot 120s = 1440s) so the
+	// per-step timeouts, not the outer test timeout, are the effective caps.
+	{ timeout: 1_800_000 },
+	async () => {
 		const version = releaseVersion();
 		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "poyo-fixture-"));
 		const fixture = path.join(tmpRoot, PROJECT_NAME);
+		let serverProcess = null;
 		try {
 			// 1. Scaffold a real project with the local scaffolder.
 			const scaffold = run(
@@ -116,7 +144,12 @@ test(
 				"scaffold produced no package.json",
 			);
 
-			// 2. The scaffolder pinned the release version in both manifests.
+			// 2. Pre-install first-run experience assertions:
+			//    - Pinned version in root and client manifests
+			//    - .env bootstrapped from .env.example
+			//    - Committed route table at client root, not gitignored
+			//    - Generated schema DTOs/validations gitignored
+			//    - No circular-deadlock predev hook in client package.json
 			const rootPkg = readJson(path.join(fixture, "package.json"));
 			assert.equal(
 				rootPkg.devDependencies[POYO_PKG],
@@ -130,6 +163,84 @@ test(
 				clientPkg.devDependencies[POYO_PKG],
 				version,
 				"client manifest not pinned to the release version",
+			);
+			assert.equal(
+				clientPkg.scripts?.predev,
+				undefined,
+				"client package.json should not contain a predev hook",
+			);
+
+			assert.ok(
+				fs.existsSync(path.join(fixture, ".env")),
+				".env file missing after scaffolding",
+			);
+			const envContent = fs.readFileSync(path.join(fixture, ".env"), "utf-8");
+			assert.match(
+				envContent,
+				/VITE_APP_NAME=FixtureApp/,
+				".env does not contain project name",
+			);
+
+			const clientRouteTable = path.join(
+				fixture,
+				CLIENT_DIR,
+				"routes.generated.ts",
+			);
+			assert.ok(
+				fs.existsSync(clientRouteTable),
+				"routes.generated.ts missing at client package root in fresh scaffold",
+			);
+			assert.ok(
+				!fs.existsSync(
+					path.join(
+						fixture,
+						CLIENT_DIR,
+						"src",
+						"routes",
+						"routes.generated.ts",
+					),
+				),
+				"routes.generated.ts should not exist in src/routes/",
+			);
+
+			const clientGitignore = fs.readFileSync(
+				path.join(fixture, CLIENT_DIR, ".gitignore"),
+				"utf-8",
+			);
+			assert.ok(
+				!clientGitignore.includes("routes.generated.ts"),
+				"routes.generated.ts must not be gitignored in client",
+			);
+			assert.ok(
+				clientGitignore.includes("src/schemas/dtos.generated.ts"),
+				"dtos.generated.ts must be gitignored in client",
+			);
+			assert.ok(
+				clientGitignore.includes("src/schemas/validations.generated.ts"),
+				"validations.generated.ts must be gitignored in client",
+			);
+
+			const routeTableContent = fs.readFileSync(clientRouteTable, "utf-8");
+			assert.match(
+				routeTableContent,
+				/export const routeManifest =/,
+				"routes.generated.ts missing routeManifest export",
+			);
+			assert.match(
+				routeTableContent,
+				/export function routePath/,
+				"routes.generated.ts missing routePath helper",
+			);
+
+			const initialSnapshot = path.join(
+				fixture,
+				CLIENT_DIR,
+				"openapi",
+				"openapi.json",
+			);
+			assert.ok(
+				fs.existsSync(initialSnapshot),
+				"openapi/openapi.json missing in fresh scaffold",
 			);
 
 			// 3. pnpm install — this is where npm resolution is proven. An
@@ -190,10 +301,87 @@ test(
 					`${POYO_PKG}@${version} on npm predates the route table (ADR 0006); ` +
 					"the gate stays red until a version shipping dist/runtime/route-table.js is published",
 			);
+			const resolvedGenerateSrc = fs.readFileSync(
+				path.join(resolvedDir, "dist", "commands", "generate.js"),
+				"utf-8",
+			);
+			assert.ok(
+				resolvedGenerateSrc.includes("openapi/openapi.json") ||
+					resolvedGenerateSrc.includes("defaultSnapshot"),
+				"dist/commands/generate.js is missing snapshot-only codegen — " +
+					`${POYO_PKG}@${version} on npm predates offline snapshot codegen; ` +
+					"the gate stays red until a version shipping offline snapshot codegen is published",
+			);
 
-			// 5. Build the client and prove the accessor ships in the bundle.
-			const build = run("pnpm", ["run", "client:build"], fixture, 300_000);
-			assert.equal(build.status, 0, `client build failed:\n${build.output}`);
+			// 5. Offline codegen verification: generate DTOs and Zod schemas
+			// completely offline from the committed openapi/openapi.json snapshot.
+			const dtosPath = path.join(
+				fixture,
+				CLIENT_DIR,
+				"src",
+				"schemas",
+				"dtos.generated.ts",
+			);
+			const validationsPath = path.join(
+				fixture,
+				CLIENT_DIR,
+				"src",
+				"schemas",
+				"validations.generated.ts",
+			);
+			fs.rmSync(dtosPath, { force: true });
+			fs.rmSync(validationsPath, { force: true });
+
+			const generate = run("pnpm", ["run", "generate"], fixture, 120_000);
+			assert.equal(
+				generate.status,
+				0,
+				`offline pnpm run generate failed:\n${generate.output}`,
+			);
+			assert.ok(
+				fs.existsSync(dtosPath),
+				"dtos.generated.ts was not generated by offline generate",
+			);
+			assert.ok(
+				fs.existsSync(validationsPath),
+				"validations.generated.ts was not generated by offline generate",
+			);
+			assert.match(
+				fs.readFileSync(dtosPath, "utf-8"),
+				/LoginRequest/,
+				"dtos.generated.ts missing LoginRequest",
+			);
+			assert.match(
+				fs.readFileSync(validationsPath, "utf-8"),
+				/export const schemas/,
+				"validations.generated.ts missing schemas export",
+			);
+
+			// 6. Client type-check passes offline without any server running.
+			const typeCheck = run(
+				"pnpm",
+				["run", "client:type-check"],
+				fixture,
+				120_000,
+			);
+			assert.equal(
+				typeCheck.status,
+				0,
+				`client type-check failed:\n${typeCheck.output}`,
+			);
+
+			// 7. Build the client and prove the accessor ships in the bundle.
+			const clientBuild = run(
+				"pnpm",
+				["run", "client:build"],
+				fixture,
+				300_000,
+			);
+			assert.equal(
+				clientBuild.status,
+				0,
+				`client build failed:\n${clientBuild.output}`,
+			);
 
 			const bundle = collectFiles(path.join(fixture, CLIENT_DIR, "dist"))
 				.filter((file) => file.endsWith(".js"))
@@ -220,8 +408,149 @@ test(
 					"([RouteTable] diagnostics absent)",
 			);
 
+			// 8. Server build succeeds.
+			const serverBuild = run(
+				"pnpm",
+				["run", "server:build"],
+				fixture,
+				300_000,
+			);
+			assert.equal(
+				serverBuild.status,
+				0,
+				`server build failed:\n${serverBuild.output}`,
+			);
+
+			// 9. In-process OpenAPI snapshot generation on server boot:
+			// Delete snapshot, boot server, and assert server writes fresh snapshot.
+			const snapshotFile = path.join(
+				fixture,
+				CLIENT_DIR,
+				"openapi",
+				"openapi.json",
+			);
+			fs.rmSync(snapshotFile, { force: true });
+			assert.ok(!fs.existsSync(snapshotFile), "Snapshot was not cleared");
+
+			const serverPort = await getFreePort();
+			const serverDll = path.join(
+				fixture,
+				SERVER_DIR,
+				"bin",
+				"Debug",
+				"net10.0",
+				"FixtureApp.Server.dll",
+			);
+
+			serverProcess = spawn(
+				"dotnet",
+				[serverDll, "--urls", `http://127.0.0.1:${serverPort}`],
+				{
+					cwd: path.join(fixture, SERVER_DIR),
+					env: {
+						...process.env,
+						ASPNETCORE_ENVIRONMENT: "Development",
+						Vite__Server__AutoRun: "false",
+						Vite__Server__DevServerUrl: "http://localhost:5173",
+						ASPNETCORE_URLS: `http://127.0.0.1:${serverPort}`,
+					},
+					stdio: ["ignore", "pipe", "pipe"],
+				},
+			);
+
+			let serverReady = false;
+			for (let attempt = 0; attempt < 50; attempt++) {
+				await new Promise((r) => setTimeout(r, 200));
+				try {
+					const res = await fetch(`http://127.0.0.1:${serverPort}/Login`);
+					if (res.status === 200) {
+						serverReady = true;
+						break;
+					}
+				} catch {
+					// Server is still starting up
+				}
+			}
+			assert.ok(
+				serverReady,
+				`Server failed to start and respond on port ${serverPort}`,
+			);
+
+			// Assert in-process OpenAPI snapshot generation
+			assert.ok(
+				fs.existsSync(snapshotFile),
+				"Server boot did not write openapi/openapi.json snapshot in-process",
+			);
+			const generatedOpenApi = readJson(snapshotFile);
+			assert.match(
+				generatedOpenApi.openapi,
+				/^3\./,
+				"OpenAPI snapshot must be version 3.x",
+			);
+			assert.ok(
+				generatedOpenApi.paths?.["/api/Auth/Login"],
+				"OpenAPI snapshot missing /api/Auth/Login endpoint",
+			);
+			assert.ok(
+				generatedOpenApi.components?.schemas?.LoginRequest,
+				"OpenAPI snapshot missing LoginRequest schema",
+			);
+
+			// 10. Served HTML and hydration binding verification:
+			//     - Guest page (/Login): renders with data-page-name and data-base-path
+			//     - Home page (/): renders with data-page-name="Home"
+			//     - Protected page (/Dashboard): redirects unauthenticated guest to /Login
+			const loginRes = await fetch(`http://127.0.0.1:${serverPort}/Login`);
+			assert.equal(loginRes.status, 200);
+			const loginHtml = await loginRes.text();
+			assert.match(
+				loginHtml,
+				/data-base-path="\/"/,
+				"Served HTML must contain data-base-path='/'",
+			);
+			assert.match(
+				loginHtml,
+				/data-page-name="Login"/,
+				"Served HTML must contain data-page-name='Login'",
+			);
+			assert.match(
+				loginHtml,
+				/<div id="react-root" data-page-name="Login"><\/div>/,
+				"react-root element missing from served HTML",
+			);
+
+			const homeRes = await fetch(`http://127.0.0.1:${serverPort}/`);
+			assert.equal(homeRes.status, 200);
+			const homeHtml = await homeRes.text();
+			assert.match(
+				homeHtml,
+				/data-page-name="Home"/,
+				"Home page served HTML must declare data-page-name='Home'",
+			);
+
+			const dashRes = await fetch(`http://127.0.0.1:${serverPort}/Dashboard`, {
+				redirect: "manual",
+			});
+			assert.ok(
+				[301, 302, 307, 308].includes(dashRes.status),
+				`Protected route /Dashboard should redirect anonymous request (status was ${dashRes.status})`,
+			);
+			assert.match(
+				dashRes.headers.get("location") || "",
+				/\/Login/,
+				"Protected route redirect should target /Login",
+			);
+
+			if (serverProcess && !serverProcess.killed) {
+				serverProcess.kill("SIGTERM");
+				serverProcess = null;
+			}
+
 			fs.rmSync(tmpRoot, { recursive: true, force: true });
 		} catch (error) {
+			if (serverProcess && !serverProcess.killed) {
+				serverProcess.kill("SIGTERM");
+			}
 			console.error(`Fixture left at ${fixture} for debugging.`);
 			throw error;
 		}

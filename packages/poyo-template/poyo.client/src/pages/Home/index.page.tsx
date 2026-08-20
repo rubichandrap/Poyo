@@ -1,6 +1,6 @@
 import poyoLogo from "~/assets/poyo.png";
 import { appUrl } from "~/lib/base-url";
-import { routePath } from "~/routes/routes.generated";
+import { routePath } from "../../../routes.generated";
 
 export default function HomePage() {
 	return (

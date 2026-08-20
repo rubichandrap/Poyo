@@ -4,7 +4,7 @@ import { z } from "zod";
 import { useLogin } from "~/hooks-api/auth";
 import { appUrl } from "~/lib/base-url";
 import { isHttpError } from "~/lib/http";
-import { routePath } from "~/routes/routes.generated";
+import { routePath } from "../../../routes.generated";
 import { schemas } from "~/schemas/validations.generated";
 
 type LoginFormData = z.infer<typeof schemas.LoginRequest>;

@@ -1,6 +1,6 @@
 {
 	"name": "@rubichandrap/poyo-template",
-	"version": "0.3.1",
+	"version": "0.4.0",
 	"description": "The Poyo skeleton: React client, .NET server, and routes registry.",
 	"private": false,
 	"repository": {
@@ -26,10 +26,9 @@
 		"server:watch": "pnpm --filter ./Poyo.Server watch",
 		"server:publish": "pnpm --filter ./Poyo.Server publish",
 		"restore": "pnpm install && pnpm run server:restore",
-		"dev": "pnpm run client:dev",
-		"dev:watch": "pnpm run server:watch",
-		"build": "pnpm run client:build && poyo build && pnpm run server:build",
 		"generate": "pnpm run client:generate",
+		"dev": "pnpm run server:watch",
+		"build": "pnpm run client:build && poyo build && pnpm run server:build",
 		"route:add": "poyo route add",
 		"route:remove": "poyo route remove",
 		"route:update": "poyo route update",

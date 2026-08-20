@@ -27,8 +27,8 @@ poyo route sync                                      # reconcile routes.json wit
 
 poyo build        # sync the Vite bundle into the server's wwwroot and rewrite _ReactAssets.cshtml
 
-poyo generate     # emit the typed route manifest + generate TS DTOs/Zod schemas from the OpenAPI document
-poyo generate ./openapi.json   # ... from a local file (defaults to VITE_OPENAPI_URL; the manifest always emits, the OpenAPI part needs a source)
+poyo generate     # emit the typed route manifest + generate TS DTOs/Zod schemas from the openapi/openapi.json snapshot
+poyo generate ./custom-spec.json   # ... from a custom local file override
 ```
 
 ## Route management
@@ -37,7 +37,7 @@ poyo generate ./openapi.json   # ... from a local file (defaults to VITE_OPENAPI
 
 `poyo route sync` runs both directions: forward (fix missing files, rescaffold) and reverse (detect untracked pages, offer to register them).
 
-Every route command re-emits the typed route manifest (`src/routes/routes.generated.ts`, gitignored) — the registry stays the only edited source of truth.
+Every route command re-emits the typed route manifest (`<client>/routes.generated.ts`) — the registry stays the only edited source of truth.
 
 ## Build sync
 

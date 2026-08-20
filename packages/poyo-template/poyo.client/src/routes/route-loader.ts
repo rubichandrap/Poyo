@@ -4,7 +4,7 @@ import {
 	type AppRoute,
 	type PageLoaders,
 } from "@rubichandrap/poyo/runtime";
-import { routeManifest } from "./routes.generated";
+import { routeManifest } from "../../routes.generated";
 
 // Vite glob keys are relative to this module ("../pages/..."); the registry
 // speaks registry-space paths ("src/pages/..."). Re-key into registry space.
