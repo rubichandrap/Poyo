@@ -47,12 +47,13 @@ const SCAFFOLDER_PKG = path.join(REPO_ROOT, "packages", "create-poyo-app");
 const SCAFFOLDER_BIN = path.join(SCAFFOLDER_PKG, "dist", "index.js");
 const POYO_PKG = "@rubichandrap/poyo";
 
-// The scaffolder's rename rule turns poyo.client into <lower>.client, so a
-// project named fixtureApp produces fixtureapp.client — pinned here so a
-// change to that rename rule fails this test loudly.
+// The scaffolder's rename rule turns poyo.client into <lower>.client and
+// Poyo.Server into <Pascal>.Server, so a project named fixtureApp produces
+// fixtureapp.client and FixtureApp.Server — pinned here so a change to that
+// rename rule fails this test loudly.
 const PROJECT_NAME = "fixtureApp";
 const CLIENT_DIR = "fixtureapp.client";
-const SERVER_DIR = "fixtureApp.Server";
+const SERVER_DIR = "FixtureApp.Server";
 
 function readJson(file) {
 	return JSON.parse(fs.readFileSync(file, "utf-8"));
@@ -438,7 +439,7 @@ test(
 				"bin",
 				"Debug",
 				"net10.0",
-				`${PROJECT_NAME}.Server.dll`,
+				"FixtureApp.Server.dll",
 			);
 
 			serverProcess = spawn(
