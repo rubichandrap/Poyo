@@ -114,6 +114,24 @@ function renameTree(dir: string, rules: RenameRule[]): void {
 	}
 }
 
+function restoreTemplates(dir: string): void {
+	for (const entry of fs.readdirSync(dir)) {
+		if (EXCLUDED_DIR_NAMES.has(entry)) continue;
+
+		const fullPath = path.join(dir, entry);
+		const stat = fs.statSync(fullPath);
+		if (stat.isDirectory()) {
+			restoreTemplates(fullPath);
+		} else if (entry.endsWith(".template")) {
+			const restoredPath = path.join(dir, entry.slice(0, -".template".length));
+			if (fs.existsSync(restoredPath)) {
+				fs.rmSync(restoredPath);
+			}
+			fs.renameSync(fullPath, restoredPath);
+		}
+	}
+}
+
 function installDependencies(targetDir: string): void {
 	const result = spawnSync("pnpm", ["install"], {
 		cwd: targetDir,
@@ -151,6 +169,9 @@ export function createProject(
 	copyRecursive(templateDir, targetDir);
 	ensureEnvFile(targetDir);
 	renameTree(targetDir, rules);
+	// npm/pnpm pack strips .gitignore from published tarballs;
+	// ship it under .template extension and restore it in the generated project.
+	restoreTemplates(targetDir);
 	rewritePackageJson(targetDir, pascal, lower, poyoVersion);
 	rewriteClientPackageJson(targetDir, lower, poyoVersion);
 

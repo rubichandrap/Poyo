@@ -183,6 +183,26 @@ describe("create-poyo-app", () => {
 		expect(gitignore).toContain("src/schemas/validations.generated.ts");
 	});
 
+	it("restores .gitignore from .gitignore.template with dynamic project name", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		expect(exists(cwd, "MyApp/.gitignore")).toBe(true);
+		expect(exists(cwd, "MyApp/.gitignore.template")).toBe(false);
+
+		const gitignore = readFile(cwd, "MyApp/.gitignore");
+		expect(gitignore).toContain("MyApp.Server/wwwroot/generated/");
+		expect(gitignore).toContain("MyApp.Server/wwwroot/manifest.json");
+		expect(gitignore).toContain("MyApp.Server/wwwroot/index.html");
+		expect(gitignore).toContain(
+			"MyApp.Server/Views/Shared/_ReactAssets.cshtml",
+		);
+		expect(gitignore).not.toContain("Poyo.Server");
+
+		expect(exists(cwd, "MyApp/myapp.client/.gitignore")).toBe(true);
+		expect(exists(cwd, "MyApp/myapp.client/.gitignore.template")).toBe(false);
+	});
+
 	it("freshly scaffolded client type-checks without any generate step", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });
