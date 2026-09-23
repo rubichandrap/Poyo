@@ -5,6 +5,22 @@ All notable changes to the Poyo monorepo are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+
+- Dynamic navigation (ADR 0009): `useRouter()`/`createRouter` from `@rubichandrap/poyo/runtime/router` and `<Link>` from `@rubichandrap/poyo/runtime/link` swap only the page component below the loaded shell, so client state survives navigation. Browser Back/Forward traverse the same way with scroll restored per history entry; every failure degrades to a document load of the same URL.
+- The C# server core ships inside `@rubichandrap/poyo` under `server/` (ADR 0008) and compiles into the server project in place through the csproj — `AddPoyo()`, `MapPoyoRoutes()`, `PageResult`, and `ControllerExtensions.PoyoPage()`. Server-side framework fixes now arrive with `pnpm update @rubichandrap/poyo`; no NuGet package, no copied framework files.
+- Registry `dynamic` field (optional boolean, default `true`): `"dynamic": false` opts a route out of dynamic navigation, answered as the document even for a navigation request. Validated by the CLI on every read and by the server's boot validation, both naming the route on a malformed value.
+- Encapsulated route manifest (ADR 0010): `routes.generated.ts` becomes an ambient type augmentation imported by no one, while `routePath()`, `RouteName`, and `RoutePath` ship from the runtime and resolve from the active route table. The manifest is gitignored again.
+- Navigation descriptor wire contract: a request carrying `X-Poyo-Navigation: 1` is answered with JSON `{ name, seo, pageData }` and `Vary: X-Poyo-Navigation`; access enforcement runs first, so a protected route's descriptor challenges anonymous callers instead of leaking its payload.
+
+### Changed
+
+- The template's client `index.html` is gone: the Razor views own every document and the Vite build entry is the client module itself (`src/main.tsx`); `poyo build` keeps syncing only manifest-referenced assets.
+- Generated projects no longer carry frozen copies of the server framework code (`Routing/`, `Controllers/PageController.cs`); the server csproj compiles the installed package's `server/` sources and fails with a "run `pnpm install`" error when the package is missing.
+- The template's `Register` route ships `"dynamic": false` as the worked opt-out; template pages use `<Link>` and the runtime `routePath()` helper.
+
 ## [0.4.1] - 2026-09-08
 
 ### Fixed

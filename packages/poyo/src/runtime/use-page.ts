@@ -1,8 +1,11 @@
+import { getNavigationStore } from "./navigation-store.js";
+
 /**
  * Accessor for server-injected page data.
  *
  * The server serializes `ViewBag.ServerData` into `window.SERVER_DATA`
- * (see `_Layout.cshtml`); `usePage` reads that channel once per page load.
+ * (see `_Layout.cshtml`), which seeds the client navigation store.
+ * Dynamic navigations update the store with fresh descriptor data.
  * It is SSR-safe: without a `window` it returns null, and non-object
  * payloads (missing, null, arrays, primitives) also resolve to null — only
  * a plain object is returned, typed with `T`.
@@ -15,7 +18,7 @@ export function usePage<
 >(): T | null {
 	if (typeof window === "undefined") return null;
 
-	const serverData = window.SERVER_DATA;
+	const serverData = getNavigationStore().getPageData();
 
 	if (
 		typeof serverData === "object" &&

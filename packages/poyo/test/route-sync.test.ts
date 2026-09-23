@@ -87,6 +87,30 @@ describe("poyo route sync", () => {
 		);
 	});
 
+	it("preserves dynamic: false on existing routes when syncing with --add", () => {
+		const fixture = makeFixture([{ ...starter[0], dynamic: false }]);
+		writeFixtureFile(
+			fixture,
+			"poyo.client/src/pages/Home/index.page.tsx",
+			"export default () => null;\n",
+		);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Views/Home/Index.cshtml",
+			'<div id="react-root"></div>\n',
+		);
+		writeFixtureFile(
+			fixture,
+			"poyo.client/src/pages/About/index.page.tsx",
+			"export default () => null;\n",
+		);
+
+		const result = execInFixture(fixture, ["route", "sync", "--add"]);
+		expect(result.status).toBe(0);
+		const home = fixture.routesJson().find((r) => r.path === "/Home");
+		expect(home?.dynamic).toBe(false);
+	});
+
 	it("creates a view when adding an untracked page that lacks one", () => {
 		const fixture = fixtureWithHomeFiles();
 		writeFixtureFile(

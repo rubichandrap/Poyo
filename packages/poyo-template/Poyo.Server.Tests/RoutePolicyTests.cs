@@ -1,4 +1,4 @@
-using Poyo.Server.Routing;
+using Poyo.Framework;
 using Poyo.Server.Tests.Support;
 
 namespace Poyo.Server.Tests;
@@ -104,6 +104,16 @@ public class RoutePolicyTests
 
         Assert.Contains("duplicate", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("/dashboard", ex.Message);
+    }
+
+    [Fact]
+    public void Load_throws_on_malformed_dynamic_value_naming_the_route()
+    {
+        var ex = Assert.Throws<RoutePolicyException>(
+            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.malformed-dynamic.json")));
+
+        Assert.Contains("dynamic", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("/dashboard", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

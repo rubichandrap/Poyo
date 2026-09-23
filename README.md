@@ -64,6 +64,8 @@ Key features: HMR in development, automatic hashed-filename management, server-s
 ## Features
 
 - Multi-page architecture with server-side routing and React hydration
+- Dynamic navigation: `useRouter()` and `<Link>` swap the page without a document reload, with Back/Forward traversal and scroll restoration
+- Framework-owned server core compiled in place from the framework package — route policy, access/SEO enforcement, and the page result (no NuGet, no copied framework files)
 - Demo cookie-based auth (replace with your own)
 - Server data injection — pass data to client without API calls
 - React 19, TypeScript, Tailwind CSS v4, TanStack Query
@@ -90,7 +92,7 @@ Poyo/
 │   │   │   ├── Services/    # Business logic
 │   │   │   └── Views/       # Razor views
 │   │   └── poyo.client/     # React Client
-│   │       ├── routes.generated.ts # Committed typed route manifest
+│   │       ├── routes.generated.ts # Gitignored typed route manifest (ambient augmentation)
 │   │       ├── openapi/     # Committed offline OpenAPI snapshot (openapi.json)
 │   │       ├── src/
 │   │       │   ├── pages/   # React pages
@@ -98,11 +100,13 @@ Poyo/
 │   │       │   ├── services/ # API services
 │   │       │   └── providers/ # Context providers
 │   │       └── src/schemas/ # Auto-generated DTOs + Zod schemas
-│   ├── poyo/                # Framework package (CLI + client runtime)
+│   ├── poyo/                # Framework package (CLI + client runtime + server core)
 │   └── create-poyo-app/     # Scaffolder
 ├── scripts/                 # Release tooling
 └── .github/workflows/       # CI (release pipeline)
 ```
+
+The template's server project carries no framework code of its own: its csproj compiles the server core straight from the installed `@rubichandrap/poyo` package (readable in the IDE under a `Framework` link), so `pnpm update @rubichandrap/poyo` upgrades server-side framework code along with the CLI and runtime. A missing package fails the build with a "run `pnpm install`" error.
 
 Each package ships its own `README.md`. npm renders from the package directory, so `packages/*/README.md` documents each artifact, and `poyo-template`'s README becomes the README of every scaffolded project.
 
@@ -136,7 +140,7 @@ pnpm run dev
 # or: pnpm run server:watch
 ```
 
-`pnpm run generate` creates TypeScript DTOs and Zod schemas from the committed OpenAPI snapshot. The snapshot and route table are committed; the generated schemas are gitignored. Run once after install. The server re-exports the snapshot on boot in dev/staging.
+`pnpm run generate` creates TypeScript DTOs and Zod schemas from the committed OpenAPI snapshot. The snapshot is committed; the generated schemas and route manifest are gitignored. Run once after install. The server re-exports the snapshot on boot in dev/staging.
 
 ### Demo Credentials
 - Username: `demo`
@@ -233,6 +237,7 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
     "view": "Views/Dashboard/Index.cshtml"
   },
   "access": "protected",
+  "dynamic": true,                     // Optional: false opts out of dynamic navigation
   "controller": "DashboardController", // Optional: Use custom controller
   "action": "Index",                   // Optional: Custom action
   "seo": {                             // Optional: SEO Metadata
@@ -250,11 +255,38 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). `guest` routes (login, landing pages) redirect authenticated users away; `protected` routes redirect anonymous users to the login page; `public` routes are open to everyone. Access and SEO are enforced server-side for every registry route — custom-controller routes included — so no per-action attributes are needed. Legacy `isPublic`/`isGuestOnly` flags are rejected as unknown fields.
 
-Route resolution ships from `@rubichandrap/poyo/runtime`. The generated project's `src/routes/route-loader.ts` globs pages, resolves the server-injected base path, and calls `createRouteTable` with the generated manifest. `routes.generated.ts` is committed at the client root and kept fresh by every route command and `poyo generate`. Use `routePath("Login")` for static links so a renamed or removed route is a build error instead of a 404.
+Route resolution ships from `@rubichandrap/poyo/runtime`. The generated project's `src/routes/route-loader.ts` globs pages, resolves the server-injected base path, and calls `createRouteTable` with `routes.json`. `routes.generated.ts` is gitignored at the client root and kept fresh by every route command and `poyo generate`. Use `routePath("Login")` (imported from `@rubichandrap/poyo/runtime`) for static links so a renamed or removed route is a build error instead of a 404.
 
 CLI commands: see the [Scripts](#scripts) section below.
 
-### 3. Flexible SEO
+`dynamic` (optional boolean, default `true`) opts a route out of dynamic navigation — see below.
+
+### 3. Dynamic Navigation
+
+An internal navigation swaps only the page component below the loaded shell, so providers, the React Query cache, and any long-lived client state survive. Navigation is explicit — the two APIs below, never a global anchor interceptor: a plain `<a>` is a document load, by design.
+
+```tsx
+import { Link } from "@rubichandrap/poyo/runtime/link";
+import { useRouter } from "@rubichandrap/poyo/runtime/router";
+
+// Declarative — mirrors next/link
+<Link href={routePath("Dashboard")}>Dashboard</Link>
+
+// Programmatic — mirrors next/router
+const router = useRouter();
+await router.push(routePath("Dashboard"));
+await router.replace(routePath("Login"));
+router.back();
+router.forward();
+```
+
+- `useRouter()` exposes `push`, `replace`, `back`, `forward`, and the current route as reactive state (`route`); `usePage()` returns the destination page's data after every swap.
+- After a client-side navigation, browser Back/Forward swap pages the same way, with the scroll position stored per history entry and restored on return. A cold entry — a URL the client never navigated to — is an ordinary document load.
+- Every failure (non-2xx, a non-descriptor body, an unknown page, an apply error) degrades to a document load of the same URL. The worst case is exactly what a plain link would have done.
+- `"dynamic": false` in `routes.json` makes a route document-only: the server answers the document even for a navigation request. The template's `Register` route is the worked example.
+- Navigation requests carry the `X-Poyo-Navigation: 1` header; the server answers the JSON page descriptor (`{ name, seo, pageData }`) with `Vary: X-Poyo-Navigation`. Access is enforced first, so a protected route's descriptor challenges anonymous callers instead of leaking its payload.
+
+### 4. Flexible SEO
 
 Data-driven SEO — no `.cshtml` edits for metadata.
 - **Title/Description**: Set in `routes.json`.
@@ -263,7 +295,7 @@ Data-driven SEO — no `.cshtml` edits for metadata.
 
 All metadata is injected server-side into `_Layout.cshtml` before the React app even loads, ensuring perfect SEO.
 
-### 4. Authentication
+### 5. Authentication
 
 Hybrid auth strategy:
 
@@ -320,17 +352,21 @@ Access rules live in `routes.json`, enforced universally by a server-side filter
 - `Poyo.Server/Program.cs` - Server configuration
 - `poyo.client/src/app.tsx` - Client entry point
 - `poyo.client/src/routes/route-loader.ts` - Vite-boundary route adapter (thin; resolution ships from the framework)
-- `poyo.client/routes.generated.ts` - Typed route manifest (committed at client package root, kept fresh by route commands and poyo generate)
+- `poyo.client/routes.generated.ts` - Typed route manifest (gitignored ambient augmentation at client package root, kept fresh by route commands and poyo generate)
 - `poyo.client/openapi/openapi.json` - Committed offline OpenAPI snapshot (refreshed in-process on server boot in dev/staging)
-- `@rubichandrap/poyo/runtime` - Client runtime: server data hook (`usePage`) and route table (`createRouteTable`)
+- `@rubichandrap/poyo/runtime` - Client runtime: server data hook (`usePage`), route table (`createRouteTable`), and the typed `routePath` helper
+- `@rubichandrap/poyo/runtime/router` - Programmatic navigation (`useRouter`, `createRouter`)
+- `@rubichandrap/poyo/runtime/link` - Declarative navigation (`Link`)
+- `@rubichandrap/poyo/server` - The C# server core compiled into `Poyo.Server` in place (readable teaching material, never copied)
 
 ### Important Directories
 
 - `Poyo.Server/Controllers/` - MVC controllers
 - `Poyo.Server/Controllers/Api/` - API controllers
-- `Poyo.Server/Middleware/Auth/` - Auth attributes
+- `Poyo.Server/Middleware/Error/` - Global exception handler
+- `Poyo.Server/Services/Auth/` - Demo auth service (replace with your own)
 - `poyo.client/src/pages/` - React pages
-- `poyo.client/scripts/` - Code generation
+- `poyo.client/src/schemas/` - Generated DTOs + Zod schemas
 
 ---
 
@@ -340,6 +376,7 @@ Access rules live in `routes.json`, enforced universally by a server-side filter
 - Cookie authentication
 - Demo auth service (replace with your own)
 - MVC routing
+- Framework-owned server core compiled in place from the framework package (route policy, access/SEO filters, `PageResult`) — no NuGet, no copied framework files
 - Server data injection (`[ServerData]` attribute)
 - Registry-driven access model (`access` in `routes.json`, enforced universally)
 - Error handling
@@ -351,6 +388,8 @@ Access rules live in `routes.json`, enforced universally by a server-side filter
 - Data fetching (TanStack Query)
 - Server data hook (`usePage<T>()`)
 - Route resolution (`createRouteTable`, from the framework runtime)
+- Dynamic navigation (`useRouter`, `Link`) with Back/Forward traversal and scroll restoration
+- Typed route names (`routePath`, from the framework runtime)
 - Route management CLI
 - Tailwind CSS v4
 

@@ -44,6 +44,7 @@ export interface Route {
 	controller?: string;
 	action?: string;
 	seo?: { title?: string; description?: string; meta?: Record<string, string> };
+	dynamic?: boolean;
 }
 
 export function makeFixture(

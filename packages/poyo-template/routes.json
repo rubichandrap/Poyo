@@ -46,6 +46,7 @@
 			"view": "Views/Register/Index.cshtml"
 		},
 		"access": "guest",
+		"dynamic": false,
 		"seo": {
 			"description": "Page for Register",
 			"title": "Register"

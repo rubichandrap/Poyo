@@ -165,7 +165,7 @@ describe("poyo generate", () => {
 		);
 	});
 
-	it("emits routes.generated.ts with literal unions and a routePath helper", () => {
+	it("emits routes.generated.ts as ambient runtime augmentation without exported values", () => {
 		const fixture = fixtureWithSnapshot(minimalOpenApi, [
 			{
 				path: "/Dashboard",
@@ -193,24 +193,22 @@ describe("poyo generate", () => {
 			fixture,
 			"poyo.client/routes.generated.ts",
 		);
-		expect(manifest).toContain("export const routeManifest =");
-		expect(manifest).toContain("as const satisfies readonly RouteEntry[]");
 		expect(manifest).toContain(
-			'export type RouteName = "Dashboard" | "Login";',
+			'import type {} from "@rubichandrap/poyo/runtime";',
 		);
-		expect(manifest).toContain(
-			'export type RoutePath = "/Dashboard" | "/Login";',
-		);
-		expect(manifest).toContain(
-			"export function routePath(name: RouteName): RoutePath",
-		);
-		expect(manifest).toContain('"Dashboard": "/Dashboard",');
-		expect(manifest).toContain(
-			'import type { RouteEntry } from "@rubichandrap/poyo/runtime";',
-		);
+		expect(manifest).toContain('declare module "@rubichandrap/poyo/runtime" {');
+		expect(manifest).toContain("interface PoyoRouteRegistry {");
+		expect(manifest).toContain('names: "Dashboard" | "Login";');
+		expect(manifest).toContain('paths: "/Dashboard" | "/Login";');
+
+		// Manifest values and functions must NOT be exported:
+		expect(manifest).not.toContain("export const routeManifest");
+		expect(manifest).not.toContain("export function routePath");
+		expect(manifest).not.toContain("export type RouteName");
+		expect(manifest).not.toContain("export type RoutePath");
 	});
 
-	it("emits never unions for an empty registry", () => {
+	it("emits never unions in registry augmentation for an empty registry", () => {
 		const fixture = fixtureWithSnapshot();
 		const result = execInFixture(fixture, ["generate"]);
 		expect(result.status).toBe(0);
@@ -219,7 +217,13 @@ describe("poyo generate", () => {
 			fixture,
 			"poyo.client/routes.generated.ts",
 		);
-		expect(manifest).toContain("export type RouteName = never;");
-		expect(manifest).toContain("export type RoutePath = never;");
+		expect(manifest).toContain(
+			'import type {} from "@rubichandrap/poyo/runtime";',
+		);
+		expect(manifest).toContain('declare module "@rubichandrap/poyo/runtime" {');
+		expect(manifest).toContain("interface PoyoRouteRegistry {");
+		expect(manifest).toContain("names: never;");
+		expect(manifest).toContain("paths: never;");
+		expect(manifest).not.toContain("export const routeManifest");
 	});
 });

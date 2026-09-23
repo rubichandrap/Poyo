@@ -2,10 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createElement, type ComponentType } from "react";
 import {
 	createRouteTable,
+	routePath,
 	type PageLoaders,
 	type RouteEntry,
+	type RouteName,
+	type RoutePath,
 } from "../src/runtime/index.js";
-
+import {
+	clearActiveRouteTable,
+	registerRouteTable,
+} from "../src/runtime/route-table.js";
 // Page fixtures: plain components built without JSX so the test file needs
 // no JSX transform configuration.
 const DashboardPage: ComponentType = () =>
@@ -90,8 +96,8 @@ function makeTable(
 
 afterEach(() => {
 	vi.restoreAllMocks();
+	clearActiveRouteTable();
 });
-
 describe("createRouteTable", () => {
 	it("builds the route table from the manifest", () => {
 		const table = makeTable();
@@ -348,5 +354,59 @@ describe("createRouteTable", () => {
 			onWarn,
 		});
 		expect(onWarn).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe("routePath and active route table registration", () => {
+	it("throws a clear initialization error when called before registration", () => {
+		clearActiveRouteTable();
+		expect(() => routePath("Dashboard")).toThrowError(
+			/route table not initialized.*route-loader/i,
+		);
+	});
+
+	it("resolves route path once route table is created", () => {
+		makeTable({
+			manifest: [dashboardEntry, serverDataEntry],
+			loaders: loadersFor(dashboardEntry, serverDataEntry),
+		});
+
+		expect(routePath("Dashboard")).toBe("/Dashboard");
+		expect(routePath("ServerData")).toBe("/ServerData");
+	});
+
+	it("throws for an unknown route name when route table is initialized", () => {
+		makeTable({
+			manifest: [dashboardEntry],
+			loaders: loadersFor(dashboardEntry),
+		});
+
+		expect(() => routePath("NonExistent")).toThrowError(
+			/unknown route.*NonExistent/i,
+		);
+	});
+
+	it("can explicitly register and clear the active route table", () => {
+		const table = makeTable({
+			manifest: [dashboardEntry],
+			loaders: loadersFor(dashboardEntry),
+		});
+
+		expect(routePath("Dashboard")).toBe("/Dashboard");
+
+		registerRouteTable(undefined);
+		expect(() => routePath("Dashboard")).toThrowError(
+			/route table not initialized/i,
+		);
+
+		registerRouteTable(table);
+		expect(routePath("Dashboard")).toBe("/Dashboard");
+	});
+
+	it("derives typed RouteName and RoutePath defaulting to string pre-augmentation", () => {
+		const name: RouteName = "ArbitraryName";
+		const path: RoutePath = "/arbitrary/path";
+		expect(typeof name).toBe("string");
+		expect(typeof path).toBe("string");
 	});
 });

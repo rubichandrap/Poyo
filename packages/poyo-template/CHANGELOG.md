@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+
+- Dynamic navigation wired through the runtime: pages import `Link` from `@rubichandrap/poyo/runtime/link` and `useRouter` from `@rubichandrap/poyo/runtime/router`, and the registry's `Register` route ships `"dynamic": false` as the worked opt-out
+
+### Changed
+
+- The server tree drops its frozen framework copies (`Routing/`, `Controllers/PageController.cs`): `Poyo.Server.csproj` compiles the framework's `server/` sources from the installed package (IDE `Framework` link) and fails the build with a "run `pnpm install`" error when the package is missing; `Program.cs` shrinks to `AddPoyo(...)` plus `MapPoyoRoutes()`
+- The client loses its `index.html` — the Vite build entry is the client module (`src/main.tsx`) and the Razor views own every document
+- The typed route manifest is gitignored again and the pages import `routePath` from the runtime instead of the generated file
+
 ## [0.4.1] - 2026-09-08
 
 ### Added

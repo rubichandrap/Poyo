@@ -17,11 +17,11 @@ The clean project skeleton (React client, .NET server, routes registry) with zer
 _Avoid_: starter, boilerplate, template files
 
 **Framework package**:
-The `poyo` package installed into generated projects — the CLI (route management, build glue, and OpenAPI-to-TypeScript codegen) plus the client runtime (`@rubichandrap/poyo/runtime`, the `usePage` accessor). The analogue of `next` in a Next.js project.
+The `poyo` package installed into generated projects — the CLI (route management, build glue, and OpenAPI-to-TypeScript codegen), the client runtime (`@rubichandrap/poyo/runtime`, the `usePage` accessor), and the Server core source it carries. The analogue of `next` in a Next.js project.
 _Avoid_: CLI tool, devtool, poyo binary
 
 **Route**:
-A single entry in the Routes registry: a URL path, a name, the React page and server view files, an access model, optional SEO, and optional explicit controller/action for custom controllers.
+A single entry in the Routes registry: a URL path, a name, the React page and server view files, an access model, optional SEO, an optional explicit controller/action for custom controllers, and an optional dynamic-navigation opt-out.
 _Avoid_: page, endpoint, page definition
 
 **Route manager**:
@@ -37,7 +37,7 @@ A standalone project produced by the scaffolder: the template plus the framework
 _Avoid_: consumer, target app, scaffolded app
 
 **Page data**:
-The per-page payload the server injects for React pages: `ViewBag.ServerData` serialized with System.Text.Json into `window.SERVER_DATA` by the layout, read once per page load by `usePage` from the framework package's runtime. A one-shot bootstrap channel — fresh data flows through the API path.
+The per-page payload the server injects for React pages: `ViewBag.ServerData` serialized with System.Text.Json into `window.SERVER_DATA` by the layout, read by `usePage` from the framework package's runtime — once per page load, and refreshed by the runtime's store on every dynamic navigation. A bootstrap channel — fresh data flows through the API path.
 _Avoid_: server state, props injection, hydration data
 
 **Routes registry**:
@@ -45,12 +45,24 @@ The `routes.json` file that maps URL paths to their React page and server view f
 _Avoid_: route map, route config
 
 **Route table**:
-The client runtime's per-load binding produced by `createRouteTable` from the framework package (`@rubichandrap/poyo/runtime`): the registry mapped to lazy components plus name/path lookups. Derived from the registry, never the source of truth.
-_Avoid_: routes registry
+The client runtime's per-load binding produced by `createRouteTable` from the framework package (`@rubichandrap/poyo/runtime`): the registry mapped to lazy components plus name/path lookups. Derived from the registry, never the source of truth. The typed route names and paths (`RouteName`, `RoutePath`, the `routePath()` helper) are runtime API derived from the registry — app code imports them from the runtime, never from a generated file.
+_Avoid_: routes registry, typed manifest
 
 **Route loader**:
 The thin Vite-boundary adapter in generated projects (`src/routes/route-loader.ts`): globs the page files, resolves the base path, calls `createRouteTable`, and re-exports its API.
 _Avoid_: route engine, route resolver
+
+**Dynamic navigation**:
+The capability where an internal navigation swaps only the page component below the loaded shell instead of reloading the document, preserving client state. Driven explicitly — programmatically through the Router or declaratively through `Link` — never by intercepting arbitrary anchors. After a client-side navigation, browser Back/Forward swap pages the same way. The document load remains the floor: the first load of any URL, and the fallback for every failure.
+_Avoid_: hybrid navigation, soft navigation, SPA mode, client-side routing
+
+**Router**:
+The programmatic navigation API: `useRouter` (push, replace, back, forward, and the current route as reactive state) plus the factory that wires it. `Link` is its declarative counterpart — link clicks and router calls share one navigation path.
+_Avoid_: client router library, SPA router
+
+**Server core**:
+The framework-owned server-side code — route policy, access and SEO enforcement, the page result that answers navigation requests — shipped as readable source inside the framework package and compiled into the server project in place. Never copied into the project tree and never published as a separate package; upgraded by updating the framework package, not by editing the files.
+_Avoid_: server runtime, NuGet package, shared module
 
 **Project identity**:
 The facts the package's CLI derives from a generated project rather than assuming from the template — the server namespace and the client/server directory names. Scaffolding renames the project, so tooling that hardcodes the template's names breaks in generated projects.

@@ -25,9 +25,10 @@ pnpm run dev         # start the .NET watch server (full-stack MPA; alias for se
 ## What you get
 
 - React 19 + TypeScript + Vite client (`<name>.client/`)
-- ASP.NET Core MVC server (`<Name>.Server/`)
+- ASP.NET Core MVC server (`<Name>.Server/`) compiling the framework's server core from the installed package
 - `routes.json` route registry with access model + SEO metadata
-- Committed typed route manifest (`routes.generated.ts`) and offline OpenAPI snapshot (`openapi/openapi.json`)
+- Dynamic navigation out of the box (`useRouter`, `Link`, typed `routePath`)
+- Committed offline OpenAPI snapshot (`openapi/openapi.json`) and gitignored typed route manifest (`routes.generated.ts`)
 - Automatic `.env` bootstrapping from `.env.example`
 - In-process OpenAPI snapshot export on server boot (development/staging)
 - Demo cookie authentication (`demo` / `password`)

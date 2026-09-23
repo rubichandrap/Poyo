@@ -3,6 +3,25 @@ import { lazy, type ComponentType, type LazyExoticComponent } from "react";
 export type RouteAccess = "public" | "guest" | "protected";
 
 /**
+ * Registry interface for compile-time route verification.
+ * Augmented by the generated routes manifest (`routes.generated.ts`).
+ * Defaults to empty; unaugmented projects fall back to `string` for route names/paths.
+ */
+export interface PoyoRouteRegistry {}
+
+export type RouteName = [PoyoRouteRegistry] extends [
+	{ names: infer TNames extends string },
+]
+	? TNames
+	: string;
+
+export type RoutePath = [PoyoRouteRegistry] extends [
+	{ paths: infer TPaths extends string },
+]
+	? TPaths
+	: string;
+
+/**
  * One entry of the routes registry (routes.json), mirroring its shape for
  * the route table and the typed manifest. The registry is validated by the
  * server's RoutePolicy at boot and by the `poyo` CLI on every read; the
@@ -20,6 +39,7 @@ export interface RouteEntry {
 	controller?: string;
 	action?: string;
 	seo?: Record<string, unknown>;
+	dynamic?: boolean;
 }
 
 /**
@@ -64,6 +84,7 @@ export interface RouteTableOptions {
 }
 
 export interface RouteTable {
+	basePath: string;
 	routes: AppRoute[];
 	routeMap: Record<string, AppRoute["component"]>;
 	/**
@@ -185,13 +206,61 @@ export function createRouteTable(
 
 	if (dev) detectGhostRoutes();
 
-	return {
+	const table: RouteTable = {
+		basePath,
 		routes,
 		routeMap,
 		findRouteByName,
 		findRouteGeneric,
 		detectGhostRoutes,
 	};
+
+	registerRouteTable(table);
+
+	return table;
+}
+
+let activeRouteTable: RouteTable | undefined;
+
+/**
+ * Registers the active route table for `routePath` resolution.
+ * Called automatically when `createRouteTable` runs (e.g. on route-loader import).
+ */
+export function registerRouteTable(table: RouteTable | undefined): void {
+	activeRouteTable = table;
+}
+
+/**
+ * Clears the active route table registration.
+ */
+export function clearActiveRouteTable(): void {
+	activeRouteTable = undefined;
+}
+
+/**
+ * Returns the active registered route table, if any.
+ */
+export function getActiveRouteTable(): RouteTable | undefined {
+	return activeRouteTable;
+}
+
+/**
+ * Returns the canonical URL path for a registered route name.
+ *
+ * Resolved from the active route table registered by the route loader.
+ * Throws a clear initialization error if called before the route table is initialized.
+ */
+export function routePath(name: RouteName): RoutePath {
+	if (!activeRouteTable) {
+		throw new Error(
+			"[RouteTable] Route table not initialized — import your route-loader",
+		);
+	}
+	const route = activeRouteTable.routes.find((r) => r.pageName === name);
+	if (!route) {
+		throw new Error(`[RouteTable] Unknown route "${String(name)}".`);
+	}
+	return route.path as RoutePath;
 }
 
 function normalizeBasePath(rawBaseUrl: string): string {

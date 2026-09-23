@@ -15,12 +15,13 @@ Poyo.Server/
 ├── Controllers/
 │   ├── Api/            # 🌐 RESTful API Controllers (JSON)
 │   └── ...             # 📄 View Controllers (Razor/HTML)
-├── Routing/            # 🗺️ RoutePolicy + universal access/SEO filters
 ├── Services/           # 🧠 Business Logic
 ├── Models/             # 📦 Data Transfer Objects (DTOs)
 ├── Middleware/         # 🛡️ Error Handling
 └── Views/              # 🎨 Razor Views (.cshtml)
 ```
+
+The routing framework itself (`RoutePolicy`, the access/SEO filters, `PageResult`, `PageController`) is not in this tree — the project compiles it straight from the installed `@rubichandrap/poyo` package, so it shows up in your IDE under a `Framework` link and upgrades with `pnpm update @rubichandrap/poyo`.
 
 ### 1. View Controllers vs. API Controllers
 
@@ -46,14 +47,15 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 ## 🔑 Key Features
 
-### 1. Hybrid Routing (`routes.json`)
+### 1. Registry Routing (`routes.json`)
 
 Poyo uses a registry-driven routing system. Routes are defined in `routes.json` (at the template root, the parent of this folder). `RoutePolicy` — the single place the server interprets the registry — validates it at startup (failing loudly on malformed entries) and maps each route to a controller action.
 
 - **Default routes**: Most pages are served by `PageController` with a single `Index` action; the view path comes from the registry.
-- **Custom controller routes**: `controller`/`action` in the registry point a route at your own controller.
+- **Custom controller routes**: `controller`/`action` in the registry point a route at your own controller. Return `this.PoyoPage(data)` to join the framework's page result.
 - **Access**: every route carries an `access` field (`public` | `guest` | `protected`, default `protected`), enforced universally by `RouteAccessFilter` — no per-action attributes.
 - **SEO**: registry `seo` is applied to every route by `SeoPolicyFilter`, with the route name as the default title.
+- **Dynamic navigation**: `PageResult` answers the JSON page descriptor (`{ name, seo, pageData }`) when a request carries `X-Poyo-Navigation: 1`, and the document otherwise; a route with `"dynamic": false` always answers the document.
 
 **Adding a Route:**
 ```bash

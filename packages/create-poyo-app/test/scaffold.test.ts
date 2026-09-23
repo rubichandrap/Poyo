@@ -35,13 +35,28 @@ describe("create-poyo-app", () => {
 
 		const controller = readFile(
 			cwd,
-			"MyApp/MyApp.Server/Controllers/PageController.cs",
+			"MyApp/MyApp.Server/Controllers/Api/AuthController.cs",
 		);
-		expect(controller).toContain("namespace MyApp.Server.Controllers;");
+		expect(controller).toContain("namespace MyApp.Server.Controllers.Api;");
 		expect(controller).not.toContain("Poyo.Server");
 
 		const slnx = readFile(cwd, "MyApp/MyApp.slnx");
 		expect(slnx).toContain('Path="MyApp.Server/MyApp.Server.csproj"');
+	});
+
+	it("keeps framework identifiers intact through the rename", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		// The server core lives inside the poyo package under the fixed
+		// Poyo.Framework namespace (ADR 0008); Program.cs must keep calling it
+		// by the fixed names in every generated project.
+		const program = readFile(cwd, "MyApp/MyApp.Server/Program.cs");
+		expect(program).toContain("using Poyo.Framework;");
+		expect(program).toContain("AddPoyo");
+		expect(program).toContain("MapPoyoRoutes");
+		expect(program).not.toContain("MyApp.Framework");
+		expect(program).not.toContain("MyAppAddPoyo");
 	});
 
 	it("keeps the poyo CLI binary name in scripts and renames pnpm filters", () => {
@@ -152,25 +167,53 @@ describe("create-poyo-app", () => {
 		expect(ws).not.toContain("poyo.client");
 	});
 
-	it("copies the committed route table to the client package root without predev hook", () => {
+	it("gitignores routes.generated.ts and leaves route manifest uncommitted at client root", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });
 
-		expect(exists(cwd, "MyApp/myapp.client/routes.generated.ts")).toBe(true);
+		expect(exists(cwd, "MyApp/myapp.client/routes.generated.ts")).toBe(false);
 		expect(
 			exists(cwd, "MyApp/myapp.client/src/routes/routes.generated.ts"),
 		).toBe(false);
 
-		const manifest = readFile(cwd, "MyApp/myapp.client/routes.generated.ts");
-		expect(manifest).toContain("export const routeManifest =");
-		expect(manifest).toContain(
-			"export function routePath(name: RouteName): RoutePath",
-		);
+		const gitignore = readFile(cwd, "MyApp/myapp.client/.gitignore");
+		expect(gitignore).toContain("routes.generated.ts");
 
 		const clientPkg = readJson(cwd, "MyApp/myapp.client/package.json") as {
 			scripts: Record<string, string>;
 		};
 		expect(clientPkg.scripts.predev).toBeUndefined();
+	});
+
+	it("compiles the server core from the package and keeps the navigation opt-out", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		// The C# server core ships inside @rubichandrap/poyo and compiles in
+		// place (ADR 0008): the csproj includes the package source under
+		// node_modules — an in-tree copy would freeze the framework again.
+		const csproj = readFile(cwd, "MyApp/MyApp.Server/MyApp.Server.csproj");
+		expect(csproj).toContain(
+			"../node_modules/@rubichandrap/poyo/server/**/*.cs",
+		);
+		expect(exists(cwd, "MyApp/MyApp.Server/Routing")).toBe(false);
+		expect(
+			exists(cwd, "MyApp/MyApp.Server/Controllers/PageController.cs"),
+		).toBe(false);
+
+		// No dead index.html: the Razor views own every document, and the
+		// Vite entry is the client module itself (ADR 0010).
+		expect(exists(cwd, "MyApp/myapp.client/index.html")).toBe(false);
+
+		// The registry reaches the generated project untouched — including
+		// the dynamic-navigation opt-out (ADR 0009).
+		const routes = readJson(cwd, "MyApp/routes.json") as {
+			name: string;
+			dynamic?: boolean;
+		}[];
+		expect(routes.find((route) => route.name === "Register")?.dynamic).toBe(
+			false,
+		);
 	});
 
 	it("copies the committed openapi snapshot and gitignores generated schemas", () => {
@@ -179,6 +222,7 @@ describe("create-poyo-app", () => {
 
 		expect(exists(cwd, "MyApp/myapp.client/openapi/openapi.json")).toBe(true);
 		const gitignore = readFile(cwd, "MyApp/myapp.client/.gitignore");
+		expect(gitignore).toContain("routes.generated.ts");
 		expect(gitignore).toContain("src/schemas/dtos.generated.ts");
 		expect(gitignore).toContain("src/schemas/validations.generated.ts");
 	});
@@ -262,7 +306,7 @@ describe("create-poyo-app", () => {
 				"{",
 				'	"name": "myapp.client",',
 				'	"devDependencies": {',
-				'		"typescript": "5.9.3"',
+				'		"typescript": "6.0.3"',
 				"	}",
 				"}",
 				"",

@@ -53,6 +53,24 @@ describe("poyo route update", () => {
 		).toBe("protected");
 	});
 
+	it("preserves dynamic: false when updating route access", () => {
+		const fixture = makeFixture([
+			{ ...starter[0], dynamic: false },
+			starter[1],
+		]);
+		const result = execInFixture(fixture, [
+			"route",
+			"update",
+			"/Dashboard",
+			"--public",
+			"true",
+		]);
+		expect(result.status).toBe(0);
+		const dashboard = fixture.routesJson().find((r) => r.path === "/Dashboard");
+		expect(dashboard?.access).toBe("public");
+		expect(dashboard?.dynamic).toBe(false);
+	});
+
 	it("re-emits the route manifest after updating a route", () => {
 		const fixture = makeFixture(starter);
 		const result = execInFixture(fixture, [
@@ -68,7 +86,8 @@ describe("poyo route update", () => {
 			fixture,
 			"poyo.client/routes.generated.ts",
 		);
-		expect(manifest).toContain('"access": "public"');
+		expect(manifest).toContain('names: "Dashboard" | "Login";');
+		expect(manifest).toContain('paths: "/Dashboard" | "/Login";');
 	});
 
 	it("toggles --guest", () => {

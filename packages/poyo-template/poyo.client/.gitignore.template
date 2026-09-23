@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+routes.generated.ts
 src/schemas/dtos.generated.ts
 src/schemas/validations.generated.ts
 

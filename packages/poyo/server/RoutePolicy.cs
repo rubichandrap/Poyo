@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Routing;
 
-namespace Poyo.Server.Routing;
+namespace Poyo.Framework;
 
 /// <summary>
 /// The single place the server reads and interprets the routes registry.
@@ -39,6 +39,7 @@ public sealed class RoutePolicy
         try
         {
             var json = File.ReadAllText(routesJsonPath);
+            ValidateDynamicField(json, routesJsonPath);
             routes = JsonSerializer.Deserialize<List<RouteDefinition>>(json, JsonOptions) ?? [];
         }
         catch (JsonException ex)
@@ -104,6 +105,36 @@ public sealed class RoutePolicy
                     action = actionName,
                     viewPath = route.Files.View,
                 });
+        }
+    }
+
+    private static void ValidateDynamicField(string json, string routesJsonPath)
+    {
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            return;
+        }
+
+        foreach (var element in document.RootElement.EnumerateArray())
+        {
+            if (element.ValueKind != JsonValueKind.Object)
+            {
+                continue;
+            }
+
+            if (element.TryGetProperty("dynamic", out var dynamicProp))
+            {
+                if (dynamicProp.ValueKind != JsonValueKind.True && dynamicProp.ValueKind != JsonValueKind.False)
+                {
+                    var routePath = element.TryGetProperty("path", out var pathProp) && pathProp.ValueKind == JsonValueKind.String
+                        ? pathProp.GetString()
+                        : "unknown";
+
+                    throw new RoutePolicyException(
+                        $"Routes registry '{routesJsonPath}' route '{routePath}' has an invalid dynamic field: expected boolean, got {dynamicProp.ValueKind}.");
+                }
+            }
         }
     }
 }

@@ -3,8 +3,9 @@ import {
 	createRouteTable,
 	type AppRoute,
 	type PageLoaders,
+	type RouteEntry,
 } from "@rubichandrap/poyo/runtime";
-import { routeManifest } from "../../routes.generated";
+import rawRoutes from "../../../routes.json";
 
 // Vite glob keys are relative to this module ("../pages/..."); the registry
 // speaks registry-space paths ("src/pages/..."). Re-key into registry space.
@@ -31,7 +32,7 @@ const baseUrl =
 	"/";
 
 const { routes, routeMap, findRouteByName, findRouteGeneric } =
-	createRouteTable(routeManifest, pageLoaders, {
+	createRouteTable(rawRoutes as unknown as readonly RouteEntry[], pageLoaders, {
 		baseUrl,
 		dev: import.meta.env.DEV,
 	});

@@ -132,6 +132,22 @@ describe("poyo route remove", () => {
 			"poyo.client/routes.generated.ts",
 		);
 		expect(manifest).not.toContain("About");
-		expect(manifest).toContain('export type RouteName = "Reports";');
+		expect(manifest).toContain('names: "Reports";');
+		expect(manifest).toContain('paths: "/Reports";');
+	});
+	it("preserves dynamic: false on remaining routes after removing a route", () => {
+		const fixture = makeFixture([
+			{ ...starter[0], dynamic: false },
+			starter[1],
+		]);
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/Reports",
+			"--keep-files",
+		]);
+		expect(result.status).toBe(0);
+		const about = fixture.routesJson().find((r) => r.path === "/About");
+		expect(about?.dynamic).toBe(false);
 	});
 });
