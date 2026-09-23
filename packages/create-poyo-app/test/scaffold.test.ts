@@ -275,7 +275,7 @@ describe("create-poyo-app", () => {
 				"{",
 				'	"name": "myapp.client",',
 				'	"devDependencies": {',
-				'		"typescript": "5.9.3"',
+				'		"typescript": "6.0.3"',
 				"	}",
 				"}",
 				"",

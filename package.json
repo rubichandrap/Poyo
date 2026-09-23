@@ -21,5 +21,12 @@
 	"engines": {
 		"node": ">=20.19.0",
 		"pnpm": ">=9"
+	},
+	"pnpm": {
+		"peerDependencyRules": {
+			"allowedVersions": {
+				"typescript": "6.0.3"
+			}
+		}
 	}
 }
