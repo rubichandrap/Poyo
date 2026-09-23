@@ -21,17 +21,22 @@ public static class ControllerExtensions
     /// page name, and SEO resolve from the registry route for the request
     /// path; <paramref name="pageData"/> becomes window.SERVER_DATA on the
     /// document and the pageData of the navigation descriptor — one
-    /// serialization for both representations. A string is treated as
-    /// pre-serialized JSON; any other object is serialized with camelCase
-    /// property names. For a path outside the registry, the result falls
-    /// back to plain view rendering.
+    /// serialization for both representations. A string must be pre-serialized
+    /// JSON (an invalid one throws, rather than reaching the client as broken
+    /// data); any other object is serialized with camelCase property names.
+    /// For a path outside the registry, the result falls back to plain view
+    /// rendering.
     /// </summary>
     public static PageResult PoyoPage(this Controller controller, object? pageData = null)
     {
         var explicitPageData = pageData switch
         {
             null => null,
-            string json => json,
+            string json => PoyoJson.IsValid(json)
+                ? json
+                : throw new ArgumentException(
+                    "PoyoPage treats a string as pre-serialized JSON; pass an object to serialize, or a JSON string.",
+                    nameof(pageData)),
             _ => JsonSerializer.Serialize(pageData, PageDataJsonOptions),
         };
 

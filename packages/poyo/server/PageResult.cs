@@ -109,10 +109,12 @@ public sealed class PageResult : ViewResult
         if (pageDataJson is null)
         {
             // Render the view into a discard writer purely to collect the
-            // window.SERVER_DATA payload the document would carry. Reading it
-            // out of the rendered page (rather than ViewData) guarantees the
-            // descriptor is byte-identical to the document's injection. A
-            // missing view is a missing page: not found, not a server error.
+            // window.SERVER_DATA payload the document would carry. The render
+            // is the only source: Razor executes the page against its own
+            // view-data copy, so a write the view makes to ViewBag never comes
+            // back on this result. The harvest validates each candidate as
+            // JSON, so a payload may contain any character — including ';'.
+            // A missing view is a missing page: not found, not a server error.
             var view = FindView(context);
             if (view is null)
             {
@@ -135,13 +137,18 @@ public sealed class PageResult : ViewResult
     }
 
     /// <summary>
-    /// Slices the window.SERVER_DATA JSON literal out of a rendered document
-    /// — the assignment the layout template emits. Returns null when the
-    /// document carries no server data.
+    /// Reads the window.SERVER_DATA JSON literal out of a rendered document —
+    /// the assignment the layout template emits. Each candidate between the
+    /// marker and the closing script tag is JSON-validated, so a payload that
+    /// itself contains characters like ';' or '}' survives intact; the first
+    /// candidate that parses is the payload. Returns null when the document
+    /// carries no server data.
     /// </summary>
     private static string? ExtractServerData(string rendered)
     {
-        var marker = "window.SERVER_DATA = ";
+        const string marker = "window.SERVER_DATA = ";
+        const string terminator = "</script>";
+
         var start = rendered.IndexOf(marker, StringComparison.Ordinal);
         if (start < 0)
         {
@@ -149,14 +156,31 @@ public sealed class PageResult : ViewResult
         }
 
         start += marker.Length;
-        var end = rendered.IndexOf(';', start);
-        if (end < 0)
+        var searchFrom = start;
+        while (searchFrom >= 0)
         {
-            return null;
+            var end = rendered.IndexOf(terminator, searchFrom, StringComparison.Ordinal);
+            if (end < 0)
+            {
+                return null;
+            }
+
+            var candidate = rendered[start..end].Trim();
+            if (candidate.EndsWith(';'))
+            {
+                candidate = candidate[..^1].TrimEnd();
+            }
+
+            if (candidate.Length > 0 && PoyoJson.IsValid(candidate))
+            {
+                return candidate;
+            }
+
+            // Not a payload — could be a later script block; keep looking.
+            searchFrom = end + terminator.Length;
         }
 
-        var json = rendered[start..end].Trim();
-        return json.Length == 0 ? null : json;
+        return null;
     }
 
     private IView? FindView(ActionContext context)

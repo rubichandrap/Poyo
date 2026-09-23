@@ -18,4 +18,13 @@ public sealed class TestCustomController : Controller
             answer = 42,
         });
     }
+
+    /// <summary>
+    /// Passes a string that is not JSON: PoyoPage must refuse it instead of
+    /// sending broken data to the client.
+    /// </summary>
+    public IActionResult BadData()
+    {
+        return this.PoyoPage("not json at all");
+    }
 }

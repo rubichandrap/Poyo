@@ -64,6 +64,17 @@
 		"access": "public"
 	},
 	{
+		"path": "/BadData",
+		"name": "BadData",
+		"files": {
+			"react": "src/pages/BadData/index.page.tsx",
+			"view": "Views/Home/Index.cshtml"
+		},
+		"access": "public",
+		"controller": "TestCustom",
+		"action": "BadData"
+	},
+	{
 		"path": "/MissingView",
 		"name": "MissingView",
 		"files": {

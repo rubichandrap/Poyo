@@ -98,11 +98,12 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         Assert.Equal(HttpStatusCode.OK, descriptor.StatusCode);
         var descriptorBody = await descriptor.Content.ReadAsStringAsync();
 
-        // window.SERVER_DATA on the document...
+        // window.SERVER_DATA on the document... (slice to the closing script
+        // tag, not to the first ';': a payload may contain one itself)
         var marker = "window.SERVER_DATA = ";
         var start = documentBody.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
-        var end = documentBody.IndexOf(';', start);
-        var documentJson = documentBody[start..end].Trim();
+        var scriptEnd = documentBody.IndexOf("</script>", start, StringComparison.Ordinal);
+        var documentJson = documentBody[start..scriptEnd].Trim().TrimEnd(';').Trim();
 
         // ...equals the descriptor's pageData, so the client store seeds
         // identically on first load and on navigation. (A deterministic
@@ -117,6 +118,22 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
             $"document payload {documentJson} != descriptor pageData {pageData}");
         Assert.Equal("deterministic", pageData.GetProperty("message").GetString());
         Assert.Equal(42, pageData.GetProperty("answer").GetInt32());
+        Assert.Equal("Saved; 3 items", pageData.GetProperty("note").GetString());
+    }
+
+    [Fact]
+    public async Task PoyoPage_rejects_a_string_that_is_not_json()
+    {
+        var client = CreateClient();
+        await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            username = "demo",
+            password = "password",
+        });
+
+        var response = await client.GetAsync("/BadData");
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
     }
 
     [Fact]
