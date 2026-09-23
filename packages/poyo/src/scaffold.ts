@@ -9,6 +9,10 @@ import {
 	viewTemplate,
 } from "./templates.js";
 
+function escapeRegExp(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function findFiles(
 	dir: string,
 	predicate: (filePath: string) => boolean,
@@ -72,8 +76,9 @@ export function ensureControllerAction(
 	}
 
 	const content = fs.readFileSync(controllerPath, "utf-8");
+	const safeActionNameForRegex = escapeRegExp(actionName);
 	const actionRegex = new RegExp(
-		`public\\s+(async\\s+Task<)?IActionResult(>)?\\s+${actionName}\\s*\\(`,
+		`public\\s+(async\\s+Task<)?IActionResult(>)?\\s+${safeActionNameForRegex}\\s*\\(`,
 		"i",
 	);
 	if (actionRegex.test(content)) {
