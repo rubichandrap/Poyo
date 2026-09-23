@@ -320,13 +320,15 @@ packages/poyo-template/Poyo.Server/Views/Shared/_ReactAssets.cshtml
 .codex
 !.codex/.gitkeep
 .commandcode
-.commandcode/.gitkeep
+!.commandcode/.gitkeep
 .gemini
-.gemini/.gitkeep
+!.gemini/.gitkeep
 .kiro
-.kiro/.gitkeep
+!.kiro/.gitkeep
 .opencode
-.opencode/.gitkeep
+!.opencode/.gitkeep
+.freebuff
+!.freebuff/.gitkeep
 
 .mcp.json
 

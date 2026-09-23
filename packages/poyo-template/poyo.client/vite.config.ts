@@ -18,6 +18,11 @@ export default defineConfig({
 		manifest: true,
 		assetsDir: "generated",
 		rollupOptions: {
+			// No index.html: the .NET server owns every page (Razor views with
+			// #react-root + the script tag), so the entry is the client module
+			// itself. The emitted dist/index.html is never deployed — poyo build
+			// syncs only manifest-referenced assets into wwwroot.
+			input: path.resolve(__dirname, "src/main.tsx"),
 			output: {
 				manualChunks: (id) => {
 					// Separate chunks for better caching
