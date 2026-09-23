@@ -810,4 +810,59 @@ describe("useRouter and shell reactivity without a provider", () => {
 
 		unsubscribe();
 	});
+
+	it("changes the navigation state identity on every commit so useRouter's snapshot re-renders", async () => {
+		const dashboardRoute: AppRoute = {
+			path: "/dashboard",
+			pageName: "Dashboard",
+			access: "protected",
+			component: () => null,
+		};
+
+		const routes: AppRoute[] = [dashboardRoute];
+		const routeTable = {
+			routes,
+			routeMap: new Map([["/dashboard", dashboardRoute]]),
+			findRouteByName: (name: string) =>
+				routes.find((r) => r.pageName === name),
+			findRouteGeneric: () => undefined,
+			detectGhostRoutes: () => [],
+		};
+
+		let data: unknown = { generation: 1 };
+		const fetchMock = vi.fn().mockImplementation(async () => ({
+			ok: true,
+			status: 200,
+			json: async () => ({ name: "Dashboard", pageData: data }),
+		}));
+
+		vi.stubGlobal("window", {
+			history: { pushState: vi.fn(), replaceState: vi.fn() },
+			location: {
+				assign: vi.fn(),
+				pathname: "/dashboard",
+				origin: "http://localhost:3000",
+				href: "http://localhost:3000/dashboard",
+			},
+		});
+
+		const router = createRouter({
+			routeTable,
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+		const store = getNavigationStore();
+
+		// useRouter() snapshots store.getState, so a commit that resolves to
+		// the route already mounted still produces a new snapshot (and thus a
+		// re-render, which is what lets usePage read the fresh page data).
+		const before = store.getState();
+		data = { generation: 2 };
+		await router.push("/dashboard");
+
+		expect(store.getState()).not.toBe(before);
+		expect(
+			(store.getState().pageData as { generation: number }).generation,
+		).toBe(2);
+		expect(usePage<{ generation: number }>()?.generation).toBe(2);
+	});
 });

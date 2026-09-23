@@ -2,6 +2,7 @@ import React, { useSyncExternalStore } from "react";
 import { commitNavigation, getNavigationStore } from "./navigation-store.js";
 import {
 	type AppRoute,
+	type RoutePath,
 	type RouteTable,
 	getActiveRouteTable,
 	registerRouteTable,
@@ -77,7 +78,6 @@ export interface Router {
 }
 
 let activeRouterInstance: Router | undefined;
-let supersedeToken = 0;
 
 export function getActiveRouter(): Router {
 	if (!activeRouterInstance) {
@@ -271,6 +271,10 @@ export function createRouter(options?: RouterOptions): Router {
 
 	const store = getNavigationStore();
 
+	// Last-write-wins state is per instance: a second router must not supersede
+	// the first one's in-flight descriptor requests.
+	let supersedeToken = 0;
+
 	// Initialize route in navigation store if not already set
 	if (!store.getRoute()) {
 		const initialRoute = resolveInitialRoute(routeTable, win, doc);
@@ -283,6 +287,12 @@ export function createRouter(options?: RouterOptions): Router {
 	}
 	let lastCommittedUrl = win?.location?.href ?? "";
 
+	// The browser's own restoration is disabled while this router is installed;
+	// destroy() puts the previous value back.
+	const previousScrollRestoration =
+		win?.history && "scrollRestoration" in win.history
+			? win.history.scrollRestoration
+			: undefined;
 	if (win?.history && "scrollRestoration" in win.history) {
 		try {
 			win.history.scrollRestoration = "manual";
@@ -417,9 +427,16 @@ export function createRouter(options?: RouterOptions): Router {
 			// Apply SEO & accessibility
 			applySeoAndAccessibility(doc, result.body);
 
-			// Restore scroll position
+			// Restore the stored scroll position after the browser has had a
+			// chance to render the destination — restoring synchronously clamps
+			// against the outgoing document's height.
 			if (state.__poyo?.scroll) {
-				win?.scrollTo?.(state.__poyo.scroll.x, state.__poyo.scroll.y);
+				const { x, y } = state.__poyo.scroll;
+				if (typeof win?.requestAnimationFrame === "function") {
+					win.requestAnimationFrame(() => win?.scrollTo?.(x, y));
+				} else {
+					win?.scrollTo?.(x, y);
+				}
 			}
 		} catch {
 			fallback(targetUrl, currentToken);
@@ -451,10 +468,10 @@ export function createRouter(options?: RouterOptions): Router {
 		get route() {
 			return store.getRoute();
 		},
-		push(url: string) {
+		push(url: RoutePath | (string & {})) {
 			return navigate(url, "push");
 		},
-		replace(url: string) {
+		replace(url: RoutePath | (string & {})) {
 			return navigate(url, "replace");
 		},
 		back() {
@@ -476,12 +493,24 @@ export function createRouter(options?: RouterOptions): Router {
 			) {
 				win.cancelAnimationFrame(scrollRafId);
 			}
+			// The browser's own restoration comes back with the router.
+			if (win?.history && "scrollRestoration" in win.history) {
+				try {
+					win.history.scrollRestoration = previousScrollRestoration ?? "auto";
+				} catch {
+					// Ignore in environments where setting scrollRestoration throws
+				}
+			}
 			if (activeRouterInstance === router) {
 				activeRouterInstance = undefined;
 			}
 		},
 	};
 
+	// The newest router serves Link and useRouter; a second createRouter() in
+	// the same page is a caller mistake (its listeners would duplicate this
+	// one's), but the per-instance supersede token keeps the two navigations
+	// from superseding each other.
 	setActiveRouter(router);
 	return router;
 }
@@ -490,11 +519,16 @@ export function useRouter(): Router {
 	const router = getActiveRouter();
 	const store = getNavigationStore();
 
-	const currentRoute = useSyncExternalStore(
+	// Snapshot the whole navigation state, not just the route: page data can
+	// change while the route object stays identical (a push back to the route
+	// already mounted), and only a changed snapshot re-renders the page so
+	// `usePage` sees the fresh data.
+	const currentState = useSyncExternalStore(
 		store.subscribe,
-		store.getRoute,
+		store.getState,
 		() => null,
 	);
+	const currentRoute = currentState?.route ?? null;
 
 	return {
 		route: currentRoute,
