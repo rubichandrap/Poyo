@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.0-beta.1] - 2026-09-24
+
+### Fixed
+
+- `GlobalExceptionHandler` sanitizes the request path and query string by removing CR/LF before writing the unhandled-exception log entry, preventing log injection from user-controlled input (CodeQL alert no. 2)
+
 ## [0.5.0-beta.0] - 2026-09-23
 
 ### Added
