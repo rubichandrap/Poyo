@@ -28,6 +28,37 @@ export function isPageDescriptor(value: unknown): value is PageDescriptor {
 	const candidate = value as Record<string, unknown>;
 	return typeof candidate.name === "string" && candidate.name.length > 0;
 }
+export interface PoyoHistoryState {
+	__poyo: {
+		clientNavigated: boolean;
+		scroll: {
+			x: number;
+			y: number;
+		};
+		url?: string;
+	};
+	[key: string]: unknown;
+}
+
+export function isPoyoHistoryState(state: unknown): state is PoyoHistoryState {
+	if (typeof state !== "object" || state === null) {
+		return false;
+	}
+	const candidate = state as Record<string, unknown>;
+	const poyo = candidate.__poyo;
+	if (typeof poyo !== "object" || poyo === null) {
+		return false;
+	}
+	const poyoObj = poyo as Record<string, unknown>;
+	if (poyoObj.clientNavigated !== true) {
+		return false;
+	}
+	if (typeof poyoObj.scroll !== "object" || poyoObj.scroll === null) {
+		return false;
+	}
+	const scroll = poyoObj.scroll as Record<string, unknown>;
+	return typeof scroll.x === "number" && typeof scroll.y === "number";
+}
 
 export interface RouterOptions {
 	routeTable?: RouteTable;
@@ -42,6 +73,7 @@ export interface Router {
 	replace(url: string): Promise<void>;
 	back(): void;
 	forward(): void;
+	destroy?(): void;
 }
 
 let activeRouterInstance: Router | undefined;
@@ -87,6 +119,143 @@ function resolveInitialRoute(
 
 	return null;
 }
+function applySeoAndAccessibility(
+	doc: Document | undefined,
+	body: PageDescriptor,
+): void {
+	if (!doc) return;
+
+	// Apply SEO metadata
+	if (body.seo) {
+		if (body.seo.title) {
+			doc.title = body.seo.title;
+		}
+		if (body.seo.description !== undefined) {
+			let descEl = doc.querySelector('meta[name="description"]');
+			if (!descEl && doc.createElement && doc.head?.appendChild) {
+				descEl = doc.createElement("meta");
+				descEl.setAttribute("name", "description");
+				doc.head.appendChild(descEl);
+			}
+			if (descEl) {
+				descEl.setAttribute("content", body.seo.description ?? "");
+			}
+		}
+	} else if (body.name) {
+		doc.title = body.name;
+	}
+
+	// Shift focus to page region for accessibility
+	const pageRegion =
+		doc.querySelector("[data-page-region]") ??
+		doc.querySelector("main") ??
+		doc.getElementById("react-root");
+	if (pageRegion && typeof (pageRegion as HTMLElement).focus === "function") {
+		if (!pageRegion.hasAttribute("tabindex")) {
+			pageRegion.setAttribute("tabindex", "-1");
+		}
+		(pageRegion as HTMLElement).focus({ preventScroll: true });
+	}
+
+	// Announce swap via live region for assistive tech
+	if (doc.body) {
+		let announcer = doc.getElementById("poyo-announcer");
+		if (!announcer && doc.createElement && doc.body.appendChild) {
+			announcer = doc.createElement("div");
+			announcer.id = "poyo-announcer";
+			announcer.setAttribute("aria-live", "polite");
+			announcer.setAttribute("aria-atomic", "true");
+			announcer.setAttribute(
+				"style",
+				"position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;",
+			);
+			doc.body.appendChild(announcer);
+		}
+		if (announcer) {
+			const titleToAnnounce = body.seo?.title ?? body.name;
+			announcer.textContent = titleToAnnounce;
+		}
+	}
+}
+function saveCurrentScroll(win: Window | undefined): void {
+	if (!win?.history) return;
+	const currentState = win.history.state;
+	if (isPoyoHistoryState(currentState)) {
+		const x = win.scrollX ?? win.pageXOffset ?? 0;
+		const y = win.scrollY ?? win.pageYOffset ?? 0;
+		if (
+			currentState.__poyo.scroll.x !== x ||
+			currentState.__poyo.scroll.y !== y
+		) {
+			win.history.replaceState(
+				{
+					...currentState,
+					__poyo: {
+						...currentState.__poyo,
+						scroll: { x, y },
+					},
+				},
+				"",
+				win.location?.href ?? "",
+			);
+		}
+	}
+}
+export function isHashChangeOnly(
+	previousUrl: string,
+	nextUrl: string,
+	baseOrigin?: string,
+): boolean {
+	if (!previousUrl || !nextUrl) return false;
+	try {
+		const base =
+			baseOrigin ??
+			(typeof window !== "undefined" && window.location?.origin
+				? window.location.origin
+				: "http://localhost");
+		const prevUrl = new URL(previousUrl, base);
+		const nextUrlObj = new URL(nextUrl, base);
+		return (
+			prevUrl.origin === nextUrlObj.origin &&
+			prevUrl.pathname === nextUrlObj.pathname &&
+			prevUrl.search === nextUrlObj.search &&
+			prevUrl.hash !== nextUrlObj.hash
+		);
+	} catch {
+		const stripHash = (s: string) => s.split("#")[0];
+		return (
+			stripHash(previousUrl) === stripHash(nextUrl) && previousUrl !== nextUrl
+		);
+	}
+}
+
+async function fetchAndResolveDescriptor(
+	fetchFn: typeof fetch | undefined,
+	url: string,
+	token: number,
+	routeTable: RouteTable | undefined,
+	getSupercedeToken: () => number,
+): Promise<{ route: AppRoute; body: PageDescriptor } | null> {
+	if (!fetchFn || !routeTable) return null;
+	const fetchUrl = url.split("#")[0] || url;
+	const response = await fetchFn(fetchUrl, {
+		headers: {
+			[NAVIGATION_HEADER]: NAVIGATION_HEADER_VALUE,
+		},
+	});
+	if (token !== getSupercedeToken() || !response.ok) return null;
+	let body: unknown;
+	try {
+		body = await response.json();
+	} catch {
+		return null;
+	}
+	if (token !== getSupercedeToken() || !isPageDescriptor(body)) return null;
+	const resolvedRoute = routeTable.findRouteByName(body.name);
+	if (!resolvedRoute || token !== getSupercedeToken()) return null;
+	return { route: resolvedRoute, body };
+}
+
 export function createRouter(options?: RouterOptions): Router {
 	if (options?.routeTable) {
 		registerRouteTable(options.routeTable);
@@ -112,6 +281,15 @@ export function createRouter(options?: RouterOptions): Router {
 			});
 		}
 	}
+	let lastCommittedUrl = win?.location?.href ?? "";
+
+	if (win?.history && "scrollRestoration" in win.history) {
+		try {
+			win.history.scrollRestoration = "manual";
+		} catch {
+			// Ignore in environments where setting scrollRestoration throws
+		}
+	}
 
 	const fallback = (url: string, token: number) => {
 		if (token !== supersedeToken) return;
@@ -129,132 +307,145 @@ export function createRouter(options?: RouterOptions): Router {
 		const currentToken = ++supersedeToken;
 
 		try {
-			if (!fetchFn) {
+			const activeTable = options?.routeTable ?? getActiveRouteTable();
+			const result = await fetchAndResolveDescriptor(
+				fetchFn,
+				url,
+				currentToken,
+				activeTable,
+				() => supersedeToken,
+			);
+
+			if (currentToken !== supersedeToken) {
+				return;
+			}
+
+			if (!result) {
 				fallback(url, currentToken);
 				return;
 			}
 
-			const response = await fetchFn(url, {
-				headers: {
-					[NAVIGATION_HEADER]: NAVIGATION_HEADER_VALUE,
-				},
+			// Save current scroll of the entry we are leaving BEFORE committing new route
+			saveCurrentScroll(win);
+
+			// Atomic commit to navigation store
+			store.commit({
+				route: result.route,
+				pageData: result.body.pageData ?? null,
 			});
 
-			if (currentToken !== supersedeToken) {
-				return;
+			// Write browser history
+			if (win?.history) {
+				const existingState =
+					typeof win.history.state === "object" && win.history.state !== null
+						? win.history.state
+						: {};
+				const newState: PoyoHistoryState = {
+					...existingState,
+					__poyo: {
+						clientNavigated: true,
+						scroll: { x: 0, y: 0 },
+						url,
+					},
+				};
+				if (mode === "push") {
+					win.history.pushState(newState, "", url);
+					win.scrollTo?.(0, 0);
+				} else {
+					win.history.replaceState(newState, "", url);
+				}
 			}
 
-			if (!response.ok) {
-				fallback(url, currentToken);
-				return;
-			}
+			// Apply SEO & accessibility
+			applySeoAndAccessibility(doc, result.body);
+			lastCommittedUrl = win?.location?.href ?? url;
+		} catch {
+			fallback(url, currentToken);
+		}
+	};
 
-			let body: unknown;
-			try {
-				body = await response.json();
-			} catch {
-				fallback(url, currentToken);
-				return;
-			}
+	const onPopState = async (event: PopStateEvent) => {
+		const currentHref = win?.location?.href ?? "";
+		const targetUrl = win?.location
+			? win.location.pathname + win.location.search + win.location.hash ||
+				currentHref
+			: currentHref;
 
-			if (currentToken !== supersedeToken) {
-				return;
-			}
+		// Hash-only changes keep native anchor behavior
+		if (
+			isHashChangeOnly(lastCommittedUrl, currentHref, win?.location?.origin)
+		) {
+			lastCommittedUrl = currentHref;
+			return;
+		}
 
-			if (!isPageDescriptor(body)) {
-				fallback(url, currentToken);
-				return;
-			}
+		lastCommittedUrl = currentHref;
+		const state = event.state ?? win?.history?.state;
+		if (!isPoyoHistoryState(state)) {
+			const currentToken = ++supersedeToken;
+			fallback(targetUrl, currentToken);
+			return;
+		}
 
+		const currentToken = ++supersedeToken;
+
+		try {
 			const activeTable = options?.routeTable ?? getActiveRouteTable();
-			if (!activeTable) {
-				fallback(url, currentToken);
-				return;
-			}
-
-			const resolvedRoute = activeTable.findRouteByName(body.name);
-			if (!resolvedRoute) {
-				fallback(url, currentToken);
-				return;
-			}
+			const result = await fetchAndResolveDescriptor(
+				fetchFn,
+				targetUrl,
+				currentToken,
+				activeTable,
+				() => supersedeToken,
+			);
 
 			if (currentToken !== supersedeToken) {
+				return;
+			}
+
+			if (!result) {
+				fallback(targetUrl, currentToken);
 				return;
 			}
 
 			// Atomic commit to navigation store
 			store.commit({
-				route: resolvedRoute,
-				pageData: body.pageData ?? null,
+				route: result.route,
+				pageData: result.body.pageData ?? null,
 			});
 
-			// Write browser history
-			if (win?.history) {
-				if (mode === "push") {
-					win.history.pushState(null, "", url);
-				} else {
-					win.history.replaceState(null, "", url);
-				}
-			}
+			// Apply SEO & accessibility
+			applySeoAndAccessibility(doc, result.body);
 
-			// Apply SEO metadata
-			if (doc && body.seo) {
-				if (body.seo.title) {
-					doc.title = body.seo.title;
-				}
-				if (body.seo.description !== undefined) {
-					let descEl = doc.querySelector('meta[name="description"]');
-					if (!descEl && doc.createElement && doc.head?.appendChild) {
-						descEl = doc.createElement("meta");
-						descEl.setAttribute("name", "description");
-						doc.head.appendChild(descEl);
-					}
-					if (descEl) {
-						descEl.setAttribute("content", body.seo.description ?? "");
-					}
-				}
-			} else if (doc && body.name) {
-				doc.title = body.name;
-			}
-
-			// Shift focus to page region for accessibility
-			const pageRegion =
-				doc?.querySelector("[data-page-region]") ??
-				doc?.querySelector("main") ??
-				doc?.getElementById("react-root");
-			if (
-				pageRegion &&
-				typeof (pageRegion as HTMLElement).focus === "function"
-			) {
-				if (!pageRegion.hasAttribute("tabindex")) {
-					pageRegion.setAttribute("tabindex", "-1");
-				}
-				(pageRegion as HTMLElement).focus({ preventScroll: true });
-			}
-
-			// Announce swap via live region for assistive tech
-			if (doc?.body) {
-				let announcer = doc.getElementById("poyo-announcer");
-				if (!announcer && doc.createElement && doc.body.appendChild) {
-					announcer = doc.createElement("div");
-					announcer.id = "poyo-announcer";
-					announcer.setAttribute("aria-live", "polite");
-					announcer.setAttribute("aria-atomic", "true");
-					announcer.setAttribute(
-						"style",
-						"position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;",
-					);
-					doc.body.appendChild(announcer);
-				}
-				if (announcer) {
-					const titleToAnnounce = body.seo?.title ?? body.name;
-					announcer.textContent = titleToAnnounce;
-				}
+			// Restore scroll position
+			if (state.__poyo?.scroll) {
+				win?.scrollTo?.(state.__poyo.scroll.x, state.__poyo.scroll.y);
 			}
 		} catch {
-			fallback(url, currentToken);
+			fallback(targetUrl, currentToken);
 		}
 	};
+
+	let scrollRafId: number | undefined;
+	const onScroll = () => {
+		if (typeof win?.requestAnimationFrame === "function") {
+			if (
+				scrollRafId !== undefined &&
+				typeof win.cancelAnimationFrame === "function"
+			) {
+				win.cancelAnimationFrame(scrollRafId);
+			}
+			scrollRafId = win.requestAnimationFrame(() => {
+				scrollRafId = undefined;
+				saveCurrentScroll(win);
+			});
+		} else {
+			saveCurrentScroll(win);
+		}
+	};
+	win?.addEventListener?.("scroll", onScroll);
+
+	win?.addEventListener?.("popstate", onPopState);
 
 	const router: Router = {
 		get route() {
@@ -274,6 +465,19 @@ export function createRouter(options?: RouterOptions): Router {
 		forward() {
 			if (win?.history?.forward) {
 				win.history.forward();
+			}
+		},
+		destroy() {
+			win?.removeEventListener?.("popstate", onPopState);
+			win?.removeEventListener?.("scroll", onScroll);
+			if (
+				scrollRafId !== undefined &&
+				typeof win?.cancelAnimationFrame === "function"
+			) {
+				win.cancelAnimationFrame(scrollRafId);
+			}
+			if (activeRouterInstance === router) {
+				activeRouterInstance = undefined;
 			}
 		},
 	};

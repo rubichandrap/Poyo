@@ -133,7 +133,16 @@ describe("Router push, replace, and fallbacks", () => {
 		);
 		expect(router.route).toEqual(dashboardRoute);
 		expect(usePage<{ stats: number }>()?.stats).toBe(100);
-		expect(pushStateMock).toHaveBeenCalledWith(null, "", "/dashboard");
+		expect(pushStateMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				__poyo: expect.objectContaining({
+					clientNavigated: true,
+					scroll: { x: 0, y: 0 },
+				}),
+			}),
+			"",
+			"/dashboard",
+		);
 		expect(assignMock).not.toHaveBeenCalled();
 	});
 
@@ -184,7 +193,16 @@ describe("Router push, replace, and fallbacks", () => {
 		await router.replace("/login");
 
 		expect(router.route).toEqual(loginRoute);
-		expect(replaceStateMock).toHaveBeenCalledWith(null, "", "/login");
+		expect(replaceStateMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				__poyo: expect.objectContaining({
+					clientNavigated: true,
+					scroll: { x: 0, y: 0 },
+				}),
+			}),
+			"",
+			"/login",
+		);
 	});
 
 	it("degrades to document load on non-2xx response", async () => {
@@ -379,7 +397,16 @@ describe("Router push, replace, and fallbacks", () => {
 		await fastNavPromise;
 		expect(router.route).toEqual(fastRoute);
 		expect(usePage<{ speed: string }>()?.speed).toBe("fast");
-		expect(pushStateMock).toHaveBeenCalledWith(null, "", "/fast");
+		expect(pushStateMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				__poyo: expect.objectContaining({
+					clientNavigated: true,
+					scroll: { x: 0, y: 0 },
+				}),
+			}),
+			"",
+			"/fast",
+		);
 
 		// Now resolve slow navigation
 		resolveSlowFetch({
