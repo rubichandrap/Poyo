@@ -36,7 +36,7 @@ The registry grows by exactly one field — `"dynamic": false` per-route opt-out
 9. As an app developer, I want `<Link href="/Dashboard">` to navigate without a reload, so that links behave like `push` without hand-written handlers.
 10. As an app developer, I want `<Link>` to import from the runtime link subpath and `useRouter` from the router subpath, so that the declarative and programmatic surfaces mirror Next.js's `next/link` / `next/router` split.
 11. As an app developer, I want a plain `<a href>` to stay a full document load, so that the navigation boundary is visible in my code rather than hidden in a global listener.
-12. As an app developer, I want external URLs, modifier clicks, non-primary buttons, `target`, `download`, and `data-hybrid-nav="off"`-style opt-outs to keep native behavior in `<Link>`, so that browser conventions are never broken by the framework.
+12. As an app developer, I want external URLs, modifier clicks, non-primary buttons, `target`, `download`, and `data-dynamic-nav="off"`-style opt-outs to keep native behavior in `<Link>`, so that browser conventions are never broken by the framework.
 13. As an app developer, I want focus moved to the page region and the swap announced through a live region, so that client navigations are usable with assistive technology.
 14. As an app developer, I want a hash-only change to keep native anchor behavior, so that in-page links are never hijacked.
 
