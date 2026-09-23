@@ -86,7 +86,8 @@ describe("poyo route update", () => {
 			fixture,
 			"poyo.client/routes.generated.ts",
 		);
-		expect(manifest).toContain('"access": "public"');
+		expect(manifest).toContain('names: "Dashboard" | "Login";');
+		expect(manifest).toContain('paths: "/Dashboard" | "/Login";');
 	});
 
 	it("toggles --guest", () => {

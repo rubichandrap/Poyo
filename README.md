@@ -90,7 +90,7 @@ Poyo/
 │   │   │   ├── Services/    # Business logic
 │   │   │   └── Views/       # Razor views
 │   │   └── poyo.client/     # React Client
-│   │       ├── routes.generated.ts # Committed typed route manifest
+│   │       ├── routes.generated.ts # Gitignored typed route manifest (ambient augmentation)
 │   │       ├── openapi/     # Committed offline OpenAPI snapshot (openapi.json)
 │   │       ├── src/
 │   │       │   ├── pages/   # React pages
@@ -136,7 +136,7 @@ pnpm run dev
 # or: pnpm run server:watch
 ```
 
-`pnpm run generate` creates TypeScript DTOs and Zod schemas from the committed OpenAPI snapshot. The snapshot and route table are committed; the generated schemas are gitignored. Run once after install. The server re-exports the snapshot on boot in dev/staging.
+`pnpm run generate` creates TypeScript DTOs and Zod schemas from the committed OpenAPI snapshot. The snapshot is committed; the generated schemas and route manifest are gitignored. Run once after install. The server re-exports the snapshot on boot in dev/staging.
 
 ### Demo Credentials
 - Username: `demo`
@@ -250,7 +250,7 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). `guest` routes (login, landing pages) redirect authenticated users away; `protected` routes redirect anonymous users to the login page; `public` routes are open to everyone. Access and SEO are enforced server-side for every registry route — custom-controller routes included — so no per-action attributes are needed. Legacy `isPublic`/`isGuestOnly` flags are rejected as unknown fields.
 
-Route resolution ships from `@rubichandrap/poyo/runtime`. The generated project's `src/routes/route-loader.ts` globs pages, resolves the server-injected base path, and calls `createRouteTable` with the generated manifest. `routes.generated.ts` is committed at the client root and kept fresh by every route command and `poyo generate`. Use `routePath("Login")` for static links so a renamed or removed route is a build error instead of a 404.
+Route resolution ships from `@rubichandrap/poyo/runtime`. The generated project's `src/routes/route-loader.ts` globs pages, resolves the server-injected base path, and calls `createRouteTable` with `routes.json`. `routes.generated.ts` is gitignored at the client root and kept fresh by every route command and `poyo generate`. Use `routePath("Login")` (imported from `@rubichandrap/poyo/runtime`) for static links so a renamed or removed route is a build error instead of a 404.
 
 CLI commands: see the [Scripts](#scripts) section below.
 
@@ -320,7 +320,7 @@ Access rules live in `routes.json`, enforced universally by a server-side filter
 - `Poyo.Server/Program.cs` - Server configuration
 - `poyo.client/src/app.tsx` - Client entry point
 - `poyo.client/src/routes/route-loader.ts` - Vite-boundary route adapter (thin; resolution ships from the framework)
-- `poyo.client/routes.generated.ts` - Typed route manifest (committed at client package root, kept fresh by route commands and poyo generate)
+- `poyo.client/routes.generated.ts` - Typed route manifest (gitignored ambient augmentation at client package root, kept fresh by route commands and poyo generate)
 - `poyo.client/openapi/openapi.json` - Committed offline OpenAPI snapshot (refreshed in-process on server boot in dev/staging)
 - `@rubichandrap/poyo/runtime` - Client runtime: server data hook (`usePage`) and route table (`createRouteTable`)
 

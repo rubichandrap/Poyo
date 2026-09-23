@@ -57,10 +57,8 @@ describe("poyo route add", () => {
 			fixture,
 			"poyo.client/routes.generated.ts",
 		);
-		expect(manifest).toContain(
-			'export type RouteName = "About" | "Dashboard";',
-		);
-		expect(manifest).toContain('"About": "/About",');
+		expect(manifest).toContain('names: "About" | "Dashboard";');
+		expect(manifest).toContain('paths: "/About" | "/Dashboard";');
 	});
 
 	it("handles nested paths with PascalCase conversion", () => {

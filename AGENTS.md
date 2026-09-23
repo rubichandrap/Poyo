@@ -250,12 +250,11 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 ### 3.7. Route Resolution
 
-**Source**: route resolution ships from the framework package — `createRouteTable` from `@rubichandrap/poyo/runtime` (ADR 0006). The generated project keeps only a thin Vite-boundary adapter, `src/routes/route-loader.ts`: it globs `src/pages/**/*.page.tsx`, resolves the base path (server-injected `data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), calls `createRouteTable` with the generated manifest, and re-exports the legacy surface (`routes`, `routeMap`, `findRouteByName`, `findRouteGeneric`, `AppRoute`) so existing imports don't churn.
+**Source**: route resolution ships from the framework package — `createRouteTable` from `@rubichandrap/poyo/runtime` (ADR 0006). The generated project keeps only a thin Vite-boundary adapter, `src/routes/route-loader.ts`: it globs `src/pages/**/*.page.tsx`, resolves the base path (server-injected `data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), calls `createRouteTable` with `routes.json`, and re-exports the legacy surface (`routes`, `routeMap`, `findRouteByName`, `findRouteGeneric`, `AppRoute`) so existing imports don't churn.
 
-**Typed manifest**: `poyo generate` emits `routes.generated.ts` at the client package root (ADR 0007) — the registry as `as const satisfies readonly RouteEntry[]` plus `RouteName`/`RoutePath` literal unions and a `routePath(name)` helper. The file is committed and kept fresh by every `poyo route` command and `poyo generate`; `routes.json` stays the only edited source of truth.
+**Typed manifest**: `poyo generate` emits `routes.generated.ts` at the client package root (ADR 0010) — an ambient module augmentation of `PoyoRouteRegistry` inside `@rubichandrap/poyo/runtime`. The runtime derives `RouteName`/`RoutePath` (falling back to `string` pre-augmentation) and exports the typed `routePath(name)` helper. The file is gitignored, imported by no one, and kept fresh by every `poyo route` command and `poyo generate`; `routes.json` stays the only edited source of truth.
 
 **Lookups** return `AppRoute` (canonical path, page name, `access` defaulting to `protected`, lazy component), never a bare component. A registry entry pointing at a missing page file warns and skips only that route; an unknown server-declared page name reports through `onError` in dev and renders "Page not found". `app.tsx` binds the server-declared page name (`data-page-name`) first, with `findRouteGeneric(window.location.pathname)` as the standalone-dev fallback.
-
 ---
 
 ## 4. Route Management
@@ -285,7 +284,7 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 `dynamic` is an optional boolean (default `true`). Setting `"dynamic": false` opts the route out of dynamic navigation, forcing requests to always answer with the full HTML document.
 
-The client consumes the registry through the runtime route table: `poyo generate` emits `<client>/routes.generated.ts` (typed manifest — `RouteName`/`RoutePath` unions plus `routePath()`, see §3.7), committed and kept fresh by every route command, so `routes.json` stays the only edited source of truth.
+The client consumes the registry through the runtime route table: `src/routes/route-loader.ts` imports `routes.json` directly, while `poyo generate` emits `<client>/routes.generated.ts` (ambient type augmentation — `RouteName`/`RoutePath` unions, see §3.7), gitignored and kept fresh by every route command, so `routes.json` stays the only edited source of truth.
 
 ### 4.2. Adding Routes
 

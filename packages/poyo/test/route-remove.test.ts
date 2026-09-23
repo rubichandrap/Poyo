@@ -132,7 +132,8 @@ describe("poyo route remove", () => {
 			"poyo.client/routes.generated.ts",
 		);
 		expect(manifest).not.toContain("About");
-		expect(manifest).toContain('export type RouteName = "Reports";');
+		expect(manifest).toContain('names: "Reports";');
+		expect(manifest).toContain('paths: "/Reports";');
 	});
 	it("preserves dynamic: false on remaining routes after removing a route", () => {
 		const fixture = makeFixture([

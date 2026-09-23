@@ -167,20 +167,17 @@ describe("create-poyo-app", () => {
 		expect(ws).not.toContain("poyo.client");
 	});
 
-	it("copies the committed route table to the client package root without predev hook", () => {
+	it("gitignores routes.generated.ts and leaves route manifest uncommitted at client root", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });
 
-		expect(exists(cwd, "MyApp/myapp.client/routes.generated.ts")).toBe(true);
+		expect(exists(cwd, "MyApp/myapp.client/routes.generated.ts")).toBe(false);
 		expect(
 			exists(cwd, "MyApp/myapp.client/src/routes/routes.generated.ts"),
 		).toBe(false);
 
-		const manifest = readFile(cwd, "MyApp/myapp.client/routes.generated.ts");
-		expect(manifest).toContain("export const routeManifest =");
-		expect(manifest).toContain(
-			"export function routePath(name: RouteName): RoutePath",
-		);
+		const gitignore = readFile(cwd, "MyApp/myapp.client/.gitignore");
+		expect(gitignore).toContain("routes.generated.ts");
 
 		const clientPkg = readJson(cwd, "MyApp/myapp.client/package.json") as {
 			scripts: Record<string, string>;
@@ -194,6 +191,7 @@ describe("create-poyo-app", () => {
 
 		expect(exists(cwd, "MyApp/myapp.client/openapi/openapi.json")).toBe(true);
 		const gitignore = readFile(cwd, "MyApp/myapp.client/.gitignore");
+		expect(gitignore).toContain("routes.generated.ts");
 		expect(gitignore).toContain("src/schemas/dtos.generated.ts");
 		expect(gitignore).toContain("src/schemas/validations.generated.ts");
 	});

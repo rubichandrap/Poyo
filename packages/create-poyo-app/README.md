@@ -27,7 +27,7 @@ pnpm run dev         # start the .NET watch server (full-stack MPA; alias for se
 - React 19 + TypeScript + Vite client (`<name>.client/`)
 - ASP.NET Core MVC server (`<Name>.Server/`)
 - `routes.json` route registry with access model + SEO metadata
-- Committed typed route manifest (`routes.generated.ts`) and offline OpenAPI snapshot (`openapi/openapi.json`)
+- Committed offline OpenAPI snapshot (`openapi/openapi.json`) and gitignored typed route manifest (`routes.generated.ts`)
 - Automatic `.env` bootstrapping from `.env.example`
 - In-process OpenAPI snapshot export on server boot (development/staging)
 - Demo cookie authentication (`demo` / `password`)

@@ -22,7 +22,7 @@ pnpm run dev       # start the .NET watch server (recommended full-stack MPA dev
 ```
 
 > **Why `pnpm run generate`?**
-> The OpenAPI snapshot (`openapi/openapi.json`) and route table (`routes.generated.ts`) are committed, but generated TypeScript DTOs and Zod validation schemas (`src/schemas/dtos.generated.ts`, `src/schemas/validations.generated.ts`) are gitignored. Running `pnpm run generate` builds the validation schemas offline from the snapshot for type-safe validation (e.g. login form) without needing a backend running.
+> The OpenAPI snapshot (`openapi/openapi.json`) is committed, but generated TypeScript DTOs and Zod validation schemas (`src/schemas/dtos.generated.ts`, `src/schemas/validations.generated.ts`) and the route manifest (`routes.generated.ts`) are gitignored. Running `pnpm run generate` builds the validation schemas offline from the snapshot and emits the ambient route manifest without needing a backend running.
 
 Demo login: `demo` / `password`.
 
@@ -37,7 +37,7 @@ Poyo.Server/      # ASP.NET Core MVC server
   Services/       #   business logic
   Views/          #   Razor views
 poyo.client/      # React client (Vite + TypeScript + Tailwind)
-  routes.generated.ts # committed typed route manifest
+  routes.generated.ts # gitignored typed route manifest (ambient augmentation)
   openapi/        #   committed offline OpenAPI snapshot (openapi.json)
   src/pages/      #   one React page per route
   src/routes/     #   route adapter (route-loader.ts)
@@ -66,7 +66,7 @@ routes.json       # route registry: URL path -> page + view
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). The server enforces it for every registry route — custom-controller routes included — so no per-action attributes are needed: `protected` challenges anonymous users (redirect to login, 401 for API calls), `guest` redirects authenticated users to the landing page, `public` is open. Registry `seo` (title, description, meta, JSON-LD) is applied to every route, with the route name as the default title.
 
-On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it globs the page files, resolves the server-injected base path (`data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), and calls `createRouteTable` from `@rubichandrap/poyo/runtime` — route resolution ships from the framework package, not from this project. The typed manifest `routes.generated.ts` is committed at the client package root and kept fresh by every route command and `poyo generate` — use `routePath("Login")` for static links so a renamed route breaks the build instead of 404ing.
+On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it globs the page files, resolves the server-injected base path (`data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), and calls `createRouteTable` from `@rubichandrap/poyo/runtime` with `routes.json` — route resolution ships from the framework package, not from this project. The typed manifest `routes.generated.ts` is gitignored at the client package root and kept fresh by every route command and `poyo generate` — use `routePath("Login")` (imported from `@rubichandrap/poyo/runtime`) for static links so a renamed route breaks the build instead of 404ing.
 
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 

@@ -8,11 +8,15 @@
 export { usePage } from "./use-page.js";
 export {
 	createRouteTable,
+	routePath,
 	type AppRoute,
 	type PageLoader,
 	type PageLoaders,
+	type PoyoRouteRegistry,
 	type RouteAccess,
 	type RouteEntry,
+	type RouteName,
+	type RoutePath,
 	type RouteTable,
 	type RouteTableOptions,
 } from "./route-table.js";

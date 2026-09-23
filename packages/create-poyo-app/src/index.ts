@@ -28,6 +28,9 @@ const EXCLUDED_DIR_NAMES = new Set([
 	"generated",
 ]);
 
+const EXCLUDED_FILE_NAMES: Record<string, true> = {
+	"routes.generated.ts": true,
+};
 const BINARY_EXTENSIONS = new Set([
 	".dll",
 	".exe",
@@ -59,7 +62,8 @@ function ownVersion(): string {
 }
 
 function copyRecursive(src: string, dest: string): void {
-	if (EXCLUDED_DIR_NAMES.has(path.basename(src))) return;
+	const base = path.basename(src);
+	if (EXCLUDED_DIR_NAMES.has(base) || EXCLUDED_FILE_NAMES[base]) return;
 
 	const stat = fs.statSync(src);
 	if (stat.isDirectory()) {
