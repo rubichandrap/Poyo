@@ -47,8 +47,11 @@ if (builder.Environment.IsDevelopment())
 }
 
 // Route policy + universal access/SEO enforcement (the server core ships
-// inside @rubichandrap/poyo and compiles in place — ADR 0008).
-builder.Services.AddPoyo(builder.Configuration);
+// inside @rubichandrap/poyo and compiles in place — ADR 0008). The registry
+// lives at the project root; Routes:JsonPath overrides it for hosted runs.
+var routesJsonPath = builder.Configuration["Routes:JsonPath"]
+    ?? Path.Combine(root, "routes.json");
+builder.Services.AddPoyo(builder.Configuration, routesJsonPath);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();

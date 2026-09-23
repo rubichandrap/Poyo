@@ -185,6 +185,37 @@ describe("create-poyo-app", () => {
 		expect(clientPkg.scripts.predev).toBeUndefined();
 	});
 
+	it("compiles the server core from the package and keeps the navigation opt-out", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		// The C# server core ships inside @rubichandrap/poyo and compiles in
+		// place (ADR 0008): the csproj includes the package source under
+		// node_modules — an in-tree copy would freeze the framework again.
+		const csproj = readFile(cwd, "MyApp/MyApp.Server/MyApp.Server.csproj");
+		expect(csproj).toContain(
+			"../node_modules/@rubichandrap/poyo/server/**/*.cs",
+		);
+		expect(exists(cwd, "MyApp/MyApp.Server/Routing")).toBe(false);
+		expect(
+			exists(cwd, "MyApp/MyApp.Server/Controllers/PageController.cs"),
+		).toBe(false);
+
+		// No dead index.html: the Razor views own every document, and the
+		// Vite entry is the client module itself (ADR 0010).
+		expect(exists(cwd, "MyApp/myapp.client/index.html")).toBe(false);
+
+		// The registry reaches the generated project untouched — including
+		// the dynamic-navigation opt-out (ADR 0009).
+		const routes = readJson(cwd, "MyApp/routes.json") as {
+			name: string;
+			dynamic?: boolean;
+		}[];
+		expect(routes.find((route) => route.name === "Register")?.dynamic).toBe(
+			false,
+		);
+	});
+
 	it("copies the committed openapi snapshot and gitignores generated schemas", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });

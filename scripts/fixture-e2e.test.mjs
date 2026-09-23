@@ -19,9 +19,21 @@
  *   6. Offline OpenAPI codegen (`pnpm run generate`) generates TS types and
  *      Zod schemas from the committed snapshot without a running server.
  *   7. Client type-checks and builds offline; bundle carries the runtime
- *      surface (`usePage`, `window.SERVER_DATA`, `[RouteTable]`).
- *   8. Server boot exports OpenAPI snapshot in-process without network requests.
- *   9. Served page renders HTML with data-page-name and data-base-path.
+ *      surface (`usePage`, `window.SERVER_DATA`, `[RouteTable]`) plus the
+ *      dynamic-navigation surface (router wire literal, `Link` opt-out
+ *      attribute, the `routePath` init guard).
+ *   8. Server build compiles the C# server core straight from the installed
+ *      package (no in-tree framework copies).
+ *   9. Server boot exports OpenAPI snapshot in-process without network requests.
+ *  10. Served page renders HTML with data-page-name and data-base-path.
+ *  11. The dynamic-navigation wire contract (ADR 0009): a descriptor request
+ *      answers JSON `{name, seo, pageData}` with `Vary: X-Poyo-Navigation`;
+ *      an opted-out route (`"dynamic": false`, the field intact after the
+ *      scaffolder's rename) answers the document; a protected route
+ *      challenges anonymous descriptor callers without leaking the payload;
+ *      an authenticated descriptor carries the document's own page data.
+ *  12. No committed route manifest and no client `index.html` in the
+ *      generated project.
  *
  * This test is a publish-time gate, wired into `pnpm run test:release`. It is
  * RED until the release version is published: an unpublished version fails
@@ -54,6 +66,8 @@ const POYO_PKG = "@rubichandrap/poyo";
 const PROJECT_NAME = "fixtureApp";
 const CLIENT_DIR = "fixtureapp.client";
 const SERVER_DIR = "FixtureApp.Server";
+const PROJECT_PASCAL =
+	PROJECT_NAME.charAt(0).toUpperCase() + PROJECT_NAME.slice(1);
 
 function readJson(file) {
 	return JSON.parse(fs.readFileSync(file, "utf-8"));
@@ -87,6 +101,19 @@ function collectFiles(dir, files = []) {
 		}
 	}
 	return files;
+}
+
+/**
+ * Returns the response's cookies as one Cookie request header value. The demo
+ * login sets the auth cookie; the fixture relays it by hand because its fetch
+ * has no cookie jar.
+ */
+function authCookieOf(response) {
+	const setCookies =
+		typeof response.headers.getSetCookie === "function"
+			? response.headers.getSetCookie()
+			: [response.headers.get("set-cookie")].filter(Boolean);
+	return setCookies.map((cookie) => cookie.split(";")[0]).join("; ");
 }
 
 function getFreePort() {
@@ -220,6 +247,54 @@ test(
 				"validations.generated.ts must be gitignored in client",
 			);
 
+			// 2b. The dynamic-navigation seam's generated shape (ADR 0008/0009):
+			//     the server compiles the framework source from the installed
+			//     package, the registry's opt-out survives the scaffolder's
+			//     rename untouched, and no dead client entry files ship.
+			const scaffoldedRoutes = readJson(path.join(fixture, "routes.json"));
+			const optOutRoute = scaffoldedRoutes.find(
+				(route) => route.name === "Register",
+			);
+			assert.ok(
+				optOutRoute,
+				"scaffolded registry is missing the Register route",
+			);
+			assert.equal(
+				optOutRoute.dynamic,
+				false,
+				'the Register route\'s "dynamic": false did not survive the rename',
+			);
+
+			const serverCsproj = fs.readFileSync(
+				path.join(fixture, SERVER_DIR, `${SERVER_DIR}.csproj`),
+				"utf-8",
+			);
+			assert.ok(
+				serverCsproj.includes(
+					"../node_modules/@rubichandrap/poyo/server/**/*.cs",
+				),
+				"the server csproj must compile the framework source from the installed package",
+			);
+			assert.ok(
+				!fs.existsSync(path.join(fixture, SERVER_DIR, "Routing")),
+				"the scaffolded server must not carry an in-tree framework copy",
+			);
+			assert.ok(
+				!fs.existsSync(
+					path.join(fixture, SERVER_DIR, "Controllers", "PageController.cs"),
+				),
+				"the scaffolded server must not carry an in-tree framework controller",
+			);
+
+			assert.ok(
+				!fs.existsSync(path.join(fixture, CLIENT_DIR, "index.html")),
+				"the scaffolded client must not ship an index.html",
+			);
+			assert.ok(
+				!fs.existsSync(path.join(fixture, CLIENT_DIR, "src", "index.html")),
+				"the scaffolded client must not ship a src/index.html",
+			);
+
 			const initialSnapshot = path.join(
 				fixture,
 				CLIENT_DIR,
@@ -288,6 +363,24 @@ test(
 				"dist/runtime/route-table.js is missing from the resolved package — " +
 					`${POYO_PKG}@${version} on npm predates the route table (ADR 0006); ` +
 					"the gate stays red until a version shipping dist/runtime/route-table.js is published",
+			);
+			// The dynamic-navigation subpaths (ADR 0009): the template's app
+			// shell imports the router and Link from here.
+			assert.ok(
+				fs.existsSync(path.join(resolvedDir, "dist", "runtime", "router.js")) &&
+					fs.existsSync(path.join(resolvedDir, "dist", "runtime", "link.js")),
+				"the resolved package does not ship the navigation subpaths " +
+					`(dist/runtime/router.js, dist/runtime/link.js) — ${POYO_PKG}@${version} ` +
+					"on npm predates dynamic navigation (ADR 0009); the gate stays red " +
+					"until a version shipping them is published",
+			);
+			// The csproj compiles this source in place (ADR 0008): without it
+			// in the published package, the generated server cannot build.
+			assert.ok(
+				fs.existsSync(path.join(resolvedDir, "server", "RoutePolicy.cs")),
+				"the resolved package does not ship the C# server core " +
+					`(server/RoutePolicy.cs) — ${POYO_PKG}@${version} on npm predates ` +
+					"(ADR 0008); the gate stays red until a version shipping server/ is published",
 			);
 			const resolvedGenerateSrc = fs.readFileSync(
 				path.join(resolvedDir, "dist", "commands", "generate.js"),
@@ -414,6 +507,25 @@ test(
 				/\[RouteTable\]/,
 				"route-table module missing from the built client bundle " +
 					"([RouteTable] diagnostics absent)",
+			);
+			// The dynamic-navigation surface, anchored on literals the
+			// minifier cannot rename: the router's wire header (router.ts),
+			// Link's opt-out attribute (link.tsx), and the routePath init
+			// guard message (route-table.ts).
+			assert.match(
+				bundle,
+				/X-Poyo-Navigation/,
+				"the router's navigation wire literal is missing from the built client bundle",
+			);
+			assert.match(
+				bundle,
+				/data-dynamic-nav/,
+				"the Link module's opt-out attribute is missing from the built client bundle",
+			);
+			assert.match(
+				bundle,
+				/Route table not initialized/,
+				"the runtime route helper (routePath) is missing from the built client bundle",
 			);
 
 			// 8. Server build succeeds.
@@ -547,6 +659,148 @@ test(
 				dashRes.headers.get("location") || "",
 				/\/Login/,
 				"Protected route redirect should target /Login",
+			);
+
+			// 11. The dynamic-navigation wire contract (ADR 0009) as the
+			//     scaffolded server answers it: descriptor JSON + Vary for
+			//     dynamic routes, the document for the opted-out route, a
+			//     challenge (never a payload) for anonymous protected calls,
+			//     and page data identical to the document's injection.
+			const navHeaders = { "X-Poyo-Navigation": "1" };
+
+			const loginDescriptorRes = await fetch(
+				`http://127.0.0.1:${serverPort}/Login`,
+				{ headers: navHeaders },
+			);
+			assert.equal(
+				loginDescriptorRes.status,
+				200,
+				"descriptor request for a dynamic route must answer",
+			);
+			assert.equal(
+				loginDescriptorRes.headers.get("content-type")?.split(";")[0],
+				"application/json",
+				"a descriptor request must answer JSON, not the document",
+			);
+			assert.match(
+				loginDescriptorRes.headers.get("vary") || "",
+				/X-Poyo-Navigation/,
+				"the descriptor response must vary on the navigation header",
+			);
+			const loginDescriptor = await loginDescriptorRes.json();
+			assert.equal(loginDescriptor.name, "Login");
+			assert.equal(loginDescriptor.seo?.title, "Login");
+			// Registry copy rides the rename too: the template's "Sign in to
+			// Poyo framework demo" reaches the descriptor as the project's
+			// own name.
+			assert.equal(
+				loginDescriptor.seo?.description,
+				`Sign in to ${PROJECT_PASCAL} framework demo`,
+			);
+			assert.equal(
+				loginDescriptor.pageData,
+				null,
+				"a page without server data must send pageData null",
+			);
+			assert.ok(
+				!loginHtml.includes("window.SERVER_DATA"),
+				"the Login document injects no window.SERVER_DATA — its null pageData matches",
+			);
+
+			// The opted-out route ("dynamic": false) answers the document
+			// even when the request carries the navigation header.
+			const registerRes = await fetch(
+				`http://127.0.0.1:${serverPort}/Register`,
+				{ headers: navHeaders },
+			);
+			assert.equal(registerRes.status, 200);
+			assert.match(
+				registerRes.headers.get("content-type") || "",
+				/^text\/html/,
+				"the opted-out route must answer descriptor requests with the document",
+			);
+			assert.match(
+				registerRes.headers.get("vary") || "",
+				/X-Poyo-Navigation/,
+				"the opted-out document must still vary on the navigation header",
+			);
+			const registerHtml = await registerRes.text();
+			assert.match(registerHtml, /<!DOCTYPE html>/);
+			assert.match(registerHtml, /data-page-name="Register"/);
+
+			// The protected route challenges an anonymous descriptor request;
+			// no payload may leak through the challenge.
+			const protectedDescriptorRes = await fetch(
+				`http://127.0.0.1:${serverPort}/Dashboard`,
+				{ headers: navHeaders, redirect: "manual" },
+			);
+			assert.ok(
+				[301, 302, 307, 308].includes(protectedDescriptorRes.status),
+				`anonymous descriptor request should challenge (status was ${protectedDescriptorRes.status})`,
+			);
+			assert.match(
+				protectedDescriptorRes.headers.get("location") || "",
+				/\/Login/,
+				"the protected descriptor challenge should target /Login",
+			);
+			assert.ok(
+				!(await protectedDescriptorRes.text()).includes("pageData"),
+				"a challenged descriptor must not leak its payload",
+			);
+
+			// An authenticated descriptor on the protected route carries the
+			// same data the document injects (per-request timestamp aside).
+			const loginApiRes = await fetch(
+				`http://127.0.0.1:${serverPort}/api/Auth/Login`,
+				{
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ username: "demo", password: "password" }),
+				},
+			);
+			assert.equal(loginApiRes.status, 200, "the demo login must succeed");
+			const authCookie = authCookieOf(loginApiRes);
+			assert.ok(authCookie.length > 0, "the demo login set no auth cookie");
+
+			const dashboardDocumentRes = await fetch(
+				`http://127.0.0.1:${serverPort}/Dashboard`,
+				{ headers: { cookie: authCookie } },
+			);
+			assert.equal(dashboardDocumentRes.status, 200);
+			const dashboardHtml = await dashboardDocumentRes.text();
+			const dataMarker = "window.SERVER_DATA = ";
+			const dataStart = dashboardHtml.indexOf(dataMarker);
+			assert.ok(
+				dataStart >= 0,
+				"the Dashboard document must inject window.SERVER_DATA",
+			);
+			const dataEnd = dashboardHtml.indexOf(";", dataStart);
+			const dashboardDocumentData = JSON.parse(
+				dashboardHtml.slice(dataStart + dataMarker.length, dataEnd).trim(),
+			);
+
+			const dashboardDescriptorRes = await fetch(
+				`http://127.0.0.1:${serverPort}/Dashboard`,
+				{ headers: { ...navHeaders, cookie: authCookie } },
+			);
+			assert.equal(dashboardDescriptorRes.status, 200);
+			const dashboardDescriptor = await dashboardDescriptorRes.json();
+			assert.equal(dashboardDescriptor.name, "Dashboard");
+			assert.equal(dashboardDescriptor.seo?.title, "Dashboard");
+			assert.equal(
+				dashboardDescriptor.pageData?.user,
+				dashboardDocumentData.user,
+				"the descriptor payload must carry the document's data",
+			);
+			assert.equal(dashboardDescriptor.pageData?.user, "demo");
+			assert.equal(
+				dashboardDescriptor.pageData?.message,
+				dashboardDocumentData.message,
+			);
+			assert.deepEqual(
+				Object.keys(dashboardDescriptor.pageData ?? {}).sort(),
+				Object.keys(dashboardDocumentData).sort(),
+				"the descriptor payload must have the document's shape",
 			);
 
 			if (serverProcess && !serverProcess.killed) {
