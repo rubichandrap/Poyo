@@ -34,11 +34,8 @@ function isEligibleClick(
 	const targetEl = event.currentTarget;
 	if (
 		targetEl &&
-		(targetEl.getAttribute("data-dynamic-nav") === "off" ||
-			targetEl.getAttribute("data-dynamic") === "false" ||
-			targetEl.getAttribute("data-hybrid-nav") === "off" ||
-			(typeof targetEl.hasAttribute === "function" &&
-				targetEl.hasAttribute("data-reload")))
+		typeof targetEl.getAttribute === "function" &&
+		targetEl.getAttribute("data-dynamic-nav") === "off"
 	) {
 		return false;
 	}

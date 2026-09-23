@@ -241,7 +241,7 @@ describe("<Link /> component click eligibility rules", () => {
 		expect(pushMock).not.toHaveBeenCalled();
 	});
 
-	it("honors opt-out attributes (data-dynamic-nav=off, data-dynamic=false, data-hybrid-nav=off, data-reload)", async () => {
+	it('honors data-dynamic-nav="off" as the opt-out', async () => {
 		const pushMock = vi.fn();
 		const router = createRouter();
 		vi.spyOn(router, "push").mockImplementation(pushMock);
@@ -255,26 +255,55 @@ describe("<Link /> component click eligibility rules", () => {
 			},
 		});
 
-		const optOutAttributes = [
-			{ "data-dynamic-nav": "off" },
+		const attr = { "data-dynamic-nav": "off" };
+		const event = createMockEvent({
+			currentTarget: {
+				getAttribute: (name: string) =>
+					(attr as Record<string, string>)[name] ?? null,
+			} as unknown as EventTarget & HTMLAnchorElement,
+		});
+		const rendered = renderLink({ href: "/dashboard", ...attr });
+		rendered.props.onClick(event);
+
+		expect(event.preventDefault).not.toHaveBeenCalled();
+		expect(pushMock).not.toHaveBeenCalled();
+	});
+
+	it("ignores retired opt-out spellings (data-dynamic, data-hybrid-nav, data-reload)", async () => {
+		const pushMock = vi.fn();
+		const router = createRouter();
+		vi.spyOn(router, "push").mockImplementation(pushMock);
+
+		vi.stubGlobal("window", {
+			location: {
+				origin: "http://localhost:3000",
+				pathname: "/",
+				search: "",
+				href: "http://localhost:3000/",
+			},
+		});
+
+		const retired = [
 			{ "data-dynamic": "false" },
 			{ "data-hybrid-nav": "off" },
 			{ "data-reload": "" },
 		];
 
-		for (const attr of optOutAttributes) {
+		for (const attr of retired) {
+			pushMock.mockClear();
 			const event = createMockEvent({
 				currentTarget: {
 					getAttribute: (name: string) =>
-						(attr as Record<string, string>)[name] ?? null,
+						(attr as unknown as Record<string, string>)[name] ?? null,
 					hasAttribute: (name: string) => name in attr,
 				} as unknown as EventTarget & HTMLAnchorElement,
 			});
 			const rendered = renderLink({ href: "/dashboard", ...attr });
 			rendered.props.onClick(event);
 
-			expect(event.preventDefault).not.toHaveBeenCalled();
-			expect(pushMock).not.toHaveBeenCalled();
+			// data-dynamic-nav is the documented opt-out; the others are gone.
+			expect(event.preventDefault).toHaveBeenCalled();
+			expect(pushMock).toHaveBeenCalledWith("/dashboard");
 		}
 	});
 
