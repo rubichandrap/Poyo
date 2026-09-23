@@ -66,4 +66,5 @@ export interface Route {
 	controller?: string;
 	action?: string;
 	seo?: RouteSeo;
+	dynamic?: boolean;
 }

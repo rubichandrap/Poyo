@@ -20,6 +20,7 @@ export interface RouteEntry {
 	controller?: string;
 	action?: string;
 	seo?: Record<string, unknown>;
+	dynamic?: boolean;
 }
 
 /**

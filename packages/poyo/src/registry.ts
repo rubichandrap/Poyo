@@ -11,6 +11,7 @@ const KNOWN_FIELDS = new Set([
 	"controller",
 	"action",
 	"seo",
+	"dynamic",
 ]);
 
 const KNOWN_FILE_FIELDS = new Set(["react", "view"]);
@@ -121,6 +122,15 @@ export function validateRoutes(routes: unknown): asserts routes is Route[] {
 			(typeof entry.seo !== "object" || entry.seo === null)
 		) {
 			throw new CliError(`${label} ("${routePath}"): "seo" must be an object`);
+		}
+
+		if (
+			entry.dynamic !== undefined &&
+			typeof entry.dynamic !== "boolean"
+		) {
+			throw new CliError(
+				`${label} ("${routePath}"): "dynamic" must be a boolean`,
+			);
 		}
 	});
 }

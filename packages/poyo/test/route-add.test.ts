@@ -434,6 +434,33 @@ describe("poyo route registry validation", () => {
 		expect(result.status).toBe(1);
 		expect(result.stderr).toContain("seo");
 	});
+
+	it("accepts dynamic as a boolean (true and false)", () => {
+		const fixtureFalse = registryWith({ dynamic: false });
+		const resFalse = execInFixture(fixtureFalse, ["route", "add", "/About"]);
+		expect(resFalse.status).toBe(0);
+
+		const fixtureTrue = registryWith({ dynamic: true });
+		const resTrue = execInFixture(fixtureTrue, ["route", "add", "/About"]);
+		expect(resTrue.status).toBe(0);
+	});
+
+
+	it("preserves dynamic: false on existing routes when adding a new route", () => {
+		const fixture = registryWith({ dynamic: false });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(0);
+		const home = fixture.routesJson().find((r) => r.path === "/Home");
+		expect(home?.dynamic).toBe(false);
+	});
+	it("rejects a non-boolean dynamic value naming the route", () => {
+		const fixture = registryWith({ dynamic: "junk" });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("dynamic");
+		expect(result.stderr).toContain("/Home");
+		expect(result.stderr).toContain("boolean");
+	});
 });
 
 describe("invalid registry rejected by every route command", () => {
