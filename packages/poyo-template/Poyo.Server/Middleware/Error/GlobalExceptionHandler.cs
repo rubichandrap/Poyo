@@ -13,7 +13,9 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         CancellationToken cancellationToken)
     {
         var request = httpContext.Request;
-        var url = $"{request.Path}{request.QueryString}";
+        var sanitizedPath = SanitizeForLog(request.Path.ToString());
+        var sanitizedQuery = SanitizeForLog(request.QueryString.ToString());
+        var url = $"{sanitizedPath}{sanitizedQuery}";
 
         // Log the error
         _logger.LogError(exception, "Unhandled exception occurred at {Url}", url);
@@ -33,6 +35,11 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger) : IE
         await httpContext.Response.WriteAsJsonAsync(response, cancellationToken);
 
         return true;
+    }
+
+    private static string SanitizeForLog(string value)
+    {
+        return value.Replace("\r", string.Empty).Replace("\n", string.Empty);
     }
 }
 
