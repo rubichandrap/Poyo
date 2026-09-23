@@ -5,6 +5,13 @@ All notable changes to the Poyo monorepo are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.0-beta.1] - 2026-09-24
+
+### Fixed
+
+- The scaffolder escapes `actionName` before interpolating it into the controller-action regex, so controller names with regex metacharacters no longer trigger regular expression injection (CodeQL alert no. 1)
+- `GlobalExceptionHandler` strips CR/LF from the request path and query before logging the unhandled-exception URL, closing the log-injection vector (CodeQL alert no. 2)
+
 ## [0.5.0-beta.0] - 2026-09-23
 
 ### Added
