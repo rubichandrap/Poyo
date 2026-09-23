@@ -91,7 +91,7 @@ public sealed class PageResult : ViewResult
             // descriptor); caches must key on the distinguishing header.
             response.Headers.Vary = NavigationHeaderName;
 
-            if (IsDescriptorRequest(context.HttpContext.Request))
+            if (IsDescriptorRequest(context.HttpContext.Request) && _route.Dynamic)
             {
                 await ExecuteDescriptorAsync(context);
                 return;

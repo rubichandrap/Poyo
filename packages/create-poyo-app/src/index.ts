@@ -95,7 +95,9 @@ function renameContent(filePath: string, rules: RenameRule[]): void {
 	const content = fs.readFileSync(filePath, "utf-8");
 	// Framework identifiers survive the rename verbatim (see rewrite.ts).
 	const protectedContent = protectFrameworkIdentifiers(content);
-	const renamed = unprotectFrameworkIdentifiers(applyRules(protectedContent, rules));
+	const renamed = unprotectFrameworkIdentifiers(
+		applyRules(protectedContent, rules),
+	);
 	if (renamed !== content) {
 		fs.writeFileSync(filePath, renamed, "utf-8");
 	}

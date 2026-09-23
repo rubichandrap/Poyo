@@ -273,6 +273,7 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     "view": "Views/Dashboard/Index.cshtml"
   },
   "access": "protected",
+  "dynamic": true,
   "seo": {
     "title": "Dashboard",
     "description": "View your stats"
@@ -281,6 +282,8 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 ```
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). Legacy `isPublic`/`isGuestOnly` flags are rejected as unknown fields — there is no migration shim.
+
+`dynamic` is an optional boolean (default `true`). Setting `"dynamic": false` opts the route out of dynamic navigation, forcing requests to always answer with the full HTML document.
 
 The client consumes the registry through the runtime route table: `poyo generate` emits `<client>/routes.generated.ts` (typed manifest — `RouteName`/`RoutePath` unions plus `routePath()`, see §3.7), committed and kept fresh by every route command, so `routes.json` stays the only edited source of truth.
 

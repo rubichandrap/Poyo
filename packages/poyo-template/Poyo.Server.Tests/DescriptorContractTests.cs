@@ -71,6 +71,21 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     }
 
     [Fact]
+    public async Task Descriptor_request_against_opt_out_route_returns_document_with_vary()
+    {
+        var client = CreateClient();
+        var request = DescriptorRequest("/OptOut");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.StartsWith("text/html", response.Content.Headers.ContentType?.ToString());
+        Assert.Contains(PageResult.NavigationHeaderName, response.Headers.Vary);
+        var html = await response.Content.ReadAsStringAsync();
+        Assert.Contains("<!DOCTYPE html>", html);
+    }
+
+    [Fact]
     public async Task Descriptor_page_data_is_byte_identical_to_the_document_payload()
     {
         var client = CreateClient();

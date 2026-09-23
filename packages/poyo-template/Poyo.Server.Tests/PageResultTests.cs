@@ -70,6 +70,25 @@ public class PageResultTests
         Assert.Equal("1", PageResult.NavigationHeaderValue);
     }
 
+    [Fact]
+    public void RouteDefinition_defaults_dynamic_to_true()
+    {
+        Assert.True(PublicRoute.Dynamic);
+    }
+
+    [Fact]
+    public void RouteDefinition_accepts_dynamic_false()
+    {
+        var route = new RouteDefinition(
+            "/OptOut",
+            "OptOut",
+            new RouteFiles("Views/OptOut/Index.cshtml"),
+            RouteAccess.Public,
+            Dynamic: false);
+
+        Assert.False(route.Dynamic);
+    }
+
     private sealed class TestController : Microsoft.AspNetCore.Mvc.Controller
     {
     }

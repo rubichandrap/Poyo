@@ -71,5 +71,15 @@
 			"view": "Views/DoesNotExist/Index.cshtml"
 		},
 		"access": "public"
+	},
+	{
+		"path": "/OptOut",
+		"name": "OptOut",
+		"files": {
+			"react": "src/pages/OptOut/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "public",
+		"dynamic": false
 	}
 ]

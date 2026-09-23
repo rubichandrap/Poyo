@@ -124,10 +124,7 @@ export function validateRoutes(routes: unknown): asserts routes is Route[] {
 			throw new CliError(`${label} ("${routePath}"): "seo" must be an object`);
 		}
 
-		if (
-			entry.dynamic !== undefined &&
-			typeof entry.dynamic !== "boolean"
-		) {
+		if (entry.dynamic !== undefined && typeof entry.dynamic !== "boolean") {
 			throw new CliError(
 				`${label} ("${routePath}"): "dynamic" must be a boolean`,
 			);

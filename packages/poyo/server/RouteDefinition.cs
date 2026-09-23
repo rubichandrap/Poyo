@@ -20,7 +20,8 @@ public record RouteDefinition(
     RouteAccess Access = RouteAccess.Protected,
     SeoModel? Seo = null,
     string? Controller = null,
-    string? Action = null);
+    string? Action = null,
+    bool Dynamic = true);
 
 public record RouteFiles(
     string View,

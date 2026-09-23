@@ -13,6 +13,7 @@ public class StartupFailureTests
     [InlineData("routes.wrong-type.json", "access")]
     [InlineData("routes.invalid-access.json", "access")]
     [InlineData("routes.duplicate.json", "duplicate")]
+    [InlineData("routes.malformed-dynamic.json", "/dashboard")]
     public void Malformed_registry_fails_startup_loudly(string fixture, string messagePart)
     {
         var ex = Assert.ThrowsAny<Exception>(

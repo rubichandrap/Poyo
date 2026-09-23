@@ -445,7 +445,6 @@ describe("poyo route registry validation", () => {
 		expect(resTrue.status).toBe(0);
 	});
 
-
 	it("preserves dynamic: false on existing routes when adding a new route", () => {
 		const fixture = registryWith({ dynamic: false });
 		const result = execInFixture(fixture, ["route", "add", "/About"]);
@@ -507,5 +506,53 @@ describe("invalid registry rejected by every route command", () => {
 		const result = execInFixture(fixture, ["route", "sync"]);
 		expect(result.status).toBe(1);
 		expect(result.stderr).toContain("isPublic");
+	});
+
+	const malformedDynamic = [
+		{
+			path: "/Home",
+			name: "Home",
+			files: {
+				react: "src/pages/Home/index.page.tsx",
+				view: "Views/Home/Index.cshtml",
+			},
+			access: "protected",
+			dynamic: "not-a-bool",
+		},
+	];
+
+	it("route update rejects a non-boolean dynamic value naming the route", () => {
+		const fixture = makeFixture(malformedDynamic as unknown as Route[]);
+		const result = execInFixture(fixture, [
+			"route",
+			"update",
+			"/Home",
+			"--public",
+			"true",
+		]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("dynamic");
+		expect(result.stderr).toContain("/Home");
+	});
+
+	it("route remove rejects a non-boolean dynamic value naming the route", () => {
+		const fixture = makeFixture(malformedDynamic as unknown as Route[]);
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/Home",
+			"--yes",
+		]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("dynamic");
+		expect(result.stderr).toContain("/Home");
+	});
+
+	it("route sync rejects a non-boolean dynamic value naming the route", () => {
+		const fixture = makeFixture(malformedDynamic as unknown as Route[]);
+		const result = execInFixture(fixture, ["route", "sync"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("dynamic");
+		expect(result.stderr).toContain("/Home");
 	});
 });
