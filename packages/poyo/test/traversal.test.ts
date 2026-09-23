@@ -501,6 +501,104 @@ describe("Router Traversal — Slice 3: Scroll position saving and restoration",
 		expect(scrollToMock).toHaveBeenCalledWith(0, 520);
 	});
 
+	it("restores the previous scrollRestoration value on destroy", () => {
+		const historyMock = {
+			state: null,
+			scrollRestoration: "auto",
+			pushState: vi.fn(),
+			replaceState: vi.fn(),
+		};
+
+		const win = {
+			history: historyMock,
+			location: {
+				href: "http://localhost:3000/",
+				pathname: "/",
+				search: "",
+				hash: "",
+				assign: vi.fn(),
+			},
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+		} as unknown as Window;
+
+		const router = createRouter({
+			routeTable,
+			window: win,
+		});
+		expect(historyMock.scrollRestoration).toBe("manual");
+
+		router.destroy?.();
+
+		expect(historyMock.scrollRestoration).toBe("auto");
+	});
+
+	it("defers the traversal scroll restore to the next frame when rAF is available", async () => {
+		const scrollToMock = vi.fn();
+		let frameCallback: (() => void) | undefined;
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({
+				name: "Dashboard",
+				pageData: {},
+			}),
+		});
+
+		let popstateListener: PopStateCallback | undefined;
+		const poyoStateWithScroll = {
+			__poyo: {
+				clientNavigated: true,
+				scroll: { x: 0, y: 520 },
+			},
+		};
+
+		const win = {
+			scrollTo: scrollToMock,
+			requestAnimationFrame: (callback: () => void) => {
+				frameCallback = callback;
+				return 1;
+			},
+			cancelAnimationFrame: vi.fn(),
+			history: {
+				state: poyoStateWithScroll,
+				scrollRestoration: "auto",
+				pushState: vi.fn(),
+				replaceState: vi.fn(),
+			},
+			location: {
+				href: "http://localhost:3000/dashboard",
+				pathname: "/dashboard",
+				search: "",
+				hash: "",
+				assign: vi.fn(),
+			},
+			addEventListener: (event: string, listener: EventCallback) => {
+				if (event === "popstate") {
+					popstateListener = listener as PopStateCallback;
+				}
+			},
+			removeEventListener: vi.fn(),
+		} as unknown as Window;
+
+		createRouter({
+			routeTable,
+			fetch: fetchMock as unknown as typeof fetch,
+			window: win,
+		});
+
+		await popstateListener!({
+			state: poyoStateWithScroll,
+		} as unknown as PopStateEvent);
+
+		// Not restored against the outgoing document: the frame comes first.
+		expect(scrollToMock).not.toHaveBeenCalled();
+
+		frameCallback?.();
+
+		expect(scrollToMock).toHaveBeenCalledWith(0, 520);
+	});
+
 	it("updates current history state when window scroll event fires", () => {
 		const replaceStateMock = vi.fn();
 		let scrollListener: ScrollCallback | undefined;
