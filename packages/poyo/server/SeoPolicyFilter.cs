@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace Poyo.Server.Routing;
+namespace Poyo.Framework;
 
 /// <summary>
 /// Applies the registry SEO for the current route to every view, with

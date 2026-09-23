@@ -1,7 +1,8 @@
-using Poyo.Server.Models;
+namespace Poyo.Framework;
 
-namespace Poyo.Server.Routing;
-
+/// <summary>
+/// The registry's access model for a route: who may reach it.
+/// </summary>
 public enum RouteAccess
 {
     Protected,
@@ -9,6 +10,9 @@ public enum RouteAccess
     Guest,
 }
 
+/// <summary>
+/// One route as the server reads it from the routes registry.
+/// </summary>
 public record RouteDefinition(
     string Path,
     string Name,

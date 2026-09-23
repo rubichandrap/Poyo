@@ -1,0 +1,75 @@
+[
+	{
+		"path": "/Public",
+		"name": "Public",
+		"files": {
+			"react": "src/pages/Public/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "public",
+		"seo": {
+			"description": "A public page",
+			"title": "Public Page Title",
+			"meta": {
+				"og:title": "Public OG Title",
+				"keywords": "poyo, public"
+			}
+		}
+	},
+	{
+		"path": "/Guest",
+		"name": "Guest",
+		"files": {
+			"react": "src/pages/Guest/index.page.tsx",
+			"view": "Views/Login/Index.cshtml"
+		},
+		"access": "guest"
+	},
+	{
+		"path": "/Protected",
+		"name": "Protected",
+		"files": {
+			"react": "src/pages/Protected/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "protected"
+	},
+	{
+		"path": "/Dashboard",
+		"name": "Dashboard",
+		"files": {
+			"react": "src/pages/Dashboard/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "protected"
+	},
+	{
+		"path": "/Custom",
+		"name": "Custom",
+		"files": {
+			"react": "src/pages/Custom/index.page.tsx",
+			"view": "Views/Home/Index.cshtml"
+		},
+		"access": "protected",
+		"controller": "TestCustom",
+		"action": "Page"
+	},
+	{
+		"path": "/StaticData",
+		"name": "StaticData",
+		"files": {
+			"react": "src/pages/StaticData/index.page.tsx",
+			"view": "Views/StaticData/Index.cshtml"
+		},
+		"access": "public"
+	},
+	{
+		"path": "/MissingView",
+		"name": "MissingView",
+		"files": {
+			"react": "src/pages/MissingView/index.page.tsx",
+			"view": "Views/DoesNotExist/Index.cshtml"
+		},
+		"access": "public"
+	}
+]

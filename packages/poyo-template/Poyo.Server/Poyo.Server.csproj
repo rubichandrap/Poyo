@@ -1,10 +1,27 @@
-﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <!-- The C# server core ships as source inside @rubichandrap/poyo (ADR 0008)
+       and compiles in place through the pnpm workspace link. The defensive
+       remove stops the SDK's default glob from double-compiling the files
+       under node_modules. -->
+  <ItemGroup>
+    <Compile Remove="node_modules/**/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="../node_modules/@rubichandrap/poyo/server/**/*.cs" LinkBase="Framework" />
+  </ItemGroup>
+
+  <Target Name="PoyoServerCoreGuard" BeforeTargets="CoreCompile;FindRazorFiles">
+    <Error Condition="!Exists('../node_modules/@rubichandrap/poyo/server/RoutePolicy.cs')"
+           Text="Poyo server core not found at ../node_modules/@rubichandrap/poyo/server. Run 'pnpm install' in the repository root, then build again." />
+  </Target>
 
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
@@ -21,5 +38,5 @@
 
   <ItemGroup>
   </ItemGroup>
-  
+
 </Project>

@@ -4,6 +4,34 @@ import path from "node:path";
 const POYO_PKG = "@rubichandrap/poyo";
 const FRESH_VERSION = "0.0.1";
 
+// Framework identifiers are fixed across generated projects: the C# server
+// core ships inside @rubichandrap/poyo (ADR 0008) with the fixed
+// Poyo.Framework namespace and entry points, so template files that call it
+// must keep these tokens verbatim through the rename. Protected by wrapping
+// the token with sentinels no template file contains, then unwrapping after
+// the rename rules run.
+const FRAMEWORK_IDENTIFIERS = [
+	"Poyo.Framework",
+	"AddPoyo",
+	"MapPoyoRoutes",
+	"PoyoPage",
+	"X-Poyo-Navigation",
+] as const;
+
+const PROTECTED_POYO = "\u0000P\u0000";
+
+export function protectFrameworkIdentifiers(content: string): string {
+	return FRAMEWORK_IDENTIFIERS.reduce(
+		(acc, identifier) =>
+			acc.replaceAll(identifier, identifier.replace("Poyo", PROTECTED_POYO)),
+		content,
+	);
+}
+
+export function unprotectFrameworkIdentifiers(content: string): string {
+	return content.replaceAll(PROTECTED_POYO, "Poyo");
+}
+
 function pinPoyoDevDep(
 	pkg: Record<string, unknown>,
 	poyoVersion: string,

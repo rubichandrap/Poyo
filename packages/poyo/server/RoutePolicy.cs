@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Routing;
 
-namespace Poyo.Server.Routing;
+namespace Poyo.Framework;
 
 /// <summary>
 /// The single place the server reads and interprets the routes registry.

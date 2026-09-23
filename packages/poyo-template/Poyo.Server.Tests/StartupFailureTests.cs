@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc.Testing;
-using Poyo.Server.Routing;
+using Poyo.Framework;
 using Poyo.Server.Tests.Support;
 
 namespace Poyo.Server.Tests;

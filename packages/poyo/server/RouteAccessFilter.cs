@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace Poyo.Server.Routing;
+namespace Poyo.Framework;
 
 /// <summary>
 /// Universal access enforcement for every registry route. Scheme-agnostic:

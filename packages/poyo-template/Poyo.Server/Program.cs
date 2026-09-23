@@ -1,5 +1,6 @@
 using DotNetEnv;
 using Microsoft.OpenApi;
+using Poyo.Framework;
 using Vite.AspNetCore;
 
 var root = Directory.GetParent(Directory.GetCurrentDirectory())!.FullName;
@@ -45,21 +46,12 @@ if (builder.Environment.IsDevelopment())
     RequireEnv("Vite__Server__DevServerUrl");
 }
 
-// Dynamic routing from the routes registry. RoutePolicy validates the
-// registry shape and fails startup loudly on malformed registries.
-var routesJsonPath = builder.Configuration["Routes:JsonPath"]
-    ?? Path.Combine(root, "routes.json");
-var routePolicy = Poyo.Server.Routing.RoutePolicy.Load(routesJsonPath);
-builder.Services.AddSingleton(routePolicy);
+// Route policy + universal access/SEO enforcement (the server core ships
+// inside @rubichandrap/poyo and compiles in place — ADR 0008).
+builder.Services.AddPoyo(builder.Configuration);
 
 // Add services to the container.
-builder.Services.AddControllersWithViews(options =>
-{
-    // Universal enforcement of the registry access model and SEO for every
-    // registry route (default and custom controller routes alike).
-    options.Filters.Add<Poyo.Server.Routing.RouteAccessFilter>();
-    options.Filters.Add<Poyo.Server.Routing.SeoPolicyFilter>();
-});
+builder.Services.AddControllersWithViews();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApi(options =>
 {
@@ -166,7 +158,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 // Dynamic Routing from routes.json
-routePolicy.MapRoutes(app);
+app.MapPoyoRoutes();
 
 // MPA routes (Fallback for unmatched URLs, clean 404)
 app.MapControllerRoute(
@@ -178,7 +170,3 @@ app.Run();
 public partial class Program
 {
 }
-
-
-
-

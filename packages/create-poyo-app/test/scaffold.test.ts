@@ -35,13 +35,28 @@ describe("create-poyo-app", () => {
 
 		const controller = readFile(
 			cwd,
-			"MyApp/MyApp.Server/Controllers/PageController.cs",
+			"MyApp/MyApp.Server/Controllers/Api/AuthController.cs",
 		);
-		expect(controller).toContain("namespace MyApp.Server.Controllers;");
+		expect(controller).toContain("namespace MyApp.Server.Controllers.Api;");
 		expect(controller).not.toContain("Poyo.Server");
 
 		const slnx = readFile(cwd, "MyApp/MyApp.slnx");
 		expect(slnx).toContain('Path="MyApp.Server/MyApp.Server.csproj"');
+	});
+
+	it("keeps framework identifiers intact through the rename", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		// The server core lives inside the poyo package under the fixed
+		// Poyo.Framework namespace (ADR 0008); Program.cs must keep calling it
+		// by the fixed names in every generated project.
+		const program = readFile(cwd, "MyApp/MyApp.Server/Program.cs");
+		expect(program).toContain("using Poyo.Framework;");
+		expect(program).toContain("AddPoyo");
+		expect(program).toContain("MapPoyoRoutes");
+		expect(program).not.toContain("MyApp.Framework");
+		expect(program).not.toContain("MyAppAddPoyo");
 	});
 
 	it("keeps the poyo CLI binary name in scripts and renames pnpm filters", () => {

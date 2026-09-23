@@ -5,7 +5,12 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { Command } from "commander";
 import { CliError } from "./error.js";
-import { rewriteClientPackageJson, rewritePackageJson } from "./rewrite.js";
+import {
+	protectFrameworkIdentifiers,
+	rewriteClientPackageJson,
+	rewritePackageJson,
+	unprotectFrameworkIdentifiers,
+} from "./rewrite.js";
 
 const require = createRequire(import.meta.url);
 
@@ -88,7 +93,9 @@ function applyRules(value: string, rules: RenameRule[]): string {
 function renameContent(filePath: string, rules: RenameRule[]): void {
 	if (BINARY_EXTENSIONS.has(path.extname(filePath).toLowerCase())) return;
 	const content = fs.readFileSync(filePath, "utf-8");
-	const renamed = applyRules(content, rules);
+	// Framework identifiers survive the rename verbatim (see rewrite.ts).
+	const protectedContent = protectFrameworkIdentifiers(content);
+	const renamed = unprotectFrameworkIdentifiers(applyRules(protectedContent, rules));
 	if (renamed !== content) {
 		fs.writeFileSync(filePath, renamed, "utf-8");
 	}

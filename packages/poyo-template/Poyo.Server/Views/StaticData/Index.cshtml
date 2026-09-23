@@ -1,0 +1,14 @@
+@using System.Text.Json
+@{
+    Layout = "_Layout";
+
+    // Deterministic payload: the descriptor contract test harvests this from
+    // both the document and the descriptor, so it must not vary per request.
+    ViewBag.ServerData = JsonSerializer.Serialize(new
+    {
+        message = "deterministic",
+        answer = 42,
+    });
+}
+
+<div id="react-root" data-page-name="StaticData"></div>
