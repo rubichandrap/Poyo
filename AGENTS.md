@@ -15,6 +15,8 @@ This document serves as the **Constitution** for the Poyo framework. All AI agen
 ### 1.2. Architecture: Minimal MPA Framework
 Poyo is intentionally minimal. It provides:
 - Server-side routing with React hydration
+- Dynamic navigation: `useRouter()` and `<Link>` swap the page component below the loaded shell, with Back/Forward traversal and scroll restoration (ADR 0009)
+- A framework-owned server core — route policy, access/SEO enforcement, and the page result — compiled in place from the installed framework package (ADR 0008)
 - Basic authentication scaffold (to be replaced)
 - Server data injection mechanism
 - Type-safe API integration
@@ -45,12 +47,16 @@ Poyo is intentionally minimal. It provides:
 - **Purpose**: RESTful JSON APIs
 - **Returns**: `ActionResult<T>` with JSend format
 
-- **Returns**: `ActionResult<T>` with JSend format
+**Registry Pages (framework)**
+- **Served by**: `PageController.Index`, from the framework package's server core (`Poyo.Framework`), for every registry route without an explicit `controller`.
+- **Returns**: `PageResult` — the single result type for registry pages. It answers the document exactly as a plain `ViewResult` would, and answers the JSON page descriptor (`{ name, seo, pageData }`) when the request carries `X-Poyo-Navigation: 1`. Both representations carry the same `pageData`, one serialization.
+- **Rule**: never hand-roll either representation; route custom pages through the framework result.
 
 **Custom Controllers**
 - **Purpose**: Complex page logic, specialized data fetching, or custom view rendering.
 - **Usage**: Map in `routes.json` via `"controller"` property.
 - **CLI**: Use `pnpm run route:add ... --controller MyController` to generate.
+- **Result**: `return this.PoyoPage(data)` (`ControllerExtensions`) joins the dynamic-navigation contract — view path, page name, and SEO resolve from the registry route for the request path, and `data` becomes `window.SERVER_DATA` on the document and the descriptor's `pageData` alike. For a path outside the registry the result degrades to a plain view render.
 
 ### 2.2. SEO & Metadata
 - **Configuration**: Managed in `routes.json` under `"seo"` object.
@@ -76,10 +82,14 @@ Poyo is intentionally minimal. It provides:
 - Writes `access: "guest"` in the registry; no controller change needed (maps to `PageController.Index`)
 
 **Middleware & Filters:**
-- `RouteAccessFilter` - Universal access enforcement from the registry (see above)
+- `RouteAccessFilter` - Universal access enforcement from the registry (see above). Runs before the page result executes, so a protected route's descriptor request challenges (redirect/401) instead of leaking `pageData`.
 - `SeoPolicyFilter` - Universal SEO application from the registry (see §2.2)
-- `GlobalExceptionHandler` - Catches unhandled exceptions
+- `GlobalExceptionHandler` - Catches unhandled exceptions (app-side, stays in the project)
 - Cookie authentication - Simple demo auth
+
+**Dynamic navigation (wire contract):**
+- A request carrying `X-Poyo-Navigation: 1` asks for the page descriptor (`{ name, seo, pageData }` JSON) instead of the document. `PageResult` answers both representations and sets `Vary: X-Poyo-Navigation`, so caches key on the distinguishing header.
+- The header literal and the descriptor shape are wire contract — changes must stay backward-compatible or ship with a CLI release note.
 
 ### 2.4. Models & DTOs
 
@@ -120,6 +130,15 @@ public class AuthService : IAuthService
 - One service per domain
 - Services orchestrate business logic
 - Register in `Program.cs` as Scoped
+
+### 2.6. Server Core (framework package)
+
+The framework-owned server code — `RoutePolicy`, `RouteDefinition`, the access/SEO filters, `PageResult`, `PageController`, the controller extensions, and the `AddPoyo()`/`MapPoyoRoutes()` registration extensions — ships as readable source inside the framework package (`node_modules/@rubichandrap/poyo/server/`, namespace `Poyo.Framework`) and is never copied into a project tree (ADR 0008).
+
+- The server csproj compiles it in place: `Compile Include="../node_modules/@rubichandrap/poyo/server/**/*.cs" LinkBase="Framework"`, plus the defensive `Compile Remove="node_modules/**/*.cs"`. The files open in the IDE under a `Framework` link. Rename-safety is by construction — the scaffolder never touches `node_modules`.
+- An `Exists` guard fails the build with "run `pnpm install`" when the package is missing — the one failure mode of the in-place design is an instruction, not a mystery.
+- `Program.cs` wires the core with `builder.Services.AddPoyo(builder.Configuration, routesJsonPath)` (loads and validates the registry eagerly, installs both filters) and `app.MapPoyoRoutes()` after `app.MapControllers()`. Keep that wiring; the project's own server code is controllers, services, models, views, and `GlobalExceptionHandler`.
+- Upgrade path: `pnpm update @rubichandrap/poyo` — server-side framework fixes arrive with the CLI and runtime, no scaffold or copy step. Never edit the installed files; they are read-only teaching material.
 
 ---
 
@@ -170,7 +189,7 @@ export default function DashboardPage() {
 
 ### 3.3. Server Data Hook
 
-**Source**: `usePage` ships from the framework package — `@rubichandrap/poyo/runtime` — not from the project. The package also declares `Window.SERVER_DATA?: unknown` globally.
+**Source**: `usePage` ships from the framework package — `@rubichandrap/poyo/runtime` — not from the project. The package also declares `Window.SERVER_DATA?: unknown` globally. The accessor reads the runtime's navigation store: `window.SERVER_DATA` seeds it on first load, and every dynamic navigation commits the descriptor's page data to it (§3.7).
 
 **Usage:**
 ```typescript
@@ -255,6 +274,10 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 **Typed manifest**: `poyo generate` emits `routes.generated.ts` at the client package root (ADR 0010) — an ambient module augmentation of `PoyoRouteRegistry` inside `@rubichandrap/poyo/runtime`. The runtime derives `RouteName`/`RoutePath` (falling back to `string` pre-augmentation) and exports the typed `routePath(name)` helper. The file is gitignored, imported by no one, and kept fresh by every `poyo route` command and `poyo generate`; `routes.json` stays the only edited source of truth.
 
 **Lookups** return `AppRoute` (canonical path, page name, `access` defaulting to `protected`, lazy component), never a bare component. A registry entry pointing at a missing page file warns and skips only that route; an unknown server-declared page name reports through `onError` in dev and renders "Page not found". `app.tsx` binds the server-declared page name (`data-page-name`) first, with `findRouteGeneric(window.location.pathname)` as the standalone-dev fallback.
+
+**Navigation subpaths**: dynamic navigation is explicit-only — no global interception, so a plain `<a>` stays a document load. `Link` ships from `@rubichandrap/poyo/runtime/link` (declarative) and `useRouter`/`createRouter` from `@rubichandrap/poyo/runtime/router` (programmatic) — the `next/link` / `next/router` split; the runtime root re-exports both. The page pair `usePage`/`Link` mirrors Next.js as well.
+
+One navigation path: descriptor fetch (`X-Poyo-Navigation: 1`, §2.3) → top-level shape check → route-table lookup by page name → store commit (route + page data) → history write (`pushState`/`replaceState`) → SEO apply, focus move, live-region announcement. Traversal rides the `popstate` path only: Back/Forward after a client-side navigation swap pages the same way, with the scroll position stored per history entry and restored on return; a cold entry (a URL the client never navigated to) is an ordinary document load, and a hash-only change never enters the machinery. Any failure — non-2xx, non-descriptor body, unknown page name, apply error — degrades to a document load of the same URL; the browser's own navigation is the floor, not the fallback. Rapid successive pushes are last-write-wins (a supersede token drops stale responses).
 ---
 
 ## 4. Route Management
@@ -282,7 +305,7 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). Legacy `isPublic`/`isGuestOnly` flags are rejected as unknown fields — there is no migration shim.
 
-`dynamic` is an optional boolean (default `true`). Setting `"dynamic": false` opts the route out of dynamic navigation, forcing requests to always answer with the full HTML document.
+`dynamic` is an optional boolean (default `true`). Setting `"dynamic": false` opts the route out of dynamic navigation: the server answers the document even when a request carries the navigation header, and the client never swaps it in (§3.7). There is no CLI flag for it — edit the registry by hand; the CLI validates the field on every read (`junk` values fail with the route named) and round-trips it untouched. Boot validation rejects malformed values the same way.
 
 The client consumes the registry through the runtime route table: `src/routes/route-loader.ts` imports `routes.json` directly, while `poyo generate` emits `<client>/routes.generated.ts` (ambient type augmentation — `RouteName`/`RoutePath` unions, see §3.7), gitignored and kept fresh by every route command, so `routes.json` stays the only edited source of truth.
 
@@ -339,7 +362,7 @@ Generates TypeScript DTOs from the server OpenAPI document (via `openapi-typescr
 pnpm --filter poyo-template run build
 ```
 
-`poyo build` reads the Vite manifest, copies active assets into `wwwroot/generated`, prunes stale files, and rewrites `_ReactAssets.cshtml` with the current entry JS/CSS.
+`poyo build` reads the Vite manifest, copies active assets into `wwwroot/generated`, prunes stale files, and rewrites `_ReactAssets.cshtml` with the current entry JS/CSS. The client ships no `index.html` — the Razor views own every document and the Vite build entry is the client module (`src/main.tsx`) — so only manifest-referenced assets ever reach `wwwroot`.
 
 ---
 
@@ -426,7 +449,7 @@ All three packages share one version and are published together from a git tag.
 3. **Verify** with `pnpm run release:check` (zero-arg lockstep check) or `node scripts/assert-release-version.mjs <version>`.
 4. **Ensure every package has a `README.md`** in its own directory (`packages/<pkg>/README.md`). npm renders the readme from the package directory — a missing file publishes an empty readme. The release workflow fails the build if any package lacks one. `poyo-template`'s README doubles as the README of every generated project (the scaffolder copies it wholesale), so keep it rename-safe: `Poyo`/`Poyo.Server`/`poyo.client` tokens are rewritten to the project name.
 5. **Cut a tag** `v<version>` and push it. `.github/workflows/release.yml` runs: install, `tsc` build, asserts versions match the tag, fails if the version is already on npm, then publishes all three via `pnpm publish` with `NPM_TOKEN` (a classic npm token secret — required because npm Trusted Publishing/OIDC cannot create brand-new packages), then creates a GitHub Release from the root `CHANGELOG.md` entry.
-6. **Run the publish-time gate** with `pnpm run test:release` after the workflow completes (or at any time): the lockstep unit tests plus the fixture e2e (`scripts/fixture-e2e.test.mjs`), which scaffolds a real project with the local scaffolder, installs `@rubichandrap/poyo` from npm at the release version, and asserts the resolved package ships `dist/runtime/route-table.js` and the built client bundle carries the route-table module (anchored on its `[RouteTable]` diagnostic prefix — the production minifier renames `createRouteTable`, so the literal prefix is the stable proof) plus the `usePage` accessor. The fixture is **red until the version is published** — an unpublished version fails `pnpm install` with a `[RED-UNTIL-PUBLISHED]` diagnostic, and a published-but-old version fails the runtime-subpath assertion with an explanatory message. Run it pre-publish to confirm the gate works; it goes green only once the release resolves from npm.
+6. **Run the publish-time gate** with `pnpm run test:release` after the workflow completes (or at any time): the lockstep unit tests plus the fixture e2e (`scripts/fixture-e2e.test.mjs`), which scaffolds a real project with the local scaffolder, installs `@rubichandrap/poyo` from npm at the release version, and asserts the shipped shape end to end — the resolved package carries `dist/runtime/route-table.js` plus the navigation subpaths (`router.js`, `link.js`); the scaffolded server compiles the framework core from `node_modules` with no in-tree framework copies; the registry's `"dynamic": false` survives the scaffolder's rename; no committed route manifest and no client `index.html`; and the running server answers the descriptor wire contract (JSON `{ name, seo, pageData }` + `Vary` on a dynamic route, the document on the opted-out route, a challenge — never a payload — for an anonymous protected descriptor, and `pageData` identical to the document's `window.SERVER_DATA`). The built client bundle is grepped for the runtime surface, anchored on literals the production minifier cannot rename: the route-table module's `[RouteTable]` diagnostic prefix (the minifier renames `createRouteTable`), the router's `X-Poyo-Navigation` header literal, `Link`'s `data-dynamic-nav` opt-out attribute, the `routePath` init guard message, and the `usePage` accessor. The fixture is **red until the version is published** — an unpublished version fails `pnpm install` with a `[RED-UNTIL-PUBLISHED]` diagnostic, and a published-but-old version fails the runtime-subpath assertion with an explanatory message. Run it pre-publish to confirm the gate works; it goes green only once the release resolves from npm.
 
 ---
 

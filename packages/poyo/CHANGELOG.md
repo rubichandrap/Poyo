@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Added
+
+- Server core ships as readable source under `server/` (fixed namespace `Poyo.Framework`): `RoutePolicy`, `RouteDefinition`, the universal access and SEO filters, `PageResult`, `PageController`, `ControllerExtensions.PoyoPage()`, and the `AddPoyo()` / `MapPoyoRoutes()` registration extensions. Generated projects compile it in place through their csproj — no copy step, no NuGet package
+- Navigation subpaths: `@rubichandrap/poyo/runtime/router` (`createRouter`, `useRouter`) and `@rubichandrap/poyo/runtime/link` (`Link`), both re-exported from the runtime root, plus the descriptor-fetch navigation core with history writes, SEO/focus/announcement, popstate traversal, and scroll restoration
+- `routePath()` and the `RouteName`/`RoutePath` types, resolved from the active route table and typed by the generated manifest; calling `routePath` before the route table initializes throws a clear error
+- Registry `dynamic` field accepted and preserved by every route command, with non-boolean values rejected naming the route
+
+### Changed
+
+- The generated manifest (`<client>/routes.generated.ts`) becomes an ambient module augmentation of `PoyoRouteRegistry` imported by no one — it no longer exports manifest values, and the file is gitignored again (ADR 0010)
+
 ## [0.4.1] - 2026-09-08
 
 ### Changed

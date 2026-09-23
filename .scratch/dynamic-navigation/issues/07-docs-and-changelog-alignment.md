@@ -4,10 +4,10 @@
 
 **Blocked by:** 01 — Server core bundles; 02 — Registry `dynamic`; 03 — Manifest encapsulation; 04 — Dynamic navigation; 05 — Traversal; 06 — Fixture e2e
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] AGENTS.md: controller strategy reflects the bundled page result/controller and the custom-controller helper; route resolution reflects the runtime-owned typed routes and navigation subpaths; route management documents the `dynamic` field
-- [ ] Root README: features, core concepts (dynamic navigation section), what's-included list, and project structure match the shipped shape
-- [ ] Package READMEs updated (framework package: server core + runtime subpaths; template: no manifest/no index HTML, dev loop unchanged)
-- [ ] CHANGELOGs (root + three packages) carry the feature entry in Keep a Changelog form
-- [ ] No doc claims the manifest is committed or that the client ships an index HTML; no doc implies NuGet delivery of the server core
+- [x] AGENTS.md: controller strategy reflects the bundled page result/controller and the custom-controller helper; route resolution reflects the runtime-owned typed routes and navigation subpaths; route management documents the `dynamic` field
+- [x] Root README: features, core concepts (dynamic navigation section), what's-included list, and project structure match the shipped shape
+- [x] Package READMEs updated (framework package: server core + runtime subpaths; template: no manifest/no index HTML, dev loop unchanged)
+- [x] CHANGELOGs (root + three packages) carry the feature entry in Keep a Changelog form
+- [x] No doc claims the manifest is committed or that the client ships an index HTML; no doc implies NuGet delivery of the server core

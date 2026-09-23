@@ -31,7 +31,6 @@ Demo login: `demo` / `password`.
 ```
 Poyo.Server/      # ASP.NET Core MVC server
   Controllers/    #   view controllers (root) + API controllers (Api/)
-  Routing/        #   RoutePolicy + universal access/SEO filters
   Middleware/     #   global error handling
   Models/         #   DTOs
   Services/       #   business logic
@@ -39,6 +38,7 @@ Poyo.Server/      # ASP.NET Core MVC server
 poyo.client/      # React client (Vite + TypeScript + Tailwind)
   routes.generated.ts # gitignored typed route manifest (ambient augmentation)
   openapi/        #   committed offline OpenAPI snapshot (openapi.json)
+  src/main.tsx    #   client build entry (no index.html — Razor views own every document)
   src/pages/      #   one React page per route
   src/routes/     #   route adapter (route-loader.ts)
   src/hooks-api/  #   TanStack Query hooks
@@ -46,6 +46,8 @@ poyo.client/      # React client (Vite + TypeScript + Tailwind)
   src/schemas/    #   generated DTOs + Zod schemas
 routes.json       # route registry: URL path -> page + view
 ```
+
+The server carries no routing code of its own: `Poyo.Server.csproj` compiles the framework's server core (`RoutePolicy`, the access/SEO filters, `PageResult`, `PageController`) straight from the installed `@rubichandrap/poyo` package, visible in your IDE under a `Framework` link. Run `pnpm install` before the first server build — that is where those files come from, and a build without them fails with that instruction.
 
 ## Routes
 
@@ -60,11 +62,14 @@ routes.json       # route registry: URL path -> page + view
     "view": "Views/Dashboard/Index.cshtml"
   },
   "access": "protected",
+  "dynamic": true,
   "seo": { "title": "Dashboard", "description": "View your stats" }
 }
 ```
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). The server enforces it for every registry route — custom-controller routes included — so no per-action attributes are needed: `protected` challenges anonymous users (redirect to login, 401 for API calls), `guest` redirects authenticated users to the landing page, `public` is open. Registry `seo` (title, description, meta, JSON-LD) is applied to every route, with the route name as the default title.
+
+`dynamic` is an optional boolean (default `true`): set `false` to keep a route document-only, out of dynamic navigation (the `Register` route in this project is the example). Edit it by hand in `routes.json` — the CLI validates and preserves it, and a non-boolean value fails loudly with the route named.
 
 On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it globs the page files, resolves the server-injected base path (`data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), and calls `createRouteTable` from `@rubichandrap/poyo/runtime` with `routes.json` — route resolution ships from the framework package, not from this project. The typed manifest `routes.generated.ts` is gitignored at the client package root and kept fresh by every route command and `poyo generate` — use `routePath("Login")` (imported from `@rubichandrap/poyo/runtime`) for static links so a renamed route breaks the build instead of 404ing.
 
@@ -78,6 +83,22 @@ pnpm run route:remove User/Profile
 pnpm run route:update User/Profile --public true
 pnpm run route:sync                        # reconcile routes.json with files on disk
 ```
+
+## Dynamic navigation
+
+Internal navigation swaps only the page component below the loaded shell, so providers, the React Query cache, and any long-lived client state survive. It is explicit — a plain `<a>` stays a full document load:
+
+```tsx
+import { Link } from "@rubichandrap/poyo/runtime/link";
+import { useRouter } from "@rubichandrap/poyo/runtime/router";
+
+<Link href={routePath("Login")}>Sign in</Link>
+
+const router = useRouter();
+await router.push(routePath("Dashboard"));   // also: replace, back, forward
+```
+
+`useRouter().route` is the shell's reactive current route, and `usePage()` returns the destination page's data after every swap. Browser Back/Forward swap pages the same way, with scroll positions restored per history entry; a URL the client never navigated to is an ordinary document load. Every failure — an unreachable descriptor, an unknown page, an apply error — falls back to a document load of the same URL, so the worst case is what a plain link would have done. Navigation requests are access-enforced exactly like the document: a protected page's descriptor challenges anonymous callers instead of leaking its payload.
 
 ## Scripts
 

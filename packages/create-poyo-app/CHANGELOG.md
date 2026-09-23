@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Changed
+
+- Scaffolded projects inherit the bundled server core (the csproj compiles `@rubichandrap/poyo/server/**/*.cs` in place — no in-tree framework copies), no client `index.html`, and the gitignored route manifest
+- The framework identifiers (`Poyo.Framework`, `AddPoyo`, `MapPoyoRoutes`, `PoyoPage`, `X-Poyo-Navigation`) are protected from the project rename, so the installed server core keeps working by construction
+- `routes.generated.ts` is excluded from scaffolding (the template's committed copy no longer reaches generated projects)
+
+### Fixed
+
+- Scaffolding no longer copies the template's stale `routes.generated.ts` into a project whose registry may differ
+
 ## [0.4.1] - 2026-09-08
 
 ### Fixed
