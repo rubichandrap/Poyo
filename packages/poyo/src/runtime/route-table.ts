@@ -84,6 +84,7 @@ export interface RouteTableOptions {
 }
 
 export interface RouteTable {
+	basePath: string;
 	routes: AppRoute[];
 	routeMap: Record<string, AppRoute["component"]>;
 	/**
@@ -206,6 +207,7 @@ export function createRouteTable(
 	if (dev) detectGhostRoutes();
 
 	const table: RouteTable = {
+		basePath,
 		routes,
 		routeMap,
 		findRouteByName,
@@ -233,6 +235,13 @@ export function registerRouteTable(table: RouteTable | undefined): void {
  */
 export function clearActiveRouteTable(): void {
 	activeRouteTable = undefined;
+}
+
+/**
+ * Returns the active registered route table, if any.
+ */
+export function getActiveRouteTable(): RouteTable | undefined {
+	return activeRouteTable;
 }
 
 /**

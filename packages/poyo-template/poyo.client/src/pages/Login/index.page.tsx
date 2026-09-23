@@ -4,6 +4,7 @@ import { z } from "zod";
 import { useLogin } from "~/hooks-api/auth";
 import { appUrl } from "~/lib/base-url";
 import { isHttpError } from "~/lib/http";
+import { Link } from "@rubichandrap/poyo/runtime/link";
 import { routePath } from "@rubichandrap/poyo/runtime";
 import { schemas } from "~/schemas/validations.generated";
 
@@ -167,12 +168,12 @@ export default function LoginPage() {
 
 					{/* Back to Home */}
 					<div className="mt-8 text-center">
-						<a
+						<Link
 							href={appUrl(routePath("Home"))}
 							className="text-sm font-semibold text-slate-400 hover:text-[#5ba4fc] transition-colors"
 						>
 							← Back to Home
-						</a>
+						</Link>
 					</div>
 				</div>
 

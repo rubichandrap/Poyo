@@ -20,3 +20,11 @@ export {
 	type RouteTable,
 	type RouteTableOptions,
 } from "./route-table.js";
+export { Link, type LinkProps } from "./link.js";
+export {
+	createRouter,
+	useRouter,
+	type Router,
+	type RouterOptions,
+	type PageDescriptor,
+} from "./router.js";
