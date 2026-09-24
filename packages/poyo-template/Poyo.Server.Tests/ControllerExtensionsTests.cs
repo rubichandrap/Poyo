@@ -39,13 +39,14 @@ public class ControllerExtensionsTests
     }
 
     [Fact]
-    public void PoyoPage_accepts_absent_data()
+    public async Task PoyoPage_accepts_absent_data()
     {
         var controller = CreateController();
 
         var result = controller.PoyoPage();
+        var descriptor = await ExecuteDescriptorAsync(result, controller);
 
-        Assert.NotNull(result);
+        Assert.Equal(JsonValueKind.Null, descriptor.GetProperty("pageData").ValueKind);
     }
 
     [Theory]
@@ -166,7 +167,8 @@ public class ControllerExtensionsTests
     {
         public string Path => "/Views/Available.cshtml";
 
-        public Task RenderAsync(ViewContext context) => Task.CompletedTask;
+        public Task RenderAsync(ViewContext context) =>
+            throw new InvalidOperationException("Descriptor generation must not render the view.");
     }
 
     private sealed class TestController : Controller
