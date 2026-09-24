@@ -36,12 +36,7 @@
     <!-- React components will be hydrated here -->
     @RenderBody()
 
-    <script>
-        @if (ViewData["ServerData"] is not null)
-        {
-            @:window.SERVER_DATA = @Html.Raw(ViewData["ServerData"]);
-        }
-    </script>
+    @Html.PoyoPageData()
 
     <!-- Load built React app -->
    <environment include="Development">

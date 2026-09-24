@@ -63,12 +63,7 @@ public sealed class PageResult : ViewResult
 
         if (explicitPageData is not null)
         {
-            // PoyoPage(data): the controller-provided payload is the document's
-            // window.SERVER_DATA and the descriptor's pageData alike — the
-            // same structured Page data value. A view assigning
-            // ViewBag.ServerData would overwrite it, which custom controllers
-            // using PoyoPage should treat as theirs to avoid.
-            result.ViewData["ServerData"] = explicitPageData.Value;
+            result.ViewData[HtmlHelperExtensions.PageDataViewDataKey] = explicitPageData.Value;
         }
 
         return result;
