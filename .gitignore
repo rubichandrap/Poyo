@@ -329,10 +329,6 @@ packages/poyo-template/Poyo.Server/Views/Shared/_ReactAssets.cshtml
 !.opencode/.gitkeep
 .freebuff
 !.freebuff/.gitkeep
-.hermes
-!.hermes/.gitkeep
-.pi
-!.pi/.gitkeep
 
 .mcp.json
 
