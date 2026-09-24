@@ -761,8 +761,8 @@ test(
 				"a challenged descriptor must not leak its payload",
 			);
 
-			// An authenticated descriptor on the protected route carries the
-			// same data the document injects (per-request timestamp aside).
+			// The descriptor and document use the same representation for the
+			// stable fields; the controller's timestamp is request-specific.
 			const loginApiRes = await fetch(
 				`http://127.0.0.1:${serverPort}/api/Auth/Login`,
 				{

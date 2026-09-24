@@ -15,7 +15,8 @@ public static class ControllerExtensions
     /// page name, and SEO resolve from the registry route for the request
     /// path; <paramref name="pageData"/> becomes window.SERVER_DATA on the
     /// document and the pageData of the navigation descriptor — the same
-    /// structured Page data value. Data must be a JSON object or
+    /// structured value for this controller-produced result. A later request
+    /// can produce fresh time-varying fields. Data must be a JSON object or
     /// null. A string must contain a pre-serialized JSON object; other objects
     /// are serialized with camelCase property names. For a path outside the
     /// registry, the result falls back to plain view rendering.

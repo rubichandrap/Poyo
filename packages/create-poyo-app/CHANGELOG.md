@@ -9,12 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- Newly scaffolded projects inherit controller-only Page data: data-bearing routes use `this.PoyoPage(data)`, the shared layout uses the framework's `@Html.PoyoPageData()` helper, and document `window.SERVER_DATA` is structurally equal to navigation descriptor `pageData`.
+- Newly scaffolded projects inherit controller-only Page data: data-bearing routes use `this.PoyoPage(data)`, the shared layout uses the framework's `@Html.PoyoPageData()` helper, and for the same controller-produced value document `window.SERVER_DATA` is structurally equal to navigation descriptor `pageData`.
 - Generated projects now require Page data to be a JSON object or `null`; arrays and primitives fail at the controller seam.
 
 ### Removed
 
-- The scaffolded template no longer teaches or ships view-authored `ViewBag.ServerData` and raw layout script embedding. Existing projects must move Page data into a custom controller action that returns `this.PoyoPage(data)`, map the route in `routes.json`, and replace the raw layout script with `@Html.PoyoPageData()`. Wrap arrays or primitives in a top-level property such as `{ items = values }`.
+- The scaffolded template no longer teaches or ships view-authored `ViewBag.ServerData` and raw layout script embedding. Existing projects must move Page data into a custom controller action that returns `this.PoyoPage(data)`, map the route in `routes.json`, add `@using Poyo.Framework` to `Views/_ViewImports.cshtml`, and replace the raw layout script with `@Html.PoyoPageData()`. Wrap arrays or primitives in a top-level property such as `{ items = values }`.
 
 ## [0.5.0-beta.1] - 2026-09-24
 

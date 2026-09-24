@@ -127,10 +127,11 @@ public IActionResult Index()
 The shared layout embeds the controller-supplied object safely through `@Html.PoyoPageData()`:
 
 ```cshtml
+@using Poyo.Framework
 @Html.PoyoPageData()
 ```
 
-React reads the initial value with `usePage<T>()` from `@rubichandrap/poyo/runtime`; dynamic navigation supplies the destination's structurally equal `pageData` to the same hook:
+React reads the initial value with `usePage<T>()` from `@rubichandrap/poyo/runtime`; dynamic navigation supplies the destination's `pageData` to the same hook. The representation matches the same normalized value, while a later controller invocation may produce fresh time-varying fields:
 
 ```tsx
 import { usePage } from "@rubichandrap/poyo/runtime";

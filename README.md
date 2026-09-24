@@ -178,10 +178,11 @@ Map the registry route with `"controller": "Dashboard", "action": "Index"`. Regi
 
 **Shared layout (Razor):**
 ```cshtml
+@using Poyo.Framework
 @Html.PoyoPageData()
 ```
 
-The layout helper safely embeds the controller-supplied object as `window.SERVER_DATA`. It emits no script when Page data is absent. The same structured value is returned as `pageData` for dynamic navigation.
+The layout helper safely embeds the controller-supplied object as `window.SERVER_DATA`. It emits no script when Page data is absent. For the same normalized Page data value, the dynamic-navigation descriptor returns the same structure as `pageData`; a later request runs the controller again, so time-varying fields can differ.
 
 **View (Razor):**
 ```cshtml
@@ -217,7 +218,7 @@ How it works:
 1. The controller prepares Page data and returns `this.PoyoPage(data)`.
 2. `_Layout.cshtml` embeds it safely through `@Html.PoyoPageData()`.
 3. React hydrates and `usePage()` reads the navigation store seeded from `window.SERVER_DATA`.
-4. Dynamic navigation replaces the store's data with the destination descriptor's structurally equal `pageData`.
+4. Dynamic navigation replaces the store's data with the destination descriptor's `pageData`; the representation matches the same normalized value, while a later controller invocation may produce fresh time-varying fields.
 
 `PoyoPage` accepts a JSON object or `null`; arrays and primitives are rejected. Wrap non-object data in a property such as `{ items = values }`. There is no initial Page data API call or loading spinner, and TypeScript constrains the client shape.
 

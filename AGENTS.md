@@ -44,7 +44,7 @@ Poyo is intentionally minimal. It provides:
 - Controllers are the sole Page data authors. Razor views never assign `ViewBag.ServerData` or otherwise supply Page data.
 - `this.PoyoPage(data)` accepts a JSON object or `null`; arrays and primitives fail at the controller seam. Wrap non-object data in a top-level property.
 - `_Layout.cshtml` embeds controller data with `@Html.PoyoPageData()`, never a raw `@Html.Raw` script. The helper emits nothing when data is absent and HTML-encodes `<`/`>` in the embedded script.
-- Document `window.SERVER_DATA` and descriptor `pageData` are structurally equal, not necessarily byte-identical, because document embedding escapes HTML-sensitive characters.
+- Document `window.SERVER_DATA` and descriptor `pageData` are structurally equal for the same normalized Page data value, not necessarily byte-identical, because document embedding escapes HTML-sensitive characters. A later descriptor request runs the controller again, so time-varying fields can differ.
 - Default `PageController.Index` routes have no Page data. Map a registry route to a custom controller when it needs data.
 
 **API Controllers**
@@ -56,14 +56,14 @@ Poyo is intentionally minimal. It provides:
 
 **Registry Pages (framework)**
 - **Served by**: `PageController.Index`, from the framework package's server core (`Poyo.Framework`), for every registry route without an explicit `controller`; these routes have no Page data.
-- **Returns**: `PageResult` — the single result type for registry pages. It answers the document exactly as a plain `ViewResult` would, and answers the JSON page descriptor (`{ name, seo, pageData }`) when the request carries `X-Poyo-Navigation: 1`. Both representations carry the same structured `pageData`.
+- **Returns**: `PageResult` — the single result type for registry pages. It answers the document exactly as a plain `ViewResult` would, and answers the JSON page descriptor (`{ name, seo, pageData }`) when the request carries `X-Poyo-Navigation: 1`. For the same normalized controller-produced value, both representations carry the same structured `pageData`; separate requests can produce fresh time-varying fields.
 - **Rule**: never hand-roll either representation; route custom pages through the framework result.
 
 **Custom Controllers**
 - **Purpose**: Complex page logic, specialized data fetching, Page data, or custom view rendering.
 - **Usage**: Map in `routes.json` via `"controller"` and `"action"` properties.
 - **CLI**: Use `pnpm run route:add ... --controller MyController` to generate.
-- **Result**: `return this.PoyoPage(data)` (`ControllerExtensions`) joins the dynamic-navigation contract — view path, page name, and SEO resolve from the registry route for the request path, and `data` becomes `window.SERVER_DATA` on the document and the descriptor's `pageData` alike. For a path outside the registry the result degrades to a plain view render.
+- **Result**: `return this.PoyoPage(data)` (`ControllerExtensions`) joins the dynamic-navigation contract — view path, page name, and SEO resolve from the registry route for the request path, and `data` becomes `window.SERVER_DATA` on the document and the descriptor's `pageData` alike for that controller-produced value. A later request can produce fresh time-varying fields. For a path outside the registry the result degrades to a plain view render.
 
 ### 2.2. SEO & Metadata
 - **Configuration**: Managed in `routes.json` under `"seo"` object.
@@ -196,7 +196,7 @@ export default function DashboardPage() {
 
 ### 3.3. Server Data Hook
 
-**Source**: `usePage` ships from the framework package — `@rubichandrap/poyo/runtime` — not from the project. The package also declares `Window.SERVER_DATA?: unknown` globally. Controllers supply Page data through `this.PoyoPage(data)`, and `_Layout.cshtml` embeds it through `@Html.PoyoPageData()` into `window.SERVER_DATA`. The accessor reads the runtime's navigation store: that initial value seeds it, and every dynamic navigation commits the descriptor's structurally equal `pageData` to it (§3.7).
+**Source**: `usePage` ships from the framework package — `@rubichandrap/poyo/runtime` — not from the project. The package also declares `Window.SERVER_DATA?: unknown` globally. Controllers supply Page data through `this.PoyoPage(data)`, and `_Layout.cshtml` embeds it through `@Html.PoyoPageData()` into `window.SERVER_DATA`. The accessor reads the runtime's navigation store: that initial value seeds it, and every dynamic navigation commits the descriptor's `pageData` to it (§3.7); the representation is structurally equal for the same normalized value, while a later controller invocation may produce fresh time-varying fields.
 
 **Usage:**
 ```typescript
@@ -468,7 +468,7 @@ All three packages share one version and are published together from a git tag.
 
    After the workflow publishes all three packages, run `pnpm run test:release`. It combines the lockstep unit tests with the npm-backed fixture e2e and is the release acceptance gate.
 
-7. **Treat the fixture as post-publish evidence.** `scripts/fixture-e2e.test.mjs` scaffolds a real project, installs `@rubichandrap/poyo` at the release version from npm, and verifies the published runtime/server shape, generated-project rename, build, served document, and navigation descriptor — including structural equality between document `window.SERVER_DATA` and descriptor `pageData`. It is intentionally red until that version is published. A pre-publish run may confirm the `[RED-UNTIL-PUBLISHED]` diagnostic, but only a post-publish green fixture completes the release gate.
+7. **Treat the fixture as post-publish evidence.** `scripts/fixture-e2e.test.mjs` scaffolds a real project, installs `@rubichandrap/poyo` at the release version from npm, and verifies the published runtime/server shape, generated-project rename, build, served document, and navigation descriptor — including representation parity for stable fields between document `window.SERVER_DATA` and descriptor `pageData`; controller-generated timestamps can differ between requests. It is intentionally red until that version is published. A pre-publish run may confirm the `[RED-UNTIL-PUBLISHED]` diagnostic, but only a post-publish green fixture completes the release gate.
 
 ---
 

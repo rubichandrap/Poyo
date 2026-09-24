@@ -6,8 +6,9 @@ import { getNavigationStore } from "./navigation-store.js";
  * A view controller supplies data through `this.PoyoPage(data)`. The shared
  * layout embeds that object into `window.SERVER_DATA` through
  * `@Html.PoyoPageData()`, which seeds the client navigation store. Dynamic
- * navigation updates the store with the descriptor's structurally equal
- * `pageData`.
+ * navigation updates the store with the descriptor's `pageData`; its
+ * representation matches the same normalized value, while a later controller
+ * invocation may produce fresh time-varying fields.
  * It is SSR-safe: without a `window` it returns null, and non-object
  * payloads (missing, null, arrays, primitives) also resolve to null — only
  * a plain object is returned, typed with `T`.

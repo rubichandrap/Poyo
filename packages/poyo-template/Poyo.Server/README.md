@@ -89,7 +89,7 @@ public IActionResult Index()
 }
 ```
 
-The shared layout embeds the same structured value safely through `@Html.PoyoPageData()`, and dynamic navigation returns it as descriptor `pageData`. `PoyoPage` accepts a JSON object or `null`; arrays and primitives are rejected.
+The shared layout imports `Poyo.Framework` and embeds the same structured value safely through `@Html.PoyoPageData()`, and dynamic navigation returns the same representation as descriptor `pageData` for that controller-produced value. A later request can produce fresh time-varying fields. `PoyoPage` accepts a JSON object or `null`; arrays and primitives are rejected.
 
 ### 4. React Integration (`_ReactAssets.cshtml`)
 

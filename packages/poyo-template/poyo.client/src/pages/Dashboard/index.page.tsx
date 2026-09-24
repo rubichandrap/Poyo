@@ -50,11 +50,7 @@ export default function DashboardPage() {
 							<span className="text-2xl">🎯</span> Server Data Demo
 						</h2>
 						<p className="text-slate-500 mb-4">
-							This data was injected from the server using the{" "}
-							<code className="bg-sky-50 text-[#5ba4fc] px-2 py-1 rounded-lg text-sm font-bold">
-								[ServerData]
-							</code>{" "}
-							attribute and accessed via{" "}
+							This data was injected by the controller and accessed via{" "}
 							<code className="bg-sky-50 text-[#5ba4fc] px-2 py-1 rounded-lg text-sm font-bold">
 								usePage()
 							</code>{" "}
@@ -72,11 +68,8 @@ export default function DashboardPage() {
 							<span className="text-2xl">✅</span> Protected Route
 						</h2>
 						<p className="text-slate-500 mb-4">
-							This page is protected by the{" "}
-							<code className="bg-sky-50 text-[#5ba4fc] px-2 py-1 rounded-lg text-sm font-bold">
-								[Authorize]
-							</code>{" "}
-							attribute. Only authenticated users can access it.
+							This page is protected by the route&apos;s protected access
+							setting. Only authenticated users can access it.
 						</p>
 						<ul className="space-y-3 text-slate-600">
 							<li className="flex items-start gap-2">

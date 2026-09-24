@@ -64,6 +64,12 @@ describe("create-poyo-app", () => {
 		);
 		expect(layout).toContain("@Html.PoyoPageData()");
 		expect(layout).not.toContain("MyAppPageData");
+
+		const viewImports = readFile(
+			cwd,
+			"MyApp/MyApp.Server/Views/_ViewImports.cshtml",
+		);
+		expect(viewImports).toContain("@using Poyo.Framework");
 	});
 
 	it("keeps the poyo CLI binary name in scripts and renames pnpm filters", () => {
