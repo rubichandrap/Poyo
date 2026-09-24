@@ -29,6 +29,7 @@ public sealed class TestCustomController : Controller
             markup = "</script><script>alert('xss')</script>",
             entities = "&amp; &lt; &gt; &#39; &quot;",
             special = "quotes: \" apostrophe: ' backslash: \\ slash: / newline:\n tab:\t",
+            __proto__ = "safe",
         });
     }
 

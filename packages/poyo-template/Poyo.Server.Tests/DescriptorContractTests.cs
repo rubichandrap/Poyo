@@ -90,14 +90,14 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     public async Task Document_and_descriptor_page_data_are_structurally_equal()
     {
         var (documentBody, pageData) = await GetPageDataRepresentationsAsync(CreateClient());
-        var documentJson = ExtractDocumentPageData(documentBody);
-        using var document = JsonDocument.Parse(documentJson);
+        var documentData = DocumentPageData.Extract(documentBody);
 
         Assert.True(
-            JsonElement.DeepEquals(document.RootElement, pageData),
-            $"document payload {documentJson} != descriptor pageData {pageData}");
+            JsonElement.DeepEquals(documentData, pageData),
+            $"document payload {documentData} != descriptor pageData {pageData}");
         Assert.Equal("deterministic", pageData.GetProperty("message").GetString());
         Assert.Equal(42, pageData.GetProperty("answer").GetInt32());
+        Assert.Equal("safe", pageData.GetProperty("__proto__").GetString());
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     {
         var (documentBody, pageData) = await GetPageDataRepresentationsAsync(CreateClient());
 
-        Assert.Contains("\\u003C/script\\u003E", documentBody, StringComparison.Ordinal);
+        Assert.Contains("\\\\u003C/script\\\\u003E", documentBody, StringComparison.Ordinal);
         Assert.DoesNotContain("</script><script>alert", documentBody, StringComparison.Ordinal);
         Assert.Equal(
             "</script><script>alert('xss')</script>",
@@ -249,24 +249,6 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         return (documentBody, descriptorDocument.RootElement.GetProperty("pageData").Clone());
     }
 
-    private static string ExtractDocumentPageData(string documentBody)
-    {
-        const string marker = "window.SERVER_DATA = ";
-        var markerStart = documentBody.IndexOf(marker, StringComparison.Ordinal);
-        Assert.True(markerStart >= 0, "The document does not contain Page data.");
-
-        var start = markerStart + marker.Length;
-        var end = documentBody.IndexOf("</script>", start, StringComparison.Ordinal);
-        Assert.True(end > start, "The document Page data script is not closed.");
-
-        var json = documentBody[start..end].Trim();
-        if (json.EndsWith(';'))
-        {
-            json = json[..^1].TrimEnd();
-        }
-
-        return json;
-    }
 }
 
 public sealed class DescriptorServerFixture : IDisposable

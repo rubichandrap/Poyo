@@ -37,6 +37,7 @@ public static class HtmlHelperExtensions
         }
 
         var json = JsonSerializer.Serialize(pageData, PageDataJsonOptions);
-        return new HtmlString($"<script>window.SERVER_DATA = {json};</script>");
+        var jsonLiteral = JsonSerializer.Serialize(json, PageDataJsonOptions);
+        return new HtmlString($"<script>window.SERVER_DATA = JSON.parse({jsonLiteral});</script>");
     }
 }

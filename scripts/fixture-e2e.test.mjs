@@ -116,6 +116,19 @@ function authCookieOf(response) {
 	return setCookies.map((cookie) => cookie.split(";")[0]).join("; ");
 }
 
+function extractDocumentPageData(documentBody) {
+	const marker = "window.SERVER_DATA = JSON.parse(";
+	const markerStart = documentBody.indexOf(marker);
+	assert.notEqual(markerStart, -1, "the document does not contain Page data");
+
+	const start = markerStart + marker.length;
+	const end = documentBody.indexOf(");</script>", start);
+	assert.ok(end > start, "the document Page data script is not closed");
+
+	const json = JSON.parse(documentBody.slice(start, end));
+	return JSON.parse(json);
+}
+
 function getFreePort() {
 	return new Promise((resolve, reject) => {
 		const srv = net.createServer();
@@ -768,26 +781,7 @@ test(
 			);
 			assert.equal(dashboardDocumentRes.status, 200);
 			const dashboardHtml = await dashboardDocumentRes.text();
-			const dataMarker = "window.SERVER_DATA = ";
-			const dataStart = dashboardHtml.indexOf(dataMarker);
-			assert.ok(
-				dataStart >= 0,
-				"the Dashboard document must inject window.SERVER_DATA",
-			);
-			const dataEnd = dashboardHtml.indexOf(
-				"</script>",
-				dataStart + dataMarker.length,
-			);
-			assert.ok(
-				dataEnd > dataStart,
-				"the Dashboard document must close its window.SERVER_DATA script",
-			);
-			const dashboardDocumentData = JSON.parse(
-				dashboardHtml
-					.slice(dataStart + dataMarker.length, dataEnd)
-					.trim()
-					.replace(/;+$/, ""),
-			);
+			const dashboardDocumentData = extractDocumentPageData(dashboardHtml);
 
 			const dashboardDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Dashboard`,
