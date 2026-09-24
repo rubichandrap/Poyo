@@ -61,7 +61,9 @@
 			"react": "src/pages/StaticData/index.page.tsx",
 			"view": "Views/StaticData/Index.cshtml"
 		},
-		"access": "public"
+		"access": "public",
+		"controller": "TestCustom",
+		"action": "StaticData"
 	},
 	{
 		"path": "/BadData",
@@ -82,6 +84,17 @@
 			"view": "Views/DoesNotExist/Index.cshtml"
 		},
 		"access": "public"
+	},
+	{
+		"path": "/CustomMissingView",
+		"name": "CustomMissingView",
+		"files": {
+			"react": "src/pages/CustomMissingView/index.page.tsx",
+			"view": "Views/DoesNotExist/CustomMissingView.cshtml"
+		},
+		"access": "public",
+		"controller": "TestCustom",
+		"action": "Page"
 	},
 	{
 		"path": "/OptOut",

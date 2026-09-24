@@ -4,8 +4,8 @@ namespace Poyo.Server.Tests;
 
 /// <summary>
 /// PageResult's result-construction surface over the fixture route: For()
-/// builds a ViewResult for the registry view, explicit pageData overrides the
-/// view harvest, and non-registry usage degrades to a plain view result.
+/// builds a ViewResult for the registry view and non-registry usage degrades to
+/// a plain view result.
 /// </summary>
 public class PageResultTests
 {
@@ -39,16 +39,6 @@ public class PageResultTests
         var result = PageResult.For(new TestController(), viewPath: null, route: null);
 
         Assert.Null(result.ViewName);
-    }
-
-    [Fact]
-    public void For_without_explicit_page_data_leaves_view_data_untouched()
-    {
-        var controller = new TestController();
-
-        PageResult.For(controller, viewPath: null, PublicRoute);
-
-        Assert.False(controller.ViewData.ContainsKey("ServerData"));
     }
 
     [Fact]

@@ -1,9 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewEngines;
-using Microsoft.AspNetCore.Mvc.ViewFeatures;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Poyo.Framework;
@@ -44,9 +42,8 @@ public sealed class PageResult : ViewResult
     /// fallback, when <paramref name="route"/> is null and the result behaves
     /// as a plain ViewResult. <paramref name="explicitPageData"/> is the
     /// structured Page data supplied by custom controllers (see
-    /// ControllerExtensions.PoyoPage); when absent, the descriptor harvests
-    /// the document's own window.SERVER_DATA payload so the document and the
-    /// descriptor carry the same value.
+    /// ControllerExtensions.PoyoPage); when absent, the descriptor carries no
+    /// Page data.
     /// </summary>
     public static PageResult For(
         Controller controller,
@@ -98,84 +95,21 @@ public sealed class PageResult : ViewResult
 
     private async Task ExecuteDescriptorAsync(ActionContext context)
     {
-        var response = context.HttpContext.Response;
-
-        var pageData = _explicitPageData;
-        if (pageData is null)
+        var view = FindView(context);
+        if (view is null)
         {
-            // Render the view into a discard writer purely to collect the
-            // window.SERVER_DATA payload the document would carry. The render
-            // is the only source: Razor executes the page against its own
-            // view-data copy, so a write the view makes to ViewBag never comes
-            // back on this result. The harvest validates each candidate as
-            // JSON, so a payload may contain any character — including ';'.
-            // A missing view is a missing page: not found, not a server error.
-            var view = FindView(context);
-            if (view is null)
-            {
-                response.StatusCode = StatusCodes.Status404NotFound;
-                return;
-            }
-
-            var rendered = new StringWriter();
-            await view.RenderAsync(CreateViewContext(context, view, rendered));
-            pageData = ParsePageData(ExtractServerData(rendered.ToString()));
+            context.HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
         }
 
+        var response = context.HttpContext.Response;
         var descriptor = new PageDescriptor(
             _route!.Name,
             _route.Seo,
-            pageData);
+            _explicitPageData);
 
         response.ContentType = "application/json; charset=utf-8";
         await response.WriteAsync(JsonSerializer.Serialize(descriptor, DescriptorJsonOptions));
-    }
-
-    /// <summary>
-    /// Reads the window.SERVER_DATA JSON literal out of a rendered document —
-    /// the assignment the layout template emits. Each candidate between the
-    /// marker and the closing script tag is JSON-validated, so a payload that
-    /// itself contains characters like ';' or '}' survives intact; the first
-    /// candidate that parses is the payload. Returns null when the document
-    /// carries no server data.
-    /// </summary>
-    private static string? ExtractServerData(string rendered)
-    {
-        const string marker = "window.SERVER_DATA = ";
-        const string terminator = "</script>";
-
-        var start = rendered.IndexOf(marker, StringComparison.Ordinal);
-        if (start < 0)
-        {
-            return null;
-        }
-
-        start += marker.Length;
-        var searchFrom = start;
-        while (searchFrom >= 0)
-        {
-            var end = rendered.IndexOf(terminator, searchFrom, StringComparison.Ordinal);
-            if (end < 0)
-            {
-                return null;
-            }
-
-            var candidate = rendered[start..end].Trim();
-            if (candidate.EndsWith(';'))
-            {
-                candidate = candidate[..^1].TrimEnd();
-            }
-
-            if (candidate.Length > 0 && PoyoJson.IsValid(candidate))
-            {
-                return candidate;
-            }
-
-            // Not a payload — could be a later script block; keep looking.
-            searchFrom = end + terminator.Length;
-        }
-
-        return null;
     }
 
     private IView? FindView(ActionContext context)
@@ -186,47 +120,14 @@ public sealed class PageResult : ViewResult
             return null;
         }
 
-        // Same resolution order as the ViewResult executor: first as an
-        // absolute or application-relative path, then as a name looked up in
-        // the view locations.
         var viewEngine = context.HttpContext.RequestServices
             .GetRequiredService<ICompositeViewEngine>();
-        var found = viewEngine.GetView(executingFilePath: null, viewName, isMainPage: true);
+        var found = viewEngine.FindView(context, viewName, isMainPage: true);
         if (!found.Success)
         {
-            found = viewEngine.FindView(context, viewName, isMainPage: true);
+            found = viewEngine.GetView(executingFilePath: null, viewName, isMainPage: true);
         }
 
         return found.View;
-    }
-
-    private ViewContext CreateViewContext(ActionContext context, IView view, TextWriter writer)
-    {
-        var tempDataProvider = context.HttpContext.RequestServices
-            .GetRequiredService<ITempDataProvider>();
-        var tempData = new TempDataDictionary(context.HttpContext, tempDataProvider);
-
-        return new ViewContext(
-            context,
-            view,
-            ViewData ?? new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary()),
-            tempData,
-            writer,
-            new HtmlHelperOptions());
-    }
-
-    private static JsonElement? ParsePageData(string? json)
-    {
-        if (string.IsNullOrWhiteSpace(json))
-        {
-            return null;
-        }
-
-        // JsonElement preserves the source bytes (raw number text, original
-        // member order, original escaping), so the descriptor's pageData is
-        // byte-identical to what the document injects into
-        // window.SERVER_DATA.
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.Clone();
     }
 }

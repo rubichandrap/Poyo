@@ -1,17 +1,5 @@
-@using System.Text.Json
 @{
     Layout = "_Layout";
-
-    // Deterministic payload: the descriptor contract test harvests this from
-    // both the document and the descriptor, so it must not vary per request.
-    // The note carries a semicolon on purpose — a payload that used to break
-    // the descriptor's HTML harvest.
-    ViewBag.ServerData = JsonSerializer.Serialize(new
-    {
-        message = "deterministic",
-        answer = 42,
-        note = "Saved; 3 items",
-    });
 }
 
 <div id="react-root" data-page-name="StaticData"></div>

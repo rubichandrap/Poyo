@@ -1,7 +1,11 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Abstractions;
+using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Poyo.Framework;
@@ -116,7 +120,9 @@ public class ControllerExtensionsTests
     private static TestController CreateController()
     {
         var services = new ServiceCollection();
+        services.AddSingleton<DiagnosticSource>(new DiagnosticListener("Poyo.Server.Tests"));
         services.AddControllersWithViews();
+        services.AddSingleton<ICompositeViewEngine, AvailableViewEngine>();
         services.AddSingleton(RoutePolicy.Load(TestEnvironment.FixturePath("routes.descriptor.json")));
         var serviceProvider = services.BuildServiceProvider();
         var httpContext = new DefaultHttpContext
@@ -135,6 +141,33 @@ public class ControllerExtensionsTests
     }
 
     private sealed record PageData(string Title, int Count);
+
+    private sealed class AvailableViewEngine : ICompositeViewEngine
+    {
+        public IReadOnlyList<IViewEngine> ViewEngines => [];
+
+        public ViewEngineResult FindView(
+            ActionContext context,
+            string viewName,
+            bool isMainPage) => ViewEngineResult.Found(viewName, new AvailableView());
+
+        public ViewEngineResult FindView(
+            ControllerContext context,
+            string viewName,
+            bool isMainPage) => ViewEngineResult.Found(viewName, new AvailableView());
+
+        public ViewEngineResult GetView(
+            string? executingFilePath,
+            string viewName,
+            bool isMainPage) => ViewEngineResult.Found(viewName, new AvailableView());
+    }
+
+    private sealed class AvailableView : IView
+    {
+        public string Path => "/Views/Available.cshtml";
+
+        public Task RenderAsync(ViewContext context) => Task.CompletedTask;
+    }
 
     private sealed class TestController : Controller
     {

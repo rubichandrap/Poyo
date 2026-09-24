@@ -19,6 +19,19 @@ public sealed class TestCustomController : Controller
         });
     }
 
+    public IActionResult StaticData()
+    {
+        return this.PoyoPage(new
+        {
+            message = "deterministic",
+            answer = 42,
+            note = "Saved; 3 items",
+            markup = "</script><script>alert('xss')</script>",
+            entities = "&amp; &lt; &gt; &#39; &quot;",
+            special = "quotes: \" apostrophe: ' backslash: \\ slash: / newline:\n tab:\t",
+        });
+    }
+
     /// <summary>
     /// Passes a string that is not JSON: PoyoPage must refuse it instead of
     /// sending broken data to the client.

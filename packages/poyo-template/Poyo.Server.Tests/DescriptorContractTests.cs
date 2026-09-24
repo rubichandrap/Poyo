@@ -10,10 +10,11 @@ using Poyo.Server.Tests.Support;
 namespace Poyo.Server.Tests;
 
 /// <summary>
-/// The dynamic-navigation wire contract as ADR 0009 fixes it for ticket 01:
-/// the navigation header earns a JSON page descriptor with a Vary header;
-/// the SEO/access model and the document payload are identical between the
-/// two representations. (The registry's dynamic opt-out belongs to ticket 02.)
+/// The dynamic-navigation wire contract as ADR 0009 fixes the descriptor shape
+/// and ADR 0012 fixes Page data parity: the navigation header earns a JSON page
+/// descriptor with a Vary header, and the document payload is structurally
+/// equal to the descriptor payload. (The registry's dynamic opt-out belongs to
+/// ticket 02.)
 /// </summary>
 public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
 {
@@ -86,39 +87,43 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     }
 
     [Fact]
-    public async Task Descriptor_page_data_is_byte_identical_to_the_document_payload()
+    public async Task Document_and_descriptor_page_data_are_structurally_equal()
     {
-        var client = CreateClient();
+        var (documentBody, pageData) = await GetPageDataRepresentationsAsync(CreateClient());
+        var documentJson = ExtractDocumentPageData(documentBody);
+        using var document = JsonDocument.Parse(documentJson);
 
-        var document = await client.GetAsync("/StaticData");
-        Assert.Equal(HttpStatusCode.OK, document.StatusCode);
-        var documentBody = await document.Content.ReadAsStringAsync();
-
-        var descriptor = await client.SendAsync(DescriptorRequest("/StaticData"));
-        Assert.Equal(HttpStatusCode.OK, descriptor.StatusCode);
-        var descriptorBody = await descriptor.Content.ReadAsStringAsync();
-
-        // window.SERVER_DATA on the document... (slice to the closing script
-        // tag, not to the first ';': a payload may contain one itself)
-        var marker = "window.SERVER_DATA = ";
-        var start = documentBody.IndexOf(marker, StringComparison.Ordinal) + marker.Length;
-        var scriptEnd = documentBody.IndexOf("</script>", start, StringComparison.Ordinal);
-        var documentJson = documentBody[start..scriptEnd].Trim().TrimEnd(';').Trim();
-
-        // ...equals the descriptor's pageData, so the client store seeds
-        // identically on first load and on navigation. (A deterministic
-        // payload view, because a per-request timestamp would always differ
-        // between two separate requests.)
-        var pageData = JsonDocument.Parse(descriptorBody).RootElement
-            .GetProperty("pageData");
         Assert.True(
-            JsonElement.DeepEquals(
-                JsonDocument.Parse(documentJson).RootElement,
-                pageData),
+            JsonElement.DeepEquals(document.RootElement, pageData),
             $"document payload {documentJson} != descriptor pageData {pageData}");
         Assert.Equal("deterministic", pageData.GetProperty("message").GetString());
         Assert.Equal(42, pageData.GetProperty("answer").GetInt32());
+    }
+
+    [Fact]
+    public async Task Page_data_escapes_script_terminators_without_changing_json()
+    {
+        var (documentBody, pageData) = await GetPageDataRepresentationsAsync(CreateClient());
+
+        Assert.Contains("\\u003C/script\\u003E", documentBody, StringComparison.Ordinal);
+        Assert.DoesNotContain("</script><script>alert", documentBody, StringComparison.Ordinal);
+        Assert.Equal(
+            "</script><script>alert('xss')</script>",
+            pageData.GetProperty("markup").GetString());
+    }
+
+    [Fact]
+    public async Task Page_data_preserves_adversarial_characters()
+    {
+        var (_, pageData) = await GetPageDataRepresentationsAsync(CreateClient());
+
         Assert.Equal("Saved; 3 items", pageData.GetProperty("note").GetString());
+        Assert.Equal(
+            "&amp; &lt; &gt; &#39; &quot;",
+            pageData.GetProperty("entities").GetString());
+        Assert.Equal(
+            "quotes: \" apostrophe: ' backslash: \\ slash: / newline:\n tab:\t",
+            pageData.GetProperty("special").GetString());
     }
 
     [Fact]
@@ -161,6 +166,14 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     public async Task Missing_view_descriptor_is_not_found_not_server_error()
     {
         var response = await CreateClient().SendAsync(DescriptorRequest("/MissingView"));
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Missing_view_descriptor_is_not_found_for_custom_controller_routes()
+    {
+        var response = await CreateClient().SendAsync(DescriptorRequest("/CustomMissingView"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -219,6 +232,40 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
             .GetProperty("pageData");
         Assert.Equal("hello from PoyoPage", pageData.GetProperty("message").GetString());
         Assert.Equal(42, pageData.GetProperty("answer").GetInt32());
+    }
+
+    private static async Task<(string DocumentBody, JsonElement PageData)> GetPageDataRepresentationsAsync(
+        HttpClient client)
+    {
+        var document = await client.GetAsync("/StaticData");
+        Assert.Equal(HttpStatusCode.OK, document.StatusCode);
+        var documentBody = await document.Content.ReadAsStringAsync();
+
+        var descriptor = await client.SendAsync(DescriptorRequest("/StaticData"));
+        Assert.Equal(HttpStatusCode.OK, descriptor.StatusCode);
+        using var descriptorDocument = JsonDocument.Parse(
+            await descriptor.Content.ReadAsStringAsync());
+
+        return (documentBody, descriptorDocument.RootElement.GetProperty("pageData").Clone());
+    }
+
+    private static string ExtractDocumentPageData(string documentBody)
+    {
+        const string marker = "window.SERVER_DATA = ";
+        var markerStart = documentBody.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(markerStart >= 0, "The document does not contain Page data.");
+
+        var start = markerStart + marker.Length;
+        var end = documentBody.IndexOf("</script>", start, StringComparison.Ordinal);
+        Assert.True(end > start, "The document Page data script is not closed.");
+
+        var json = documentBody[start..end].Trim();
+        if (json.EndsWith(';'))
+        {
+            json = json[..^1].TrimEnd();
+        }
+
+        return json;
     }
 }
 
