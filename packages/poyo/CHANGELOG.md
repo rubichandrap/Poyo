@@ -7,11 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+
+## [0.5.0-beta.2] - 2026-09-24
+
 ### Changed
 
 - `ControllerExtensions.PoyoPage(data)` is the only controller Page data seam. It now accepts only a JSON object or `null`; C# objects serialize with camelCase names, JSON object strings are preserved, and caller-owned `JsonElement` values are cloned.
 - `HtmlHelperExtensions.PoyoPageData()` owns document embedding. It emits nothing for absent data and serializes present data with `JavaScriptEncoder.Default`, preserving the same structural value returned as descriptor `pageData` for one controller-produced result.
 - Navigation descriptor requests check view availability without executing Razor. A missing view returns 404, and successful document and descriptor representations carry structurally equal Page data when given the same controller-produced value; a later request can refresh time-varying fields.
+- Conventional controller aliases now resolve the matched registry route for access and SEO enforcement.
+- `PageResult.For` retains its public pre-serialized string API while centralizing object validation and `JsonElement` cloning at the factory boundary.
+- Document Page data is emitted as an encoded JSON string parsed with `JSON.parse`, preserving special property names such as `__proto__`.
 
 ### Removed
 

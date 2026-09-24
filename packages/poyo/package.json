@@ -1,6 +1,6 @@
 {
 	"name": "@rubichandrap/poyo",
-	"version": "0.5.0-beta.1",
+	"version": "0.5.0-beta.2",
 	"description": "The Poyo project CLI, client runtime, and C# server core: route management, build glue, OpenAPI-to-TypeScript codegen, the usePage server-data accessor, and the registry-backed server framework.",
 	"private": false,
 	"repository": {
