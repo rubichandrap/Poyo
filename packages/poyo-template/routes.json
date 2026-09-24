@@ -20,6 +20,8 @@
 			"view": "Views/Dashboard/Index.cshtml"
 		},
 		"access": "protected",
+		"controller": "Dashboard",
+		"action": "Index",
 		"seo": {
 			"description": "Protected dashboard area",
 			"title": "Dashboard"

@@ -109,7 +109,21 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
         var response = await client.GetAsync("/Dashboard");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("Dashboard", await response.Content.ReadAsStringAsync());
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Dashboard", body);
+
+        const string marker = "window.SERVER_DATA = ";
+        var dataStart = body.IndexOf(marker, StringComparison.Ordinal);
+        Assert.True(dataStart >= 0, "The Dashboard document does not contain Page data.");
+        var dataEnd = body.IndexOf("</script>", dataStart + marker.Length, StringComparison.Ordinal);
+        Assert.True(dataEnd > dataStart, "The Dashboard Page data script is not closed.");
+
+        var json = body[(dataStart + marker.Length)..dataEnd].Trim().TrimEnd(';');
+        using var pageData = JsonDocument.Parse(json);
+        Assert.Equal(
+            "This data was injected from the server; semicolons are safe.",
+            pageData.RootElement.GetProperty("message").GetString());
+        Assert.Equal("demo", pageData.RootElement.GetProperty("user").GetString());
     }
 
     [Fact]

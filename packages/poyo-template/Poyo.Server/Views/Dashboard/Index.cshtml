@@ -1,16 +1,5 @@
-@using System.Text.Json
 @{
     Layout = "_Layout";
-
-    // Inject server data for demo
-    var serverData = new
-    {
-        message = "This data was injected from the server!",
-        timestamp = DateTime.UtcNow.ToString("o"),
-        user = User.Identity?.Name ?? "Unknown"
-    };
-    
-    ViewBag.ServerData = JsonSerializer.Serialize(serverData);
 }
 
 <div id="react-root" data-page-name="Dashboard"></div>

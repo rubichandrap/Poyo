@@ -774,9 +774,19 @@ test(
 				dataStart >= 0,
 				"the Dashboard document must inject window.SERVER_DATA",
 			);
-			const dataEnd = dashboardHtml.indexOf(";", dataStart);
+			const dataEnd = dashboardHtml.indexOf(
+				"</script>",
+				dataStart + dataMarker.length,
+			);
+			assert.ok(
+				dataEnd > dataStart,
+				"the Dashboard document must close its window.SERVER_DATA script",
+			);
 			const dashboardDocumentData = JSON.parse(
-				dashboardHtml.slice(dataStart + dataMarker.length, dataEnd).trim(),
+				dashboardHtml
+					.slice(dataStart + dataMarker.length, dataEnd)
+					.trim()
+					.replace(/;+$/, ""),
 			);
 
 			const dashboardDescriptorRes = await fetch(
