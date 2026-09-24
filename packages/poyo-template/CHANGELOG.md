@@ -7,11 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+
+## [0.5.0-beta.2] - 2026-09-24
+
 ### Changed
 
 - The template Dashboard demonstrates the canonical Page data path: `DashboardController.Index` returns `this.PoyoPage(dashboardData)`, and the registry maps `/Dashboard` to that action.
 - `_Layout.cshtml` embeds controller-supplied Page data through the framework's `@Html.PoyoPageData()` helper. For the same controller-produced value, the document and navigation descriptor receive the same structured representation without exposing a raw script-embedding seam in application views.
 - `PoyoPage` accepts a JSON object or `null`; arrays and primitives now fail at the controller seam.
+- Conventional controller aliases are access-enforced through the matched registry route.
 
 ### Removed
 

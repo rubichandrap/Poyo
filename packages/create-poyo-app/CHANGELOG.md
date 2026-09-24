@@ -7,10 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+
+## [0.5.0-beta.2] - 2026-09-24
+
 ### Changed
 
 - Newly scaffolded projects inherit controller-only Page data: data-bearing routes use `this.PoyoPage(data)`, the shared layout uses the framework's `@Html.PoyoPageData()` helper, and for the same controller-produced value document `window.SERVER_DATA` is structurally equal to navigation descriptor `pageData`.
 - Generated projects now require Page data to be a JSON object or `null`; arrays and primitives fail at the controller seam.
+- Conventional controller aliases are access-enforced through the matched registry route.
 
 ### Removed
 

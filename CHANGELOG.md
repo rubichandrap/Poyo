@@ -7,11 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+
+## [0.5.0-beta.2] - 2026-09-24
+
 ### Changed
 
 - Page data has one authoring seam: controller actions return `this.PoyoPage(data)`, while default registry routes have no Page data. The seam accepts a JSON object or `null`; for the same controller-produced value, document `window.SERVER_DATA` and navigation descriptor `pageData` are structurally equal.
 - The framework-owned `@Html.PoyoPageData()` helper safely embeds document Page data with `JavaScriptEncoder.Default`, emits no script when data is absent, and prevents HTML-sensitive characters from terminating the script element.
 - Navigation descriptor requests no longer execute Razor views to scrape Page data, and a missing Razor view now returns 404 before a descriptor is advertised.
+- Conventional controller aliases now resolve the matched registry route for access and SEO enforcement.
+- `PageResult.For` retains its public pre-serialized string API while centralizing object validation and `JsonElement` cloning at the factory boundary.
+- Document Page data is emitted as an encoded JSON string parsed with `JSON.parse`, preserving special property names such as `__proto__`.
 
 ### Removed
 
