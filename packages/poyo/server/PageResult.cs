@@ -28,6 +28,11 @@ public sealed class PageResult : ViewResult
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
+    private static readonly JsonSerializerOptions PageDataJsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
+
     private readonly RouteDefinition? _route;
     private readonly JsonElement? _explicitPageData;
 
@@ -40,16 +45,41 @@ public sealed class PageResult : ViewResult
     /// <summary>
     /// Builds the page result for a registry route — or for a non-registry
     /// fallback, when <paramref name="route"/> is null and the result behaves
-    /// as a plain ViewResult. <paramref name="explicitPageData"/> is the
-    /// structured Page data supplied by custom controllers (see
-    /// ControllerExtensions.PoyoPage); when absent, the descriptor carries no
-    /// Page data.
+    /// as a plain ViewResult. <paramref name="explicitPageData"/> is a
+    /// pre-serialized JSON object supplied by custom controllers; when absent,
+    /// the descriptor carries no Page data.
     /// </summary>
     public static PageResult For(
         Controller controller,
         string? viewPath,
         RouteDefinition? route,
-        JsonElement? explicitPageData = null)
+        string? explicitPageData = null)
+    {
+        return Create(
+            controller,
+            viewPath,
+            route,
+            NormalizePageData(explicitPageData, nameof(explicitPageData)));
+    }
+
+    internal static PageResult ForPageData(
+        Controller controller,
+        string? viewPath,
+        RouteDefinition? route,
+        object? pageData)
+    {
+        return Create(
+            controller,
+            viewPath,
+            route,
+            NormalizePageData(pageData, nameof(pageData)));
+    }
+
+    private static PageResult Create(
+        Controller controller,
+        string? viewPath,
+        RouteDefinition? route,
+        JsonElement? explicitPageData)
     {
         var result = new PageResult(route, explicitPageData)
         {
@@ -64,6 +94,48 @@ public sealed class PageResult : ViewResult
         }
 
         return result;
+    }
+
+    private static JsonElement? NormalizePageData(object? pageData, string parameterName)
+    {
+        if (pageData is null)
+        {
+            return null;
+        }
+
+        JsonElement element;
+        if (pageData is JsonElement jsonElement)
+        {
+            element = jsonElement.Clone();
+        }
+        else if (pageData is string json)
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(json);
+                element = document.RootElement.Clone();
+            }
+            catch (JsonException exception)
+            {
+                throw new ArgumentException(
+                    "Page data strings must contain a JSON object.",
+                    parameterName,
+                    exception);
+            }
+        }
+        else
+        {
+            element = JsonSerializer.SerializeToElement(pageData, PageDataJsonOptions);
+        }
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new ArgumentException(
+                "Page data must be a JSON object or null.",
+                parameterName);
+        }
+
+        return element;
     }
 
     /// <summary>Whether the request asks for the page descriptor.</summary>

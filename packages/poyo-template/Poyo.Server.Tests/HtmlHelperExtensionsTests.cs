@@ -31,7 +31,7 @@ public class HtmlHelperExtensionsTests
             controller,
             viewPath: null,
             route: null,
-            document.RootElement.Clone());
+            document.RootElement.GetRawText());
 
         using var serviceProvider = CreateServiceProvider();
         var helper = CreateHtmlHelper(serviceProvider, viewData);
@@ -97,7 +97,7 @@ public class HtmlHelperExtensionsTests
             controller,
             viewPath: null,
             route: null,
-            document.RootElement.Clone());
+            document.RootElement.GetRawText());
         viewData["ServerData"] = "legacy";
         var entries = new List<LogEntry>();
         using var loggerFactory = new RecordingLoggerFactory(entries);

@@ -41,6 +41,29 @@ public class PageResultTests
         Assert.Null(result.ViewName);
     }
 
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("42")]
+    [InlineData("true")]
+    [InlineData("\"text\"")]
+    public void For_rejects_non_object_page_data(string json)
+    {
+        Assert.Throws<ArgumentException>(() =>
+            PageResult.For(new TestController(), viewPath: null, PublicRoute, json));
+    }
+
+    [Fact]
+    public void For_accepts_a_json_object()
+    {
+        var result = PageResult.For(
+            new TestController(),
+            viewPath: null,
+            PublicRoute,
+            "{\"value\":42}");
+
+        Assert.Equal("Views/Public/Index.cshtml", result.ViewName);
+    }
+
     [Fact]
     public void Navigation_header_contract_is_literal()
     {
