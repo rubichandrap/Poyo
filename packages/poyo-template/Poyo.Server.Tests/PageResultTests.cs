@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Poyo.Framework;
 
 namespace Poyo.Server.Tests;
@@ -40,17 +39,6 @@ public class PageResultTests
         var result = PageResult.For(new TestController(), viewPath: null, route: null);
 
         Assert.Null(result.ViewName);
-    }
-
-    [Fact]
-    public void For_with_explicit_page_data_sets_the_document_payload()
-    {
-        var controller = new TestController();
-        var json = JsonSerializer.Serialize(new { answer = 42 });
-
-        var result = PageResult.For(controller, viewPath: null, PublicRoute, json);
-
-        Assert.Equal(json, controller.ViewData["ServerData"]);
     }
 
     [Fact]

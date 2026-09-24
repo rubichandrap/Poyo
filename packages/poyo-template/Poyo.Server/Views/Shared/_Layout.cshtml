@@ -37,9 +37,9 @@
     @RenderBody()
 
     <script>
-        @if (ViewBag.ServerData != null)
+        @if (ViewData["ServerData"] is not null)
         {
-            @:window.SERVER_DATA = @Html.Raw(ViewBag.ServerData);
+            @:window.SERVER_DATA = @Html.Raw(ViewData["ServerData"]);
         }
     </script>
 

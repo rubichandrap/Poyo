@@ -3,8 +3,8 @@ using System.Text.Json;
 namespace Poyo.Framework;
 
 /// <summary>
-/// JSON validation shared by the framework's page paths: the descriptor's
-/// window.SERVER_DATA harvest and PoyoPage's pre-serialized-string guard.
+/// JSON validation for the framework's legacy descriptor window.SERVER_DATA
+/// harvest.
 /// </summary>
 internal static class PoyoJson
 {

@@ -31,9 +31,9 @@ public sealed class PageResult : ViewResult
     };
 
     private readonly RouteDefinition? _route;
-    private readonly string? _explicitPageData;
+    private readonly JsonElement? _explicitPageData;
 
-    private PageResult(RouteDefinition? route, string? explicitPageData)
+    private PageResult(RouteDefinition? route, JsonElement? explicitPageData)
     {
         _route = route;
         _explicitPageData = explicitPageData;
@@ -43,16 +43,16 @@ public sealed class PageResult : ViewResult
     /// Builds the page result for a registry route — or for a non-registry
     /// fallback, when <paramref name="route"/> is null and the result behaves
     /// as a plain ViewResult. <paramref name="explicitPageData"/> is the
-    /// pre-serialized window.SERVER_DATA payload supplied by custom
-    /// controllers (see ControllerExtensions.PoyoPage); when absent, the
-    /// descriptor harvests the document's own window.SERVER_DATA payload so
-    /// the document and the descriptor carry the same bytes.
+    /// structured Page data supplied by custom controllers (see
+    /// ControllerExtensions.PoyoPage); when absent, the descriptor harvests
+    /// the document's own window.SERVER_DATA payload so the document and the
+    /// descriptor carry the same value.
     /// </summary>
     public static PageResult For(
         Controller controller,
         string? viewPath,
         RouteDefinition? route,
-        string? explicitPageData = null)
+        JsonElement? explicitPageData = null)
     {
         var result = new PageResult(route, explicitPageData)
         {
@@ -64,11 +64,11 @@ public sealed class PageResult : ViewResult
         if (explicitPageData is not null)
         {
             // PoyoPage(data): the controller-provided payload is the document's
-            // window.SERVER_DATA and the descriptor's pageData alike — one
-            // serialization for both representations. A view assigning
+            // window.SERVER_DATA and the descriptor's pageData alike — the
+            // same structured Page data value. A view assigning
             // ViewBag.ServerData would overwrite it, which custom controllers
             // using PoyoPage should treat as theirs to avoid.
-            result.ViewData["ServerData"] = explicitPageData;
+            result.ViewData["ServerData"] = explicitPageData.Value;
         }
 
         return result;
@@ -105,8 +105,8 @@ public sealed class PageResult : ViewResult
     {
         var response = context.HttpContext.Response;
 
-        var pageDataJson = _explicitPageData;
-        if (pageDataJson is null)
+        var pageData = _explicitPageData;
+        if (pageData is null)
         {
             // Render the view into a discard writer purely to collect the
             // window.SERVER_DATA payload the document would carry. The render
@@ -124,13 +124,13 @@ public sealed class PageResult : ViewResult
 
             var rendered = new StringWriter();
             await view.RenderAsync(CreateViewContext(context, view, rendered));
-            pageDataJson = ExtractServerData(rendered.ToString());
+            pageData = ParsePageData(ExtractServerData(rendered.ToString()));
         }
 
         var descriptor = new PageDescriptor(
             _route!.Name,
             _route.Seo,
-            ParsePageData(pageDataJson));
+            pageData);
 
         response.ContentType = "application/json; charset=utf-8";
         await response.WriteAsync(JsonSerializer.Serialize(descriptor, DescriptorJsonOptions));
