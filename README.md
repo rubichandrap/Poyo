@@ -67,7 +67,7 @@ Key features: HMR in development, automatic hashed-filename management, server-s
 - Dynamic navigation: `useRouter()` and `<Link>` swap the page without a document reload, with Back/Forward traversal and scroll restoration
 - Framework-owned server core compiled in place from the framework package — route policy, access/SEO enforcement, and the page result (no NuGet, no copied framework files)
 - Demo cookie-based auth (replace with your own)
-- Server data injection — pass data to client without API calls
+- Controller-authored Page data via `this.PoyoPage(data)`, safely embedded with `@Html.PoyoPageData()`
 - React 19, TypeScript, Tailwind CSS v4, TanStack Query
 - Auto-generated TypeScript types from OpenAPI
 - CLI route management between server and client
@@ -150,41 +150,41 @@ pnpm run dev
 
 ## Core Concepts
 
-### 1. Server Data Injection (Server-Driven UI)
+### 1. Controller-authored Page Data (Server-Driven UI)
 
-Inject server-side data directly into React components. No initial API call needed.
+Page data is strictly authored by controllers. A data-bearing registry route is mapped to a custom controller action that returns `this.PoyoPage(data)`; Razor views remain presentation-only.
 
-**Server (C#):**
+**Controller (C#):**
 ```csharp
-[Authorize]
-public IActionResult Dashboard()
+public class DashboardController : Controller
 {
-    // Prepare data on the server
-    var data = new
+    public IActionResult Index()
     {
-        message = "Hello from server!",
-        timestamp = DateTime.UtcNow,
-        user = User.Identity?.Name,
-        notifications = GetUserNotifications(),
-        settings = GetUserSettings()
-    };
-    
-    // Inject into ViewBag
-    ViewBag.ServerData = JsonSerializer.Serialize(data);
-    
-    return View();
+        var data = new
+        {
+            message = "Hello from server!",
+            timestamp = DateTime.UtcNow,
+            user = User.Identity?.Name,
+            notifications = GetUserNotifications(),
+            settings = GetUserSettings()
+        };
+
+        return this.PoyoPage(data);
+    }
 }
 ```
 
+Map the registry route with `"controller": "Dashboard", "action": "Index"`. Registry routes without a custom controller are served with no Page data.
+
+**Shared layout (Razor):**
+```cshtml
+@Html.PoyoPageData()
+```
+
+The layout helper safely embeds the controller-supplied object as `window.SERVER_DATA`. It emits no script when Page data is absent. The same structured value is returned as `pageData` for dynamic navigation.
+
 **View (Razor):**
 ```cshtml
-@{
-    ViewBag.ServerData = JsonSerializer.Serialize(new {
-        message = "Data from view!",
-        userId = User.FindFirst("sub")?.Value
-    });
-}
-
 <div id="react-root" data-page-name="Dashboard"></div>
 ```
 
@@ -200,7 +200,7 @@ interface DashboardData {
 
 export default function DashboardPage() {
     const data = usePage<DashboardData>();
-    
+
     if (!data) return <div>No data available</div>;
 
     return (
@@ -208,21 +208,18 @@ export default function DashboardPage() {
             <h1>{data.message}</h1>
             <p>Server time: {data.timestamp}</p>
             <p>User: {data.user}</p>
-            {/* Data is already here - no spinner, no API call! */}
         </div>
     );
 }
 ```
 
 How it works:
-1. Server renders Razor view with data in `ViewBag.ServerData`
-2. `_Layout.cshtml` injects it as `window.SERVER_DATA`
-3. React hydrates and `usePage()` reads from `window.SERVER_DATA`
-4. `usePage()` returns `null` if data is missing or not a plain object
+1. The controller prepares Page data and returns `this.PoyoPage(data)`.
+2. `_Layout.cshtml` embeds it safely through `@Html.PoyoPageData()`.
+3. React hydrates and `usePage()` reads the navigation store seeded from `window.SERVER_DATA`.
+4. Dynamic navigation replaces the store's data with the destination descriptor's structurally equal `pageData`.
 
-No loading spinners on initial render. Data is in the HTML for SEO. TypeScript knows the shape from your interface.
-
-Use it for anything you need on page load: profile data, dashboard stats, notification counts, preferences.
+`PoyoPage` accepts a JSON object or `null`; arrays and primitives are rejected. Wrap non-object data in a property such as `{ items = values }`. There is no initial Page data API call or loading spinner, and TypeScript constrains the client shape.
 
 ### 2. Route Management
 
@@ -238,7 +235,7 @@ Routes are defined in `routes.json` and can now support **Custom Controllers** a
   },
   "access": "protected",
   "dynamic": true,                     // Optional: false opts out of dynamic navigation
-  "controller": "DashboardController", // Optional: Use custom controller
+  "controller": "Dashboard",          // Optional: Use custom controller
   "action": "Index",                   // Optional: Custom action
   "seo": {                             // Optional: SEO Metadata
     "title": "My Dashboard",
@@ -377,7 +374,7 @@ Access rules live in `routes.json`, enforced universally by a server-side filter
 - Demo auth service (replace with your own)
 - MVC routing
 - Framework-owned server core compiled in place from the framework package (route policy, access/SEO filters, `PageResult`) — no NuGet, no copied framework files
-- Server data injection (`[ServerData]` attribute)
+- Controller-authored Page data (`ControllerExtensions.PoyoPage`) with safe layout embedding (`HtmlHelperExtensions.PoyoPageData`)
 - Registry-driven access model (`access` in `routes.json`, enforced universally)
 - Error handling
 - JSend response wrapper

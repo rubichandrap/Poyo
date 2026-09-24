@@ -665,7 +665,7 @@ test(
 			//     scaffolded server answers it: descriptor JSON + Vary for
 			//     dynamic routes, the document for the opted-out route, a
 			//     challenge (never a payload) for anonymous protected calls,
-			//     and page data identical to the document's injection.
+			//     and page data structurally equal to the document's injection.
 			const navHeaders = { "X-Poyo-Navigation": "1" };
 
 			const loginDescriptorRes = await fetch(
