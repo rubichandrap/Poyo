@@ -181,6 +181,23 @@ The server core is not copied into a generated project. Its csproj compiles the 
 - `packages/poyo-template/README.md` — generated-project structure and usage
 - `packages/create-poyo-app/README.md` — scaffolder options and generated-project contents
 
+## Poyo vs JsxCore
+
+[JsxCore](https://github.com/davidwhitney/JsxCore) is a different execution model: React or Preact renders in-process on the server and in the browser. It keeps the view, component, and .NET model in one server-side rendering pipeline.
+
+Poyo keeps the React client as a separate Vite project. The .NET server produces the document and Page data; React hydrates in the browser. This makes the client/server boundary explicit and lets the client use the React/Vite toolchain independently.
+
+| | Poyo | JsxCore |
+|---|---|---|
+| React execution | Browser hydration | Server rendering and browser hydration |
+| Build tools | Vite + .NET | .NET |
+| Component model | React client components | Server-rendered React/Preact views |
+| C# to client types | OpenAPI generation | Generated view-model types |
+| .NET access | MVC actions, APIs, and `window.SERVER_DATA` | Direct server-side interop |
+| Best fit | A separate React client with an explicit server boundary | One .NET-centric rendering pipeline |
+
+Choose JsxCore when server-side React rendering and one .NET build are the priority. Choose Poyo when the React client should remain a normal Vite application and the server should own documents, routing, and Page data.
+
 ## License
 
 MIT
