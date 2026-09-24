@@ -5,6 +5,19 @@ All notable changes to the Poyo monorepo are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Changed
+
+- Page data has one authoring seam: controller actions return `this.PoyoPage(data)`, while default registry routes have no Page data. The seam accepts a JSON object or `null`; for the same controller-produced value, document `window.SERVER_DATA` and navigation descriptor `pageData` are structurally equal.
+- The framework-owned `@Html.PoyoPageData()` helper safely embeds document Page data with `JavaScriptEncoder.Default`, emits no script when data is absent, and prevents HTML-sensitive characters from terminating the script element.
+- Navigation descriptor requests no longer execute Razor views to scrape Page data, and a missing Razor view now returns 404 before a descriptor is advertised.
+
+### Removed
+
+- View-authored `ViewBag.ServerData` and the raw `@Html.Raw` layout script are no longer a supported Page data channel. To upgrade, map each data-bearing route to a controller action, move its data into a JSON object, return `this.PoyoPage(data)`, add `@using Poyo.Framework` to `Views/_ViewImports.cshtml`, and replace the layout's raw script with `@Html.PoyoPageData()`. Wrap arrays or primitives in a top-level property such as `{ items = values }`.
+
+
 ## [0.5.0-beta.1] - 2026-09-24
 
 ### Fixed

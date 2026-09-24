@@ -37,7 +37,7 @@ A standalone project produced by the scaffolder: the template plus the framework
 _Avoid_: consumer, target app, scaffolded app
 
 **Page data**:
-The per-page payload the server injects for React pages: `ViewBag.ServerData` serialized with System.Text.Json into `window.SERVER_DATA` by the layout, read by `usePage` from the framework package's runtime — once per page load, and refreshed by the runtime's store on every dynamic navigation. A bootstrap channel — fresh data flows through the API path.
+The optional JSON object a controller supplies for a React route, embedded in the document and dynamic navigation descriptor. Read by `usePage` on initial load and refreshed on dynamic navigation.
 _Avoid_: server state, props injection, hydration data
 
 **Routes registry**:

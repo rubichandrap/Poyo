@@ -21,7 +21,7 @@ Poyo.Server/
 └── Views/              # 🎨 Razor Views (.cshtml)
 ```
 
-The routing framework itself (`RoutePolicy`, the access/SEO filters, `PageResult`, `PageController`) is not in this tree — the project compiles it straight from the installed `@rubichandrap/poyo` package, so it shows up in your IDE under a `Framework` link and upgrades with `pnpm update @rubichandrap/poyo`.
+The routing framework itself (`RoutePolicy`, the access/SEO filters, `PageResult`, `PageController`, and the Page data helpers) is not in this tree — the project compiles it straight from the installed `@rubichandrap/poyo` package, so it shows up in your IDE under a `Framework` link and upgrades with `pnpm update @rubichandrap/poyo`.
 
 ### 1. View Controllers vs. API Controllers
 
@@ -29,7 +29,7 @@ The routing framework itself (`RoutePolicy`, the access/SEO filters, `PageResult
 | :--- | :--- | :--- |
 | **Location** | `Controllers/` | `Controllers/Api/` |
 | **Inherits** | `Controller` | `ControllerBase` |
-| **Returns** | `IActionResult` (View) | `ActionResult<T>` (JSON) |
+| **Returns** | `IActionResult` (`ViewResult` or `PageResult`) | `ActionResult<T>` (JSON) |
 | **Auth** | Redirects to Login | Returns 401 Unauthorized |
 | **Purpose** | Serve HTML + Server Data | Handle AJAX/React Query requests |
 
@@ -72,20 +72,24 @@ The server uses **Cookie Authentication** by default.
 - **`[Authorize]`**: standard ASP.NET Core attribute, available for additional control.
 - **Middleware**: custom logic handles 401 redirects differently for API vs. View requests (API gets 401, Views get 302 to Login).
 
-### 3. Server Data Injection
+### 3. Controller-authored Page Data
 
-Data is injected into the client via `ViewBag.ServerData`.
+Razor views are presentation-only. Controller actions own Page data and return it through `this.PoyoPage(data)`:
 
 ```csharp
-// In a Controller
-ViewBag.ServerData = JsonSerializer.Serialize(new {
-    userName = User.Identity.Name,
-    roles = User.Claims.Where(...)
-});
-return View();
+public IActionResult Index()
+{
+    var data = new
+    {
+        userName = User.Identity?.Name,
+        roles = User.Claims.Where(...)
+    };
+
+    return this.PoyoPage(data);
+}
 ```
 
-This data becomes immediately available to the React `usePage` hook.
+The shared layout imports `Poyo.Framework` and embeds the same structured value safely through `@Html.PoyoPageData()`, and dynamic navigation returns the same representation as descriptor `pageData` for that controller-produced value. A later request can produce fresh time-varying fields. `PoyoPage` accepts a JSON object or `null`; arrays and primitives are rejected.
 
 ### 4. React Integration (`_ReactAssets.cshtml`)
 

@@ -57,6 +57,19 @@ describe("create-poyo-app", () => {
 		expect(program).toContain("MapPoyoRoutes");
 		expect(program).not.toContain("MyApp.Framework");
 		expect(program).not.toContain("MyAppAddPoyo");
+
+		const layout = readFile(
+			cwd,
+			"MyApp/MyApp.Server/Views/Shared/_Layout.cshtml",
+		);
+		expect(layout).toContain("@Html.PoyoPageData()");
+		expect(layout).not.toContain("MyAppPageData");
+
+		const viewImports = readFile(
+			cwd,
+			"MyApp/MyApp.Server/Views/_ViewImports.cshtml",
+		);
+		expect(viewImports).toContain("@using Poyo.Framework");
 	});
 
 	it("keeps the poyo CLI binary name in scripts and renames pnpm filters", () => {

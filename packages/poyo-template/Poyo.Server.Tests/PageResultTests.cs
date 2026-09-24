@@ -1,12 +1,11 @@
-using System.Text.Json;
 using Poyo.Framework;
 
 namespace Poyo.Server.Tests;
 
 /// <summary>
 /// PageResult's result-construction surface over the fixture route: For()
-/// builds a ViewResult for the registry view, explicit pageData overrides the
-/// view harvest, and non-registry usage degrades to a plain view result.
+/// builds a ViewResult for the registry view and non-registry usage degrades to
+/// a plain view result.
 /// </summary>
 public class PageResultTests
 {
@@ -42,25 +41,27 @@ public class PageResultTests
         Assert.Null(result.ViewName);
     }
 
-    [Fact]
-    public void For_with_explicit_page_data_sets_the_document_payload()
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("42")]
+    [InlineData("true")]
+    [InlineData("\"text\"")]
+    public void For_rejects_non_object_page_data(string json)
     {
-        var controller = new TestController();
-        var json = JsonSerializer.Serialize(new { answer = 42 });
-
-        var result = PageResult.For(controller, viewPath: null, PublicRoute, json);
-
-        Assert.Equal(json, controller.ViewData["ServerData"]);
+        Assert.Throws<ArgumentException>(() =>
+            PageResult.For(new TestController(), viewPath: null, PublicRoute, json));
     }
 
     [Fact]
-    public void For_without_explicit_page_data_leaves_view_data_untouched()
+    public void For_accepts_a_json_object()
     {
-        var controller = new TestController();
+        var result = PageResult.For(
+            new TestController(),
+            viewPath: null,
+            PublicRoute,
+            "{\"value\":42}");
 
-        PageResult.For(controller, viewPath: null, PublicRoute);
-
-        Assert.False(controller.ViewData.ContainsKey("ServerData"));
+        Assert.Equal("Views/Public/Index.cshtml", result.ViewName);
     }
 
     [Fact]

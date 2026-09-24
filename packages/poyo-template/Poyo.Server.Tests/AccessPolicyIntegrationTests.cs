@@ -116,6 +116,15 @@ public class AccessPolicyIntegrationTests : IClassFixture<AccessPolicyServerFixt
     }
 
     [Fact]
+    public async Task Conventional_alias_for_a_registry_controller_is_enforced()
+    {
+        var response = await CreateClient().GetAsync("/Page/Index");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Login", response.Headers.Location?.AbsolutePath);
+    }
+
+    [Fact]
     public async Task Protected_api_path_returns_401_instead_of_redirect()
     {
         var response = await CreateClient().GetAsync("/api/ProtectedApi");

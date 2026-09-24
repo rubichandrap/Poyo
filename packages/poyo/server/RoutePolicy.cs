@@ -84,6 +84,44 @@ public sealed class RoutePolicy
             r => r.Path.Equals(normalized, StringComparison.OrdinalIgnoreCase));
     }
 
+    public RouteDefinition? FindForRequest(
+        string path,
+        string? controllerName,
+        string? actionName)
+    {
+        return Find(path) ?? FindForControllerAction(controllerName, actionName);
+    }
+
+    private RouteDefinition? FindForControllerAction(
+        string? controllerName,
+        string? actionName)
+    {
+        if (string.IsNullOrWhiteSpace(controllerName) || string.IsNullOrWhiteSpace(actionName))
+        {
+            return null;
+        }
+
+        return _routes
+            .Where(route =>
+                GetControllerName(route).Equals(controllerName, StringComparison.OrdinalIgnoreCase)
+                && GetActionName(route).Equals(actionName, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(route => AccessPriority(route.Access))
+            .FirstOrDefault();
+    }
+
+    private static string GetControllerName(RouteDefinition route) =>
+        string.IsNullOrWhiteSpace(route.Controller) ? "Page" : route.Controller;
+
+    private static string GetActionName(RouteDefinition route) =>
+        string.IsNullOrWhiteSpace(route.Action) ? "Index" : route.Action;
+
+    private static int AccessPriority(RouteAccess access) => access switch
+    {
+        RouteAccess.Protected => 3,
+        RouteAccess.Guest => 2,
+        _ => 1,
+    };
+
     public void MapRoutes(IEndpointRouteBuilder endpoints)
     {
         foreach (var route in _routes)

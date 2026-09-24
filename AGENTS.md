@@ -36,9 +36,16 @@ Poyo is intentionally minimal. It provides:
 **View Controllers (MVC)**
 - **Location**: `Controllers/` (root)
 - **Inheritance**: `Microsoft.AspNetCore.Mvc.Controller`
-- **Purpose**: Serve Razor views (`.cshtml`)
-- **Returns**: `IActionResult` with `View()`
-- **Rule**: NEVER return JSON directly
+- **Purpose**: Serve Razor views (`.cshtml`) and author Page data for registry pages.
+- **Results**: `return View()` for a plain/non-registry view; `return this.PoyoPage(data)` for a registry page.
+- **Rule**: NEVER return JSON directly.
+
+**Page Data (framework contract)**
+- Controllers are the sole Page data authors. Razor views never assign `ViewBag.ServerData` or otherwise supply Page data.
+- `this.PoyoPage(data)` accepts a JSON object or `null`; arrays and primitives fail at the controller seam. Wrap non-object data in a top-level property.
+- `_Layout.cshtml` embeds controller data with `@Html.PoyoPageData()`, never a raw `@Html.Raw` script. The helper emits nothing when data is absent and HTML-encodes `<`/`>` in the embedded script.
+- Document `window.SERVER_DATA` and descriptor `pageData` are structurally equal for the same normalized Page data value, not necessarily byte-identical, because document embedding escapes HTML-sensitive characters. A later descriptor request runs the controller again, so time-varying fields can differ.
+- Default `PageController.Index` routes have no Page data. Map a registry route to a custom controller when it needs data.
 
 **API Controllers**
 - **Location**: `Controllers/Api/`
@@ -48,15 +55,15 @@ Poyo is intentionally minimal. It provides:
 - **Returns**: `ActionResult<T>` with JSend format
 
 **Registry Pages (framework)**
-- **Served by**: `PageController.Index`, from the framework package's server core (`Poyo.Framework`), for every registry route without an explicit `controller`.
-- **Returns**: `PageResult` — the single result type for registry pages. It answers the document exactly as a plain `ViewResult` would, and answers the JSON page descriptor (`{ name, seo, pageData }`) when the request carries `X-Poyo-Navigation: 1`. Both representations carry the same `pageData`, one serialization.
+- **Served by**: `PageController.Index`, from the framework package's server core (`Poyo.Framework`), for every registry route without an explicit `controller`; these routes have no Page data.
+- **Returns**: `PageResult` — the single result type for registry pages. It answers the document exactly as a plain `ViewResult` would, and answers the JSON page descriptor (`{ name, seo, pageData }`) when the request carries `X-Poyo-Navigation: 1`. For the same normalized controller-produced value, both representations carry the same structured `pageData`; separate requests can produce fresh time-varying fields.
 - **Rule**: never hand-roll either representation; route custom pages through the framework result.
 
 **Custom Controllers**
-- **Purpose**: Complex page logic, specialized data fetching, or custom view rendering.
-- **Usage**: Map in `routes.json` via `"controller"` property.
+- **Purpose**: Complex page logic, specialized data fetching, Page data, or custom view rendering.
+- **Usage**: Map in `routes.json` via `"controller"` and `"action"` properties.
 - **CLI**: Use `pnpm run route:add ... --controller MyController` to generate.
-- **Result**: `return this.PoyoPage(data)` (`ControllerExtensions`) joins the dynamic-navigation contract — view path, page name, and SEO resolve from the registry route for the request path, and `data` becomes `window.SERVER_DATA` on the document and the descriptor's `pageData` alike. For a path outside the registry the result degrades to a plain view render.
+- **Result**: `return this.PoyoPage(data)` (`ControllerExtensions`) joins the dynamic-navigation contract — view path, page name, and SEO resolve from the registry route for the request path, and `data` becomes `window.SERVER_DATA` on the document and the descriptor's `pageData` alike for that controller-produced value. A later request can produce fresh time-varying fields. For a path outside the registry the result degrades to a plain view render.
 
 ### 2.2. SEO & Metadata
 - **Configuration**: Managed in `routes.json` under `"seo"` object.
@@ -73,9 +80,9 @@ Poyo is intentionally minimal. It provides:
 - `public` → open to everyone
 - Applies to custom-controller routes exactly like default ones.
 
-**Custom Attributes:**
-- `[ServerData]` - Injects data to `window.SERVER_DATA`
-- `[Authorize]` - Requires authentication (built-in)
+**Attributes:**
+- Page data has no attribute path; controller actions return `this.PoyoPage(data)`.
+- `[Authorize]` - Requires authentication (built-in). Registry access remains the universal page policy.
 
 **Guest Routes:**
 - Use CLI: `pnpm run route:add -- /Register --guest`
@@ -133,7 +140,7 @@ public class AuthService : IAuthService
 
 ### 2.6. Server Core (framework package)
 
-The framework-owned server code — `RoutePolicy`, `RouteDefinition`, the access/SEO filters, `PageResult`, `PageController`, the controller extensions, and the `AddPoyo()`/`MapPoyoRoutes()` registration extensions — ships as readable source inside the framework package (`node_modules/@rubichandrap/poyo/server/`, namespace `Poyo.Framework`) and is never copied into a project tree (ADR 0008).
+The framework-owned server code — `RoutePolicy`, `RouteDefinition`, the access/SEO filters, `PageResult`, `PageController`, the controller extension, the `@Html.PoyoPageData()` helper, and the `AddPoyo()`/`MapPoyoRoutes()` registration extensions — ships as readable source inside the framework package (`node_modules/@rubichandrap/poyo/server/`, namespace `Poyo.Framework`) and is never copied into a project tree (ADR 0008).
 
 - The server csproj compiles it in place: `Compile Include="../node_modules/@rubichandrap/poyo/server/**/*.cs" LinkBase="Framework"`, plus the defensive `Compile Remove="node_modules/**/*.cs"`. The files open in the IDE under a `Framework` link. Rename-safety is by construction for everything under `node_modules` — the scaffolder's rename pass never rewrites the installed package; the framework identifiers the template's own files call (`Poyo.Framework`, `AddPoyo`, `MapPoyoRoutes`, `PoyoPage`, the `X-Poyo-Navigation` literal) survive the rename through the scaffolder's sentinel protection.
 - An `Exists` guard fails the build with "run `pnpm install`" when the package is missing — the one failure mode of the in-place design is an instruction, not a mystery.
@@ -189,11 +196,11 @@ export default function DashboardPage() {
 
 ### 3.3. Server Data Hook
 
-**Source**: `usePage` ships from the framework package — `@rubichandrap/poyo/runtime` — not from the project. The package also declares `Window.SERVER_DATA?: unknown` globally. The accessor reads the runtime's navigation store: `window.SERVER_DATA` seeds it on first load, and every dynamic navigation commits the descriptor's page data to it (§3.7).
+**Source**: `usePage` ships from the framework package — `@rubichandrap/poyo/runtime` — not from the project. The package also declares `Window.SERVER_DATA?: unknown` globally. Controllers supply Page data through `this.PoyoPage(data)`, and `_Layout.cshtml` embeds it through `@Html.PoyoPageData()` into `window.SERVER_DATA`. The accessor reads the runtime's navigation store: that initial value seeds it, and every dynamic navigation commits the descriptor's `pageData` to it (§3.7); the representation is structurally equal for the same normalized value, while a later controller invocation may produce fresh time-varying fields.
 
 **Usage:**
 ```typescript
-// Server injects data via ViewBag.ServerData
+// Server injects data via this.PoyoPage(data)
 import { usePage } from "@rubichandrap/poyo/runtime";
 
 const data = usePage<{ message: string }>();
@@ -449,7 +456,19 @@ All three packages share one version and are published together from a git tag.
 3. **Verify** with `pnpm run release:check` (zero-arg lockstep check) or `node scripts/assert-release-version.mjs <version>`.
 4. **Ensure every package has a `README.md`** in its own directory (`packages/<pkg>/README.md`). npm renders the readme from the package directory — a missing file publishes an empty readme. The release workflow fails the build if any package lacks one. `poyo-template`'s README doubles as the README of every generated project (the scaffolder copies it wholesale), so keep it rename-safe: `Poyo`/`Poyo.Server`/`poyo.client` tokens are rewritten to the project name.
 5. **Cut a tag** `v<version>` and push it. `.github/workflows/release.yml` runs: install, `tsc` build, asserts versions match the tag, fails if the version is already on npm, then publishes all three via `pnpm publish` with `NPM_TOKEN` (a classic npm token secret — required because npm Trusted Publishing/OIDC cannot create brand-new packages), then creates a GitHub Release from the root `CHANGELOG.md` entry.
-6. **Run the publish-time gate** with `pnpm run test:release` after the workflow completes (or at any time): the lockstep unit tests plus the fixture e2e (`scripts/fixture-e2e.test.mjs`), which scaffolds a real project with the local scaffolder, installs `@rubichandrap/poyo` from npm at the release version, and asserts the shipped shape end to end — the resolved package carries `dist/runtime/route-table.js` plus the navigation subpaths (`router.js`, `link.js`); the scaffolded server compiles the framework core from `node_modules` with no in-tree framework copies; the registry's `"dynamic": false` survives the scaffolder's rename; no committed route manifest and no client `index.html`; and the running server answers the descriptor wire contract (JSON `{ name, seo, pageData }` + `Vary` on a dynamic route, the document on the opted-out route, a challenge — never a payload — for an anonymous protected descriptor, and `pageData` identical to the document's `window.SERVER_DATA`). The built client bundle is grepped for the runtime surface, anchored on literals the production minifier cannot rename: the route-table module's `[RouteTable]` diagnostic prefix (the minifier renames `createRouteTable`), the router's `X-Poyo-Navigation` header literal, `Link`'s `data-dynamic-nav` opt-out attribute, the `routePath` init guard message, and the `usePage` accessor. The fixture is **red until the version is published** — an unpublished version fails `pnpm install` with a `[RED-UNTIL-PUBLISHED]` diagnostic, and a published-but-old version fails the runtime-subpath assertion with an explanatory message. Run it pre-publish to confirm the gate works; it goes green only once the release resolves from npm.
+6. **Run release verification in two phases.** Before publishing, run the workspace-local unit, integration, and scaffolder gates; they must be green but do not prove npm resolution:
+
+   ```bash
+   pnpm --filter @rubichandrap/poyo run test
+   pnpm --filter @rubichandrap/create-poyo-app run test
+   dotnet test packages/poyo-template/Poyo.Server.Tests/Poyo.Server.Tests.csproj
+   node --test scripts/assert-release-version.test.mjs
+   pnpm run release:check
+   ```
+
+   After the workflow publishes all three packages, run `pnpm run test:release`. It combines the lockstep unit tests with the npm-backed fixture e2e and is the release acceptance gate.
+
+7. **Treat the fixture as post-publish evidence.** `scripts/fixture-e2e.test.mjs` scaffolds a real project, installs `@rubichandrap/poyo` at the release version from npm, and verifies the published runtime/server shape, generated-project rename, build, served document, and navigation descriptor — including representation parity for stable fields between document `window.SERVER_DATA` and descriptor `pageData`; controller-generated timestamps can differ between requests. It is intentionally red until that version is published. A pre-publish run may confirm the `[RED-UNTIL-PUBLISHED]` diagnostic, but only a post-publish green fixture completes the release gate.
 
 ---
 
@@ -504,6 +523,22 @@ Never commit or push directly to `main`. Always:
 3. Push the branch and open a pull request into `main`
 
 Merging to `main` happens via PR (and ideally a review).
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+GitHub Issues are authoritative; local `.scratch/<feature>/` files hold specs, plans, and research. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use the default canonical labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use the single-context root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.
 
 ---
 

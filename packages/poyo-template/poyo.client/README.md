@@ -61,7 +61,7 @@ export default function DashboardPage() {
 }
 ```
 
-> **Note:** The server must populate `ViewBag.ServerData` for this to work.
+> **Note:** A view controller must return `this.PoyoPage(data)`. The shared layout imports `Poyo.Framework` and embeds that object as `window.SERVER_DATA` through `@Html.PoyoPageData()`; dynamic navigation provides the destination's `pageData` for the same normalized value, while a later controller invocation may refresh time-varying fields.
 
 ### 2. Client-Side Routing? No.
 

@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [Unreleased]
+
+### Changed
+
+- The template Dashboard demonstrates the canonical Page data path: `DashboardController.Index` returns `this.PoyoPage(dashboardData)`, and the registry maps `/Dashboard` to that action.
+- `_Layout.cshtml` embeds controller-supplied Page data through the framework's `@Html.PoyoPageData()` helper. For the same controller-produced value, the document and navigation descriptor receive the same structured representation without exposing a raw script-embedding seam in application views.
+- `PoyoPage` accepts a JSON object or `null`; arrays and primitives now fail at the controller seam.
+
+### Removed
+
+- View-authored `ViewBag.ServerData` and inline Razor serialization are no longer shipped or supported. Existing generated projects must move each payload to a custom controller action that returns `this.PoyoPage(data)`, map the route in `routes.json`, add `@using Poyo.Framework` to `Views/_ViewImports.cshtml`, and replace the layout's raw script with `@Html.PoyoPageData()`. Wrap arrays or primitives in a top-level property such as `{ items = values }`.
+
 ## [0.5.0-beta.1] - 2026-09-24
 
 ### Fixed

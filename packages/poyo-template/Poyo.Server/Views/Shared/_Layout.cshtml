@@ -36,12 +36,7 @@
     <!-- React components will be hydrated here -->
     @RenderBody()
 
-    <script>
-        @if (ViewBag.ServerData != null)
-        {
-            @:window.SERVER_DATA = @Html.Raw(ViewBag.ServerData);
-        }
-    </script>
+    @Html.PoyoPageData()
 
     <!-- Load built React app -->
    <environment include="Development">

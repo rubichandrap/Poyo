@@ -112,19 +112,34 @@ await router.push(routePath("Dashboard"));   // also: replace, back, forward
 | `pnpm run build` | client build + `poyo build` asset sync + server build |
 | `pnpm run route:*` | route management (`route:add`, `route:remove`, `route:update`, `route:sync`) |
 
-## Server data
+## Page data
 
-Pass data from the server to React without an initial API call. Set `ViewBag.ServerData` in the view, then read it client-side with `usePage<T>()` — shipped from `@rubichandrap/poyo/runtime`:
+Page data is strictly authored by controllers. A route that needs data is mapped to a custom controller action that returns `this.PoyoPage(data)`; Razor views only render the React mount point:
 
 ```csharp
-ViewBag.ServerData = JsonSerializer.Serialize(new { message = "Hello from server!" });
+public IActionResult Index()
+{
+    var data = new { message = "Hello from server!" };
+    return this.PoyoPage(data);
+}
 ```
+
+The shared layout embeds the controller-supplied object safely through `@Html.PoyoPageData()`:
+
+```cshtml
+@using Poyo.Framework
+@Html.PoyoPageData()
+```
+
+React reads the initial value with `usePage<T>()` from `@rubichandrap/poyo/runtime`; dynamic navigation supplies the destination's `pageData` to the same hook. The representation matches the same normalized value, while a later controller invocation may produce fresh time-varying fields:
 
 ```tsx
 import { usePage } from "@rubichandrap/poyo/runtime";
 
 const data = usePage<{ message: string }>();
 ```
+
+`PoyoPage` accepts a JSON object or `null`; wrap arrays or primitives in a top-level property. The template's `DashboardController` is the worked example.
 
 ## Code generation
 

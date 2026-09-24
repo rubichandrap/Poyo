@@ -101,6 +101,15 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
     }
 
     [Fact]
+    public async Task Dashboard_conventional_alias_redirects_anonymous_users_to_login()
+    {
+        var response = await CreateClient().GetAsync("/Dashboard/Index");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Login", response.Headers.Location?.AbsolutePath);
+    }
+
+    [Fact]
     public async Task Dashboard_serves_after_login()
     {
         var client = CreateClient();
@@ -109,7 +118,14 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
         var response = await client.GetAsync("/Dashboard");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.Contains("Dashboard", await response.Content.ReadAsStringAsync());
+        var body = await response.Content.ReadAsStringAsync();
+        Assert.Contains("Dashboard", body);
+
+        var pageData = DocumentPageData.Extract(body);
+        Assert.Equal(
+            "This data was injected from the server; semicolons are safe.",
+            pageData.GetProperty("message").GetString());
+        Assert.Equal("demo", pageData.GetProperty("user").GetString());
     }
 
     [Fact]
