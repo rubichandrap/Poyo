@@ -193,7 +193,7 @@ export default function DashboardPage() {
 
 **Usage:**
 ```typescript
-// Server injects data via ViewBag.ServerData
+// Server injects data via this.PoyoPage(data)
 import { usePage } from "@rubichandrap/poyo/runtime";
 
 const data = usePage<{ message: string }>();
