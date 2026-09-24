@@ -4,13 +4,13 @@
 
 **Blocked by:** 02: Authoring Seam Normalization in PoyoPage
 
-**Status:** ready-for-agent
+**Status:** done — implemented in PR #62
 
-- [ ] `@Html.PoyoPageData()` is implemented in `namespace Poyo.Framework`.
-- [ ] `@Html.PoyoPageData()` emits `HtmlString.Empty` when Page data is absent or null.
-- [ ] `@Html.PoyoPageData()` serializes non-null object data with `JavaScriptEncoder.Default` into `<script>window.SERVER_DATA = ...;</script>` with trailing semicolon.
-- [ ] A development diagnostic warning is logged whenever `ViewData.ContainsKey("ServerData")` is detected, covering both cases (no controller data, and controller data present with legacy key).
-- [ ] `packages/poyo-template/Poyo.Server/Views/_ViewImports.cshtml` includes `@using Poyo.Framework`.
-- [ ] `packages/poyo-template/Poyo.Server/Views/Shared/_Layout.cshtml` replaces raw `<script>` and `@Html.Raw` with `@Html.PoyoPageData()`.
-- [ ] Unit tests in `Poyo.Server.Tests` verify safe `<script>` emission, empty output on null, and legacy key diagnostic logging.
-- [ ] A scaffolding regression test in `create-poyo-app/test/scaffold.test.ts` proves `PoyoPageData` remains untouched through project renaming via `PoyoPage` prefix protection.
+- [x] `@Html.PoyoPageData()` is implemented in `namespace Poyo.Framework`.
+- [x] `@Html.PoyoPageData()` emits `HtmlString.Empty` when Page data is absent or null.
+- [x] `@Html.PoyoPageData()` serializes non-null object data with `JavaScriptEncoder.Default` into `<script>window.SERVER_DATA = ...;</script>` with trailing semicolon.
+- [x] A development diagnostic warning is logged whenever `ViewData.ContainsKey("ServerData")` is detected, covering both cases (no controller data, and controller data present with legacy key).
+- [x] `packages/poyo-template/Poyo.Server/Views/_ViewImports.cshtml` includes `@using Poyo.Framework`.
+- [x] `packages/poyo-template/Poyo.Server/Views/Shared/_Layout.cshtml` replaces raw `<script>` and `@Html.Raw` with `@Html.PoyoPageData()`.
+- [x] Unit tests in `Poyo.Server.Tests` verify safe `<script>` emission, empty output on null, and legacy key diagnostic logging.
+- [x] A scaffolding regression test in `create-poyo-app/test/scaffold.test.ts` proves `PoyoPageData` remains untouched through project renaming via `PoyoPage` prefix protection.

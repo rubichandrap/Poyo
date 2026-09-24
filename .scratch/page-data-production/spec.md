@@ -2,7 +2,7 @@
 
 ADRs: docs/adr/0008-server-core-bundled-in-framework-package.md, docs/adr/0009-dynamic-navigation.md, docs/adr/0012-unified-page-data-production.md
 Decided in grilling session (2026-09-24); testing seams and architectural invariants confirmed with maintainer.
-Labels: ready-for-agent
+Status: implemented in PR #62
 
 ## Problem Statement
 
@@ -57,7 +57,7 @@ Consolidate Page data production deeply into the Server core with strict invaria
 
 ### Template & Scaffolding
 
-18. As a fresh-clone developer, I want the starter template's Dashboard to demonstrate Page data via a dedicated `DashboardController`, so that the template serves as an idiomatic reference for controller-based data injection.
+18. As a fresh-clone developer, I want the Template's Dashboard to demonstrate Page data via a dedicated `DashboardController`, so that the Template serves as an idiomatic reference for controller-based data injection.
 19. As an application developer running `pnpm create poyo-app MyApp`, I want `@Html.PoyoPageData()` in `_Layout.cshtml` to remain intact through the project rename via the `PoyoPage` prefix protection, so that the scaffolded project compiles without errors.
 20. As a framework maintainer, I want `fixture-e2e.test.mjs` to parse document server data through `</script>` rather than stopping at the first semicolon, so that payloads with embedded semicolons do not break release verification.
 

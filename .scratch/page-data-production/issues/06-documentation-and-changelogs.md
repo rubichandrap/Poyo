@@ -4,9 +4,9 @@
 
 **Blocked by:** 05: Template Dashboard Migration and Fixture Slicing
 
-**Status:** ready-for-agent
+**Status:** done — implemented in PR #62
 
-- [ ] `README.md` and `AGENTS.md` are updated to state that Page data is strictly controller-authored via `this.PoyoPage(data)` and embedded via `@Html.PoyoPageData()`.
-- [ ] Client runtime docstring in `packages/poyo/src/runtime/use-page.ts` is updated to describe the controller-supplied Page data model.
-- [ ] `CHANGELOG.md` at root and across all three packages (`packages/poyo`, `packages/poyo-template`, `packages/create-poyo-app`) contains migration notes detailing the removal of view-authored `ViewBag.ServerData`.
-- [ ] All unit, integration, and scaffolder test suites run green locally.
+- [x] `README.md` and `AGENTS.md` are updated to state that Page data is strictly controller-authored via `this.PoyoPage(data)` and embedded via `@Html.PoyoPageData()`.
+- [x] Client runtime docstring in `packages/poyo/src/runtime/use-page.ts` is updated to describe the controller-supplied Page data model.
+- [x] `CHANGELOG.md` at root and across all three packages (`packages/poyo`, `packages/poyo-template`, `packages/create-poyo-app`) contains migration notes detailing the removal of view-authored `ViewBag.ServerData`.
+- [x] All unit, integration, and scaffolder test suites run green locally.

@@ -4,11 +4,11 @@
 
 **Blocked by:** 01: Record ADR 0012 for Unified Page Data Production
 
-**Status:** ready-for-agent
+**Status:** done — implemented in PR #62
 
-- [ ] `this.PoyoPage(data)` accepts C# objects and records, serializing them to `JsonElement` with camelCase property naming.
-- [ ] `this.PoyoPage(jsonString)` accepts pre-serialized JSON strings representing objects, preserving existing property names.
-- [ ] `this.PoyoPage` wraps `JsonException` in `ArgumentException` when an invalid JSON string is passed.
-- [ ] `this.PoyoPage` throws `ArgumentException` when passed a primitive (number, boolean, non-JSON string) or an array.
-- [ ] Caller-supplied `JsonElement` values are explicitly cloned, ensuring accessing the element after the caller disposes the underlying `JsonDocument` does not throw `ObjectDisposedException`.
-- [ ] Direct unit tests in `Poyo.Server.Tests` verify valid normalization, exception throwing on primitives/arrays/bad JSON, and dispose-after-pass memory safety.
+- [x] `this.PoyoPage(data)` accepts C# objects and records, serializing them to `JsonElement` with camelCase property naming.
+- [x] `this.PoyoPage(jsonString)` accepts pre-serialized JSON strings representing objects, preserving existing property names.
+- [x] `this.PoyoPage` wraps `JsonException` in `ArgumentException` when an invalid JSON string is passed.
+- [x] `this.PoyoPage` throws `ArgumentException` when passed a primitive (number, boolean, non-JSON string) or an array.
+- [x] Caller-supplied `JsonElement` values are explicitly cloned, ensuring accessing the element after the caller disposes the underlying `JsonDocument` does not throw `ObjectDisposedException`.
+- [x] Direct unit tests in `Poyo.Server.Tests` verify valid normalization, exception throwing on primitives/arrays/bad JSON, and dispose-after-pass memory safety.
