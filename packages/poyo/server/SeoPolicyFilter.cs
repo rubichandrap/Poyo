@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Poyo.Framework;
@@ -19,7 +20,11 @@ public sealed class SeoPolicyFilter : IActionFilter
 
     public void OnActionExecuting(ActionExecutingContext context)
     {
-        var route = _policy.Find(context.HttpContext.Request.Path.Value ?? string.Empty);
+        var action = context.ActionDescriptor as ControllerActionDescriptor;
+        var route = _policy.FindForRequest(
+            context.HttpContext.Request.Path.Value ?? string.Empty,
+            action?.ControllerName,
+            action?.ActionName);
 
         if (route is null || context.Controller is not Controller controller)
         {

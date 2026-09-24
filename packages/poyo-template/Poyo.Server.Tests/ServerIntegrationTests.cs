@@ -101,6 +101,15 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
     }
 
     [Fact]
+    public async Task Dashboard_conventional_alias_redirects_anonymous_users_to_login()
+    {
+        var response = await CreateClient().GetAsync("/Dashboard/Index");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Login", response.Headers.Location?.AbsolutePath);
+    }
+
+    [Fact]
     public async Task Dashboard_serves_after_login()
     {
         var client = CreateClient();
