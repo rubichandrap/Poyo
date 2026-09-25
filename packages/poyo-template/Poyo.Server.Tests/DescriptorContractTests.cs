@@ -50,6 +50,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
         // One URL, two representations: caches must key on the header.
         Assert.Equal(PageResult.NavigationHeaderName, response.Headers.Vary.ToString());
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 
     [Fact]
@@ -60,6 +61,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal(PageResult.NavigationHeaderName, response.Headers.Vary.ToString());
+        PageResponseAssertions.AssertPrivateNoStore(response);
 
         var descriptor = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("Public", descriptor.GetProperty("name").GetString());
@@ -139,6 +141,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         var response = await client.GetAsync("/BadData");
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 
     [Fact]
@@ -168,6 +171,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         var response = await CreateClient().SendAsync(DescriptorRequest("/MissingView"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 
     [Fact]
@@ -176,6 +180,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         var response = await CreateClient().SendAsync(DescriptorRequest("/CustomMissingView"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 
     [Fact]
@@ -187,6 +192,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         // not a descriptor payload — is what an anonymous caller receives.
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("/Login", response.Headers.Location?.AbsolutePath);
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 
     [Fact]
@@ -204,6 +210,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("/Dashboard", response.Headers.Location?.ToString());
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 
     [Fact]
@@ -232,6 +239,23 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
             .GetProperty("pageData");
         Assert.Equal("hello from PoyoPage", pageData.GetProperty("message").GetString());
         Assert.Equal(42, pageData.GetProperty("answer").GetInt32());
+    }
+
+    [Fact]
+    public async Task PoyoPage_replaces_application_cache_directives()
+    {
+        var client = CreateClient();
+        await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            username = "demo",
+            password = "password",
+        });
+
+        var document = await client.GetAsync("/Custom");
+        var descriptor = await client.SendAsync(DescriptorRequest("/Custom"));
+
+        PageResponseAssertions.AssertPrivateNoStore(document);
+        PageResponseAssertions.AssertPrivateNoStore(descriptor);
     }
 
     private static async Task<(string DocumentBody, JsonElement PageData)> GetPageDataRepresentationsAsync(

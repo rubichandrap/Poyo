@@ -5,12 +5,13 @@ using Microsoft.AspNetCore.Mvc.Filters;
 namespace Poyo.Framework;
 
 /// <summary>
-/// Universal access enforcement for every registry route. Scheme-agnostic:
-/// reads only User.Identity and issues challenges through the auth pipeline,
-/// so swapping the demo auth later does not touch it. Protected routes
-/// challenge anonymous users (the cookie config keeps the LoginPath redirect
-/// for pages and 401 for API calls); guest routes redirect authenticated
-/// users to the configured landing page.
+/// Universal access enforcement and page-response policy for every registry
+/// route. Reads User.Identity for access decisions, applies the private
+/// no-store policy, and issues challenges through the auth pipeline, so
+/// swapping the demo auth later does not touch it. Protected routes challenge
+/// anonymous users (the cookie config keeps the LoginPath redirect for pages
+/// and 401 for API calls); guest routes redirect authenticated users to the
+/// configured landing path.
 /// </summary>
 public sealed class RouteAccessFilter : IAsyncResourceFilter
 {
@@ -35,6 +36,7 @@ public sealed class RouteAccessFilter : IAsyncResourceFilter
 
         if (route is not null)
         {
+            PageResponsePolicy.ApplyPrivateNoStore(context.HttpContext.Response);
             var isAuthenticated = context.HttpContext.User.Identity?.IsAuthenticated == true;
 
             if (route.Access == RouteAccess.Protected && !isAuthenticated)

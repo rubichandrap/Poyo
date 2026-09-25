@@ -34,6 +34,7 @@ public class MissingViewRouteTests : IClassFixture<MissingViewServerFixture>
         var response = await CreateClient().GetAsync("/MissingView");
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 }
 

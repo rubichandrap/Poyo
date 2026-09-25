@@ -12,6 +12,7 @@ public sealed class TestCustomController : Controller
 {
     public IActionResult Page()
     {
+        Response.Headers.CacheControl = "public, max-age=3600";
         return this.PoyoPage(new
         {
             message = "hello from PoyoPage",
