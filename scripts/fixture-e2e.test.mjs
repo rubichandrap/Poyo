@@ -133,6 +133,25 @@ function assertAuthenticationCookie(response) {
 	);
 }
 
+function assertPrivateAuthenticationResponse(response) {
+	assertPrivateNoStore(response);
+	assertAuthenticationCookie(response);
+}
+
+function assertRedirectTo(response, expectedPath) {
+	assert.ok(
+		[301, 302, 307, 308].includes(response.status),
+		`expected a redirect (status was ${response.status})`,
+	);
+	const location = response.headers.get("location");
+	assert.ok(location, "redirect response has no Location header");
+	assert.equal(new URL(location, "http://fixture.test").pathname, expectedPath);
+}
+
+function sameOriginDescriptorInit(headers = {}) {
+	return { credentials: "same-origin", headers };
+}
+
 /**
  * Returns the response's cookies as one Cookie request header value. The demo
  * login sets the auth cookie; the fixture relays it by hand because its fetch
@@ -376,9 +395,9 @@ test(
 					SERVER_DIR,
 					"Controllers",
 					"Api",
-					"FixtureUnrelatedController.cs",
+					"TestUnrelatedController.cs",
 				),
-				`using Microsoft.AspNetCore.Mvc;\n\nnamespace ${PROJECT_PASCAL}.Server.Controllers.Api;\n\n[ApiController]\n[Route("api/test-unrelated")]\npublic sealed class FixtureUnrelatedController : ControllerBase\n{\n    [HttpGet]\n    public IActionResult Get() => Ok(new { status = "ok" });\n}\n`,
+				`using Microsoft.AspNetCore.Mvc;\nusing ${PROJECT_PASCAL}.Server.Primitives;\n\nnamespace ${PROJECT_PASCAL}.Server.Controllers.Api;\n\n[ApiController]\n[Route("api/[controller]")]\npublic sealed class TestUnrelatedController : ControllerBase\n{\n    [HttpGet]\n    public ActionResult<JSendResponse<object>> Get()\n    {\n        return Ok(JSend.Success<object>(new { status = "ok" }));\n    }\n}\n`,
 			);
 
 			const initialSnapshot = path.join(
@@ -605,6 +624,11 @@ test(
 			);
 			assert.match(
 				bundle,
+				/same-origin/,
+				"the router's same-origin credential mode is missing from the built client bundle",
+			);
+			assert.match(
+				bundle,
 				/data-dynamic-nav/,
 				"the Link module's opt-out attribute is missing from the built client bundle",
 			);
@@ -739,15 +763,7 @@ test(
 			const dashRes = await fetch(`http://127.0.0.1:${serverPort}/Dashboard`, {
 				redirect: "manual",
 			});
-			assert.ok(
-				[301, 302, 307, 308].includes(dashRes.status),
-				`Protected route /Dashboard should redirect anonymous request (status was ${dashRes.status})`,
-			);
-			assert.match(
-				dashRes.headers.get("location") || "",
-				/\/Login/,
-				"Protected route redirect should target /Login",
-			);
+			assertRedirectTo(dashRes, "/Login");
 			assertPrivateNoStore(dashRes);
 
 			// 11. The dynamic-navigation wire contract (ADR 0009) as the
@@ -759,7 +775,7 @@ test(
 
 			const loginDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Login`,
-				{ headers: navHeaders },
+				sameOriginDescriptorInit(navHeaders),
 			);
 			assert.equal(
 				loginDescriptorRes.status,
@@ -796,7 +812,7 @@ test(
 			// even when the request carries the navigation header.
 			const registerRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Register`,
-				{ headers: navHeaders },
+				sameOriginDescriptorInit(navHeaders),
 			);
 			assert.equal(registerRes.status, 200);
 			assertPageResponse(registerRes);
@@ -811,7 +827,7 @@ test(
 
 			const missingDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/MissingView`,
-				{ headers: navHeaders },
+				sameOriginDescriptorInit(navHeaders),
 			);
 			assert.equal(missingDescriptorRes.status, 404);
 			assertPageResponse(missingDescriptorRes);
@@ -820,17 +836,9 @@ test(
 			// no payload may leak through the challenge.
 			const protectedDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Dashboard`,
-				{ headers: navHeaders, redirect: "manual" },
+				{ ...sameOriginDescriptorInit(navHeaders), redirect: "manual" },
 			);
-			assert.ok(
-				[301, 302, 307, 308].includes(protectedDescriptorRes.status),
-				`anonymous descriptor request should challenge (status was ${protectedDescriptorRes.status})`,
-			);
-			assert.match(
-				protectedDescriptorRes.headers.get("location") || "",
-				/\/Login/,
-				"the protected descriptor challenge should target /Login",
-			);
+			assertRedirectTo(protectedDescriptorRes, "/Login");
 			assert.ok(
 				!(await protectedDescriptorRes.text()).includes("pageData"),
 				"a challenged descriptor must not leak its payload",
@@ -848,24 +856,18 @@ test(
 				},
 			);
 			assert.equal(loginApiRes.status, 200, "the demo login must succeed");
-			assertPrivateNoStore(loginApiRes);
-			assertAuthenticationCookie(loginApiRes);
+			assertPrivateAuthenticationResponse(loginApiRes);
 			let authCookie = authCookieOf(loginApiRes);
 			assert.ok(authCookie.length > 0, "the demo login set no auth cookie");
 
 			const guestDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Login`,
-				{ headers: { ...navHeaders, cookie: authCookie }, redirect: "manual" },
+				{
+					...sameOriginDescriptorInit({ ...navHeaders, cookie: authCookie }),
+					redirect: "manual",
+				},
 			);
-			assert.ok(
-				[301, 302, 307, 308].includes(guestDescriptorRes.status),
-				`authenticated guest descriptor request should redirect (status was ${guestDescriptorRes.status})`,
-			);
-			assert.match(
-				guestDescriptorRes.headers.get("location") || "",
-				/\/Dashboard/,
-				"the guest descriptor redirect should target /Dashboard",
-			);
+			assertRedirectTo(guestDescriptorRes, "/Dashboard");
 			assertPrivateNoStore(guestDescriptorRes);
 
 			const refreshApiRes = await fetch(
@@ -883,8 +885,7 @@ test(
 				},
 			);
 			assert.equal(refreshApiRes.status, 200, "the demo refresh must succeed");
-			assertPrivateNoStore(refreshApiRes);
-			assertAuthenticationCookie(refreshApiRes);
+			assertPrivateAuthenticationResponse(refreshApiRes);
 			authCookie = authCookieOf(refreshApiRes);
 			assert.ok(authCookie.length > 0, "the demo refresh set no auth cookie");
 
@@ -897,7 +898,8 @@ test(
 			assert.equal(unrelatedApiRes.headers.get("pragma"), null);
 			assert.equal(unrelatedApiRes.headers.get("expires"), null);
 			const unrelatedApiBody = await unrelatedApiRes.json();
-			assert.equal(unrelatedApiBody.status, "ok");
+			assert.equal(unrelatedApiBody.status, "success");
+			assert.equal(unrelatedApiBody.data.status, "ok");
 
 			const dashboardDocumentRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Dashboard`,
@@ -910,10 +912,7 @@ test(
 
 			const dashboardDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Dashboard`,
-				{
-					credentials: "same-origin",
-					headers: { ...navHeaders, cookie: authCookie },
-				},
+				sameOriginDescriptorInit({ ...navHeaders, cookie: authCookie }),
 			);
 			assert.equal(dashboardDescriptorRes.status, 200);
 			assertPageResponse(dashboardDescriptorRes);
@@ -941,18 +940,14 @@ test(
 				{ method: "POST", headers: { cookie: authCookie } },
 			);
 			assert.equal(logoutApiRes.status, 200, "the demo logout must succeed");
-			assertPrivateNoStore(logoutApiRes);
-			assertAuthenticationCookie(logoutApiRes);
+			assertPrivateAuthenticationResponse(logoutApiRes);
 
 			const loggedOutCookie = authCookieOf(logoutApiRes);
 			const postLogoutRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Dashboard`,
 				{ headers: { cookie: loggedOutCookie }, redirect: "manual" },
 			);
-			assert.ok(
-				[301, 302, 307, 308].includes(postLogoutRes.status),
-				`logout should clear the session (status was ${postLogoutRes.status})`,
-			);
+			assertRedirectTo(postLogoutRes, "/Login");
 			assertPrivateNoStore(postLogoutRes);
 
 			if (serverProcess && !serverProcess.killed) {
