@@ -98,7 +98,7 @@ const router = useRouter();
 await router.push(routePath("Dashboard"));   // also: replace, back, forward
 ```
 
-`useRouter().route` is the shell's reactive current route, and `usePage()` returns the destination page's data after every swap. Browser Back/Forward swap pages the same way, with scroll positions restored per history entry; a URL the client never navigated to is an ordinary document load. Every failure — an unreachable descriptor, an unknown page, an apply error — falls back to a document load of the same URL, so the worst case is what a plain link would have done. Navigation requests are access-enforced exactly like the document: a protected page's descriptor challenges anonymous callers instead of leaking its payload.
+`useRouter().route` is the shell's reactive current route, and `usePage()` returns the destination page's data after every swap. Browser Back/Forward swap pages the same way, with scroll positions restored per history entry; a URL the client never navigated to is an ordinary document load. Descriptor fetches use `credentials: "same-origin"`, so the current HTTP-only cookie is included for same-origin page requests but never for cross-origin requests. Every failure — an unreachable descriptor, an unknown page, an apply error — falls back to a document load of the same URL, so the worst case is what a plain link would have done. Navigation requests are access-enforced exactly like the document: a protected page's descriptor challenges anonymous callers instead of leaking its payload.
 
 ## Scripts
 

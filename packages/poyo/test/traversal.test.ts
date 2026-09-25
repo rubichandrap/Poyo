@@ -293,6 +293,7 @@ describe("Router Traversal — Slice 2: Client-navigated traversal swaps page vi
 
 		// Verify fetch occurred with navigation header
 		expect(fetchMock).toHaveBeenCalledWith("/dashboard", {
+			credentials: "same-origin",
 			headers: { "X-Poyo-Navigation": "1" },
 		});
 
@@ -872,6 +873,7 @@ describe("Router Traversal — Slice 4: Hash-only changes keep native anchor beh
 
 		// Pathname changed, so must fetch descriptor!
 		expect(fetchMock).toHaveBeenCalledWith("/", {
+			credentials: "same-origin",
 			headers: { "X-Poyo-Navigation": "1" },
 		});
 		expect(getNavigationStore().getRoute()).toEqual(homeRoute);

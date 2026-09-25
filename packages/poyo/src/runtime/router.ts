@@ -239,6 +239,7 @@ async function fetchAndResolveDescriptor(
 	if (!fetchFn || !routeTable) return null;
 	const fetchUrl = url.split("#")[0] || url;
 	const response = await fetchFn(fetchUrl, {
+		credentials: "same-origin",
 		headers: {
 			[NAVIGATION_HEADER]: NAVIGATION_HEADER_VALUE,
 		},

@@ -284,7 +284,7 @@ const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
 
 **Navigation subpaths**: dynamic navigation is explicit-only — no global interception, so a plain `<a>` stays a document load. `Link` ships from `@rubichandrap/poyo/runtime/link` (declarative) and `useRouter`/`createRouter` from `@rubichandrap/poyo/runtime/router` (programmatic) — the `next/link` / `next/router` split; the runtime root re-exports both. `Link`'s one opt-out is the documented `data-dynamic-nav="off"` attribute.
 
-One navigation path: descriptor fetch (`X-Poyo-Navigation: 1`, §2.3) → top-level shape check → route-table lookup by page name → store commit (route + page data) → history write (`pushState`/`replaceState`) → SEO apply, focus move, live-region announcement. Traversal rides the `popstate` path only: Back/Forward after a client-side navigation swap pages the same way, with the scroll position stored per history entry and restored on return; a cold entry (a URL the client never navigated to) is an ordinary document load, and a hash-only change never enters the machinery. Any failure — non-2xx, non-descriptor body, unknown page name, apply error — degrades to a document load of the same URL; the browser's own navigation is the floor, not the fallback. Rapid successive pushes are last-write-wins (a supersede token drops stale responses).
+One navigation path: descriptor fetch (`X-Poyo-Navigation: 1`, `credentials: "same-origin"`, §2.3) → top-level shape check → route-table lookup by page name → store commit (route + page data) → history write (`pushState`/`replaceState`) → SEO apply, focus move, live-region announcement. Traversal rides the `popstate` path only: Back/Forward after a client-side navigation swap pages the same way, with the scroll position stored per history entry and restored on return; a cold entry (a URL the client never navigated to) is an ordinary document load, and a hash-only change never enters the machinery. Any failure — non-2xx, non-descriptor body, unknown page name, apply error — degrades to a document load of the same URL; the browser's own navigation is the floor, not the fallback. Rapid successive pushes are last-write-wins (a supersede token drops stale responses). Same-origin descriptor requests include the current HTTP-only authentication cookie; cross-origin descriptor requests never include credentials.
 ---
 
 ## 4. Route Management
@@ -380,6 +380,7 @@ pnpm --filter poyo-template run build
 **Demo Only:**
 - Hardcoded credentials (`demo`/`password`)
 - Cookie-based sessions
+- Demo login, refresh, and logout responses use `Cache-Control: private, no-store` through `Response.Headers.CacheControl`; replacement cookie-mutating controllers own the same policy without adding a global API policy
 - Access enforced by the registry (`access` field via `RouteAccessFilter`), plus `[Authorize]` where needed
 
 ### 6.2. Replacing Auth

@@ -96,15 +96,19 @@ describe("Router push, replace, and fallbacks", () => {
 
 		const pushStateMock = vi.fn();
 		const assignMock = vi.fn();
-		const fetchMock = vi.fn().mockResolvedValue({
-			ok: true,
-			status: 200,
-			json: async () => ({
-				name: "Dashboard",
-				seo: { title: "Dashboard Overview" },
-				pageData: { stats: 100 },
-			}),
-		});
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					name: "Dashboard",
+					seo: { title: "Dashboard Overview" },
+					pageData: { stats: 100 },
+				}),
+				{
+					status: 200,
+					headers: { "Cache-Control": "private, no-store" },
+				},
+			),
+		);
 
 		vi.stubGlobal("window", {
 			history: { pushState: pushStateMock, replaceState: vi.fn() },
@@ -126,6 +130,7 @@ describe("Router push, replace, and fallbacks", () => {
 		expect(fetchMock).toHaveBeenCalledWith(
 			"/dashboard",
 			expect.objectContaining({
+				credentials: "same-origin",
 				headers: expect.objectContaining({
 					"X-Poyo-Navigation": "1",
 				}),
@@ -231,6 +236,37 @@ describe("Router push, replace, and fallbacks", () => {
 
 		expect(assignMock).toHaveBeenCalledWith("/missing");
 		expect(router.route).toBeNull();
+	});
+
+	it("does not include credentials for a cross-origin descriptor request", async () => {
+		const assignMock = vi.fn();
+		const crossOriginUrl = "https://other.example/dashboard";
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 404,
+		});
+
+		vi.stubGlobal("window", {
+			history: { pushState: vi.fn(), replaceState: vi.fn() },
+			location: {
+				assign: assignMock,
+				pathname: "/",
+				origin: "http://localhost:3000",
+				href: "http://localhost:3000/",
+			},
+		});
+
+		const router = createRouter({
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		await router.push(crossOriginUrl);
+
+		expect(fetchMock).toHaveBeenCalledWith(crossOriginUrl, {
+			credentials: "same-origin",
+			headers: { "X-Poyo-Navigation": "1" },
+		});
+		expect(assignMock).toHaveBeenCalledWith(crossOriginUrl);
 	});
 
 	it("degrades to document load on invalid descriptor shape (not an object or missing name)", async () => {
