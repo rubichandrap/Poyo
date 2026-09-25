@@ -22,6 +22,13 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
             AllowAutoRedirect = false,
         });
 
+    private HttpClient CreateServerClient()
+    {
+        var client = _factory.Server.CreateClient();
+        client.BaseAddress = new Uri("https://localhost");
+        return client;
+    }
+
     private static async Task LoginAsync(HttpClient client)
     {
         var login = await client.PostAsJsonAsync("/api/auth/login", new
@@ -31,6 +38,47 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
         });
 
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+    }
+
+    private static void AssertPrivateNoStore(HttpResponseMessage response)
+    {
+        Assert.Equal(
+            "private, no-store",
+            Assert.Single(response.Headers.NonValidated["Cache-Control"]));
+        Assert.False(response.Headers.NonValidated.Contains("Pragma"));
+        Assert.False(response.Headers.NonValidated.Contains("Expires"));
+    }
+
+    private static void AssertAuthenticationCookie(HttpResponseMessage response)
+    {
+        Assert.Contains(
+            response.Headers.GetValues("Set-Cookie"),
+            value => value.StartsWith(".AspNetCore.Cookies=", StringComparison.Ordinal));
+    }
+
+    private static void AssertPrivateNoStoreAndAuthenticationCookie(
+        HttpResponseMessage response)
+    {
+        AssertPrivateNoStore(response);
+        AssertAuthenticationCookie(response);
+    }
+
+    private static void ApplyResponseCookies(
+        HttpClient client,
+        CookieContainer cookies,
+        HttpResponseMessage response)
+    {
+        foreach (var setCookie in response.Headers.GetValues("Set-Cookie"))
+        {
+            cookies.SetCookies(client.BaseAddress!, setCookie);
+        }
+
+        client.DefaultRequestHeaders.Remove("Cookie");
+        var cookieHeader = cookies.GetCookieHeader(client.BaseAddress!);
+        if (!string.IsNullOrEmpty(cookieHeader))
+        {
+            client.DefaultRequestHeaders.Add("Cookie", cookieHeader);
+        }
     }
 
     [Fact]
@@ -129,6 +177,70 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
     }
 
     [Fact]
+    public async Task Login_is_private_no_store_and_sets_the_authentication_cookie()
+    {
+        var client = CreateServerClient();
+        var cookies = new CookieContainer();
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            username = "demo",
+            password = "password",
+        });
+
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        AssertPrivateNoStoreAndAuthenticationCookie(login);
+        ApplyResponseCookies(client, cookies, login);
+
+        var dashboard = await client.GetAsync("/Dashboard");
+        Assert.Equal(HttpStatusCode.OK, dashboard.StatusCode);
+    }
+
+    [Fact]
+    public async Task Refresh_is_private_no_store_and_sets_the_authentication_cookie()
+    {
+        var client = CreateServerClient();
+        var cookies = new CookieContainer();
+
+        var refresh = await client.PostAsJsonAsync("/api/auth/refresh", new
+        {
+            token = "demo-token",
+            refreshToken = "demo-refresh-token",
+        });
+
+        Assert.Equal(HttpStatusCode.OK, refresh.StatusCode);
+        AssertPrivateNoStoreAndAuthenticationCookie(refresh);
+        ApplyResponseCookies(client, cookies, refresh);
+
+        var dashboard = await client.GetAsync("/Dashboard");
+        Assert.Equal(HttpStatusCode.OK, dashboard.StatusCode);
+    }
+
+    [Fact]
+    public async Task Logout_is_private_no_store_and_clears_the_authentication_cookie()
+    {
+        var client = CreateServerClient();
+        var cookies = new CookieContainer();
+        var login = await client.PostAsJsonAsync("/api/auth/login", new
+        {
+            username = "demo",
+            password = "password",
+        });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        ApplyResponseCookies(client, cookies, login);
+
+        var logout = await client.PostAsync("/api/auth/logout", null);
+
+        Assert.Equal(HttpStatusCode.OK, logout.StatusCode);
+        AssertPrivateNoStoreAndAuthenticationCookie(logout);
+        ApplyResponseCookies(client, cookies, logout);
+
+        var dashboard = await client.GetAsync("/Dashboard");
+        Assert.Equal(HttpStatusCode.Redirect, dashboard.StatusCode);
+        Assert.Equal("/Login", dashboard.Headers.Location?.AbsolutePath);
+    }
+
+    [Fact]
     public async Task Login_rejects_bad_credentials()
     {
         var login = await CreateClient().PostAsJsonAsync("/api/auth/login", new
@@ -138,8 +250,44 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
         });
 
         Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+        AssertPrivateNoStore(login);
 
         using var body = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
         Assert.Equal("fail", body.RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task Login_model_validation_response_is_private_no_store()
+    {
+        var response = await CreateClient().PostAsJsonAsync("/api/auth/login", new { });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        AssertPrivateNoStore(response);
+    }
+
+    [Fact]
+    public async Task Refresh_model_validation_response_is_private_no_store()
+    {
+        using var content = new StringContent(
+            "{",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var response = await CreateClient().PostAsync("/api/auth/refresh", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        AssertPrivateNoStore(response);
+    }
+
+    [Fact]
+    public async Task Unrelated_api_response_does_not_receive_the_page_cache_policy()
+    {
+        var response = await CreateClient().GetAsync("/api/test-unrelated");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(response.Headers.CacheControl);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("success", body.RootElement.GetProperty("status").GetString());
+        Assert.Equal("ok", body.RootElement.GetProperty("data").GetProperty("status").GetString());
     }
 }

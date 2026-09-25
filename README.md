@@ -137,7 +137,7 @@ const router = useRouter();
 await router.push(routePath("Login"));
 ```
 
-The client requests `{ name, seo, pageData }` with `X-Poyo-Navigation: 1`, commits the destination route and Page data, updates history and SEO, then announces the swap. Back and Forward restore page and scroll state. Any navigation failure falls back to a document load of the same URL.
+The client requests `{ name, seo, pageData }` with `X-Poyo-Navigation: 1`, commits the destination route and Page data, updates history and SEO, then announces the swap. Back and Forward restore page and scroll state. Any navigation failure falls back to a document load of the same URL. Descriptor fetches explicitly use `credentials: "same-origin"`, so the current HTTP-only cookie is included for same-origin page requests but never for cross-origin requests.
 
 The server applies route access before it answers a descriptor request. A route with `"dynamic": false` always answers the document.
 

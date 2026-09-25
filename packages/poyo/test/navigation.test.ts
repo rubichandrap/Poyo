@@ -5,8 +5,12 @@ import {
 	getNavigationStore,
 	resetNavigationStore,
 } from "../src/runtime/navigation-store.js";
-import { createRouter, useRouter } from "../src/runtime/router.js";
-import type { AppRoute } from "../src/runtime/route-table.js";
+import { getActiveRouter, setActiveRouter } from "../src/runtime/router.js";
+import {
+	clearActiveRouteTable,
+	type AppRoute,
+} from "../src/runtime/route-table.js";
+import { createRouterHarness } from "./router-test-helpers.js";
 
 const dummyRoute: AppRoute = {
 	path: "/dashboard",
@@ -17,11 +21,13 @@ const dummyRoute: AppRoute = {
 
 describe("Navigation Store & usePage", () => {
 	beforeEach(() => {
+		clearActiveRouteTable();
 		resetNavigationStore();
 	});
 
 	afterEach(() => {
 		vi.unstubAllGlobals();
+		clearActiveRouteTable();
 		resetNavigationStore();
 	});
 
@@ -68,11 +74,15 @@ describe("Navigation Store & usePage", () => {
 
 describe("Router push, replace, and fallbacks", () => {
 	beforeEach(() => {
+		clearActiveRouteTable();
 		resetNavigationStore();
 	});
 
 	afterEach(() => {
+		getActiveRouter()?.destroy?.();
+		setActiveRouter(undefined);
 		vi.unstubAllGlobals();
+		clearActiveRouteTable();
 		resetNavigationStore();
 	});
 
@@ -85,47 +95,33 @@ describe("Router push, replace, and fallbacks", () => {
 		};
 
 		const routes: AppRoute[] = [dashboardRoute];
-		const routeTable = {
+
+		const fetchMock = vi.fn().mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					name: "Dashboard",
+					seo: { title: "Dashboard Overview" },
+					pageData: { stats: 100 },
+				}),
+				{
+					status: 200,
+					headers: { "Cache-Control": "private, no-store" },
+				},
+			),
+		);
+
+		const harness = createRouterHarness({
 			routes,
-			routeMap: new Map([["/dashboard", dashboardRoute]]),
-			findRouteByName: (name: string) =>
-				routes.find((r) => r.pageName === name),
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
-		};
-
-		const pushStateMock = vi.fn();
-		const assignMock = vi.fn();
-		const fetchMock = vi.fn().mockResolvedValue({
-			ok: true,
-			status: 200,
-			json: async () => ({
-				name: "Dashboard",
-				seo: { title: "Dashboard Overview" },
-				pageData: { stats: 100 },
-			}),
-		});
-
-		vi.stubGlobal("window", {
-			history: { pushState: pushStateMock, replaceState: vi.fn() },
-			location: {
-				assign: assignMock,
-				pathname: "/",
-				origin: "http://localhost:3000",
-				href: "http://localhost:3000/",
-			},
-		});
-
-		const router = createRouter({
-			routeTable,
 			fetch: fetchMock as unknown as typeof fetch,
 		});
+		const router = harness.router;
 
 		await router.push("/dashboard");
 
 		expect(fetchMock).toHaveBeenCalledWith(
 			"/dashboard",
 			expect.objectContaining({
+				credentials: "same-origin",
 				headers: expect.objectContaining({
 					"X-Poyo-Navigation": "1",
 				}),
@@ -133,7 +129,7 @@ describe("Router push, replace, and fallbacks", () => {
 		);
 		expect(router.route).toEqual(dashboardRoute);
 		expect(usePage<{ stats: number }>()?.stats).toBe(100);
-		expect(pushStateMock).toHaveBeenCalledWith(
+		expect(harness.history.pushState).toHaveBeenCalledWith(
 			expect.objectContaining({
 				__poyo: expect.objectContaining({
 					clientNavigated: true,
@@ -143,7 +139,7 @@ describe("Router push, replace, and fallbacks", () => {
 			"",
 			"/dashboard",
 		);
-		expect(assignMock).not.toHaveBeenCalled();
+		expect(harness.assign).not.toHaveBeenCalled();
 	});
 
 	it("swaps route and calls replaceState on replace", async () => {
@@ -155,16 +151,7 @@ describe("Router push, replace, and fallbacks", () => {
 		};
 
 		const routes: AppRoute[] = [loginRoute];
-		const routeTable = {
-			routes,
-			routeMap: new Map([["/login", loginRoute]]),
-			findRouteByName: (name: string) =>
-				routes.find((r) => r.pageName === name),
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
-		};
 
-		const replaceStateMock = vi.fn();
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,
 			status: 200,
@@ -175,25 +162,16 @@ describe("Router push, replace, and fallbacks", () => {
 			}),
 		});
 
-		vi.stubGlobal("window", {
-			history: { pushState: vi.fn(), replaceState: replaceStateMock },
-			location: {
-				assign: vi.fn(),
-				pathname: "/",
-				origin: "http://localhost:3000",
-				href: "http://localhost:3000/",
-			},
-		});
-
-		const router = createRouter({
-			routeTable,
+		const harness = createRouterHarness({
+			routes,
 			fetch: fetchMock as unknown as typeof fetch,
 		});
+		const router = harness.router;
 
 		await router.replace("/login");
 
 		expect(router.route).toEqual(loginRoute);
-		expect(replaceStateMock).toHaveBeenCalledWith(
+		expect(harness.history.replaceState).toHaveBeenCalledWith(
 			expect.objectContaining({
 				__poyo: expect.objectContaining({
 					clientNavigated: true,
@@ -206,63 +184,79 @@ describe("Router push, replace, and fallbacks", () => {
 	});
 
 	it("degrades to document load on non-2xx response", async () => {
-		const assignMock = vi.fn();
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: false,
 			status: 404,
 			statusText: "Not Found",
 		});
 
-		vi.stubGlobal("window", {
-			history: { pushState: vi.fn(), replaceState: vi.fn() },
-			location: {
-				assign: assignMock,
-				pathname: "/",
-				origin: "http://localhost:3000",
-				href: "http://localhost:3000/",
-			},
-		});
-
-		const router = createRouter({
+		const harness = createRouterHarness({
 			fetch: fetchMock as unknown as typeof fetch,
 		});
+		const router = harness.router;
 
 		await router.push("/missing");
 
-		expect(assignMock).toHaveBeenCalledWith("/missing");
+		expect(harness.assign).toHaveBeenCalledWith("/missing");
 		expect(router.route).toBeNull();
 	});
 
+	it("does not include credentials for a cross-origin descriptor request", async () => {
+		const crossOriginUrl = "https://other.example/dashboard";
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 404,
+		});
+		const activeRoute: AppRoute = {
+			path: "/",
+			pageName: "Home",
+			access: "public",
+			component: () => null,
+		};
+		const harness = createRouterHarness({
+			routes: [activeRoute],
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+		const router = harness.router;
+
+		await router.push(crossOriginUrl);
+
+		expect(fetchMock).toHaveBeenCalledWith(crossOriginUrl, {
+			credentials: "same-origin",
+			headers: { "X-Poyo-Navigation": "1" },
+		});
+		const crossOriginOptions = fetchMock.mock.calls.find(
+			([url]) => url === crossOriginUrl,
+		)?.[1];
+		expect(crossOriginOptions).toMatchObject({
+			credentials: "same-origin",
+		});
+		expect(crossOriginOptions).not.toMatchObject({
+			credentials: "include",
+		});
+		expect(router.route).toEqual(activeRoute);
+		expect(harness.assign).toHaveBeenCalledWith(crossOriginUrl);
+	});
+
 	it("degrades to document load on invalid descriptor shape (not an object or missing name)", async () => {
-		const assignMock = vi.fn();
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,
 			status: 200,
 			json: async () => [1, 2, 3], // Array is not a descriptor
 		});
 
-		vi.stubGlobal("window", {
-			history: { pushState: vi.fn(), replaceState: vi.fn() },
-			location: {
-				assign: assignMock,
-				pathname: "/",
-				origin: "http://localhost:3000",
-				href: "http://localhost:3000/",
-			},
-		});
-
-		const router = createRouter({
+		const harness = createRouterHarness({
 			fetch: fetchMock as unknown as typeof fetch,
 		});
+		const router = harness.router;
 
 		await router.push("/bad-shape");
 
-		expect(assignMock).toHaveBeenCalledWith("/bad-shape");
+		expect(harness.assign).toHaveBeenCalledWith("/bad-shape");
 		expect(router.route).toBeNull();
 	});
 
 	it("degrades to document load when descriptor name is unknown in route table", async () => {
-		const assignMock = vi.fn();
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,
 			status: 200,
@@ -273,56 +267,27 @@ describe("Router push, replace, and fallbacks", () => {
 			}),
 		});
 
-		const routeTable = {
-			routes: [],
-			routeMap: new Map(),
-			findRouteByName: () => undefined,
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
-		};
-
-		vi.stubGlobal("window", {
-			history: { pushState: vi.fn(), replaceState: vi.fn() },
-			location: {
-				assign: assignMock,
-				pathname: "/",
-				origin: "http://localhost:3000",
-				href: "http://localhost:3000/",
-			},
-		});
-
-		const router = createRouter({
-			routeTable,
+		const harness = createRouterHarness({
 			fetch: fetchMock as unknown as typeof fetch,
 		});
+		const router = harness.router;
 
 		await router.push("/ghost");
 
-		expect(assignMock).toHaveBeenCalledWith("/ghost");
+		expect(harness.assign).toHaveBeenCalledWith("/ghost");
 		expect(router.route).toBeNull();
 	});
 
 	it("degrades to document load on fetch exception", async () => {
-		const assignMock = vi.fn();
 		const fetchMock = vi.fn().mockRejectedValue(new Error("Network Error"));
-
-		vi.stubGlobal("window", {
-			history: { pushState: vi.fn(), replaceState: vi.fn() },
-			location: {
-				assign: assignMock,
-				pathname: "/",
-				origin: "http://localhost:3000",
-				href: "http://localhost:3000/",
-			},
-		});
-
-		const router = createRouter({
+		const harness = createRouterHarness({
 			fetch: fetchMock as unknown as typeof fetch,
 		});
+		const router = harness.router;
 
 		await router.push("/offline");
 
-		expect(assignMock).toHaveBeenCalledWith("/offline");
+		expect(harness.assign).toHaveBeenCalledWith("/offline");
 		expect(router.route).toBeNull();
 	});
 
@@ -341,22 +306,10 @@ describe("Router push, replace, and fallbacks", () => {
 		};
 
 		const routes: AppRoute[] = [slowRoute, fastRoute];
-		const routeTable = {
-			routes,
-			routeMap: new Map([
-				["/slow", slowRoute],
-				["/fast", fastRoute],
-			]),
-			findRouteByName: (name: string) =>
-				routes.find((r) => r.pageName === name),
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
-		};
 
 		const { promise: slowPromise, resolve: resolveSlowFetch } =
 			Promise.withResolvers<unknown>();
 
-		const pushStateMock = vi.fn();
 		const fetchMock = vi.fn().mockImplementation((url: string) => {
 			if (url === "/slow") {
 				return slowPromise;
@@ -372,20 +325,11 @@ describe("Router push, replace, and fallbacks", () => {
 			});
 		});
 
-		vi.stubGlobal("window", {
-			history: { pushState: pushStateMock, replaceState: vi.fn() },
-			location: {
-				assign: vi.fn(),
-				pathname: "/",
-				origin: "http://localhost:3000",
-				href: "http://localhost:3000/",
-			},
-		});
-
-		const router = createRouter({
-			routeTable,
+		const harness = createRouterHarness({
+			routes,
 			fetch: fetchMock as unknown as typeof fetch,
 		});
+		const router = harness.router;
 
 		// Start slow navigation
 		const slowNavPromise = router.push("/slow");
@@ -397,7 +341,7 @@ describe("Router push, replace, and fallbacks", () => {
 		await fastNavPromise;
 		expect(router.route).toEqual(fastRoute);
 		expect(usePage<{ speed: string }>()?.speed).toBe("fast");
-		expect(pushStateMock).toHaveBeenCalledWith(
+		expect(harness.history.pushState).toHaveBeenCalledWith(
 			expect.objectContaining({
 				__poyo: expect.objectContaining({
 					clientNavigated: true,
@@ -424,7 +368,11 @@ describe("Router push, replace, and fallbacks", () => {
 		expect(router.route).toEqual(fastRoute);
 		expect(usePage<{ speed: string }>()?.speed).toBe("fast");
 		// pushState must NOT have been called for /slow
-		expect(pushStateMock).not.toHaveBeenCalledWith(null, "", "/slow");
+		expect(harness.history.pushState).not.toHaveBeenCalledWith(
+			null,
+			"",
+			"/slow",
+		);
 	});
 
 	it("does not trigger fallback if a superseded request fails or rejects", async () => {
@@ -435,19 +383,9 @@ describe("Router push, replace, and fallbacks", () => {
 			component: () => null,
 		};
 
-		const routeTable = {
-			routes: [activeRoute],
-			routeMap: new Map([["/active", activeRoute]]),
-			findRouteByName: (name: string) =>
-				name === "Active" ? activeRoute : undefined,
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
-		};
-
 		const { promise: slowPromise, reject: rejectSlowFetch } =
 			Promise.withResolvers<unknown>();
 
-		const assignMock = vi.fn();
 		const fetchMock = vi.fn().mockImplementation((url: string) => {
 			if (url === "/stale-slow") {
 				return slowPromise;
@@ -463,20 +401,11 @@ describe("Router push, replace, and fallbacks", () => {
 			});
 		});
 
-		vi.stubGlobal("window", {
-			history: { pushState: vi.fn(), replaceState: vi.fn() },
-			location: {
-				assign: assignMock,
-				pathname: "/",
-				origin: "http://localhost:3000",
-				href: "http://localhost:3000/",
-			},
-		});
-
-		const router = createRouter({
-			routeTable,
+		const harness = createRouterHarness({
+			routes: [activeRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 		});
+		const router = harness.router;
 
 		// Start stale navigation
 		const stalePromise = router.push("/stale-slow");
@@ -492,7 +421,7 @@ describe("Router push, replace, and fallbacks", () => {
 		await stalePromise;
 
 		// Fallback MUST NOT have been called for the superseded stale URL
-		expect(assignMock).not.toHaveBeenCalledWith("/stale-slow");
+		expect(harness.assign).not.toHaveBeenCalledWith("/stale-slow");
 		expect(router.route).toEqual(activeRoute);
 	});
 
@@ -502,15 +431,6 @@ describe("Router push, replace, and fallbacks", () => {
 			pageName: "Profile",
 			access: "protected",
 			component: () => null,
-		};
-
-		const routeTable = {
-			routes: [seoRoute],
-			routeMap: new Map([["/profile", seoRoute]]),
-			findRouteByName: (name: string) =>
-				name === "Profile" ? seoRoute : undefined,
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
 		};
 
 		const metaEl = {
@@ -551,11 +471,12 @@ describe("Router push, replace, and fallbacks", () => {
 			}),
 		});
 
-		const router = createRouter({
-			routeTable,
+		const harness = createRouterHarness({
+			routes: [seoRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 			document: mockDoc as unknown as Document,
 		});
+		const router = harness.router;
 
 		await router.push("/profile");
 
@@ -575,15 +496,6 @@ describe("Router push, replace, and fallbacks", () => {
 			pageName: "Settings",
 			access: "protected",
 			component: () => null,
-		};
-
-		const routeTable = {
-			routes: [settingsRoute],
-			routeMap: new Map([["/settings", settingsRoute]]),
-			findRouteByName: (name: string) =>
-				name === "Settings" ? settingsRoute : undefined,
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
 		};
 
 		const pageRegionEl = {
@@ -631,11 +543,12 @@ describe("Router push, replace, and fallbacks", () => {
 			}),
 		});
 
-		const router = createRouter({
-			routeTable,
+		const harness = createRouterHarness({
+			routes: [settingsRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 			document: mockDoc as unknown as Document,
 		});
+		const router = harness.router;
 
 		await router.push("/settings");
 
@@ -659,11 +572,15 @@ describe("Router push, replace, and fallbacks", () => {
 
 describe("useRouter and shell reactivity without a provider", () => {
 	beforeEach(() => {
+		clearActiveRouteTable();
 		resetNavigationStore();
 	});
 
 	afterEach(() => {
+		getActiveRouter()?.destroy?.();
+		setActiveRouter(undefined);
 		vi.unstubAllGlobals();
+		clearActiveRouteTable();
 		resetNavigationStore();
 	});
 
@@ -673,15 +590,6 @@ describe("useRouter and shell reactivity without a provider", () => {
 			pageName: "Home",
 			access: "public",
 			component: () => null,
-		};
-
-		const routeTable = {
-			routes: [homeRoute],
-			routeMap: new Map([["/", homeRoute]]),
-			findRouteByName: (name: string) =>
-				name === "Home" ? homeRoute : undefined,
-			findRouteGeneric: () => homeRoute,
-			detectGhostRoutes: () => [],
 		};
 
 		// Server declared an unknown page name "GhostPage" on #react-root
@@ -698,10 +606,11 @@ describe("useRouter and shell reactivity without a provider", () => {
 			},
 		};
 
-		const router = createRouter({
-			routeTable,
+		const harness = createRouterHarness({
+			routes: [homeRoute],
 			document: mockDoc as unknown as Document,
 		});
+		const router = harness.router;
 
 		// Must be null (not falling back to findRouteGeneric) so shell renders not-found UI
 		expect(router.route).toBeNull();
@@ -713,15 +622,6 @@ describe("useRouter and shell reactivity without a provider", () => {
 			pageName: "Home",
 			access: "public",
 			component: () => null,
-		};
-
-		const routeTable = {
-			routes: [homeRoute],
-			routeMap: new Map([["/", homeRoute]]),
-			findRouteByName: (name: string) =>
-				name === "Home" ? homeRoute : undefined,
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
 		};
 
 		const mockDoc = {
@@ -737,38 +637,21 @@ describe("useRouter and shell reactivity without a provider", () => {
 			},
 		};
 
-		const router = createRouter({
-			routeTable,
+		const harness = createRouterHarness({
+			routes: [homeRoute],
 			document: mockDoc as unknown as Document,
 		});
+		const router = harness.router;
 
 		expect(router.route).toEqual(homeRoute);
 	});
 
 	it("reactively updates subscribers without a React provider when navigation commits", async () => {
-		const homeRoute: AppRoute = {
-			path: "/",
-			pageName: "Home",
-			access: "public",
-			component: () => null,
-		};
 		const aboutRoute: AppRoute = {
 			path: "/about",
 			pageName: "About",
 			access: "public",
 			component: () => null,
-		};
-
-		const routeTable = {
-			routes: [homeRoute, aboutRoute],
-			routeMap: new Map([
-				["/", homeRoute],
-				["/about", aboutRoute],
-			]),
-			findRouteByName: (name: string) =>
-				name === "Home" ? homeRoute : name === "About" ? aboutRoute : undefined,
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
 		};
 
 		const fetchMock = vi.fn().mockResolvedValue({
@@ -781,20 +664,11 @@ describe("useRouter and shell reactivity without a provider", () => {
 			}),
 		});
 
-		vi.stubGlobal("window", {
-			history: { pushState: vi.fn(), replaceState: vi.fn() },
-			location: {
-				assign: vi.fn(),
-				pathname: "/",
-				origin: "http://localhost:3000",
-				href: "http://localhost:3000/",
-			},
-		});
-
-		const router = createRouter({
-			routeTable,
+		const harness = createRouterHarness({
+			routes: [aboutRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 		});
+		const router = harness.router;
 
 		const subscriberMock = vi.fn();
 		const store = getNavigationStore();
@@ -820,14 +694,6 @@ describe("useRouter and shell reactivity without a provider", () => {
 		};
 
 		const routes: AppRoute[] = [dashboardRoute];
-		const routeTable = {
-			routes,
-			routeMap: new Map([["/dashboard", dashboardRoute]]),
-			findRouteByName: (name: string) =>
-				routes.find((r) => r.pageName === name),
-			findRouteGeneric: () => undefined,
-			detectGhostRoutes: () => [],
-		};
 
 		let data: unknown = { generation: 1 };
 		const fetchMock = vi.fn().mockImplementation(async () => ({
@@ -836,20 +702,15 @@ describe("useRouter and shell reactivity without a provider", () => {
 			json: async () => ({ name: "Dashboard", pageData: data }),
 		}));
 
-		vi.stubGlobal("window", {
-			history: { pushState: vi.fn(), replaceState: vi.fn() },
+		const harness = createRouterHarness({
+			routes,
+			fetch: fetchMock as unknown as typeof fetch,
 			location: {
-				assign: vi.fn(),
 				pathname: "/dashboard",
-				origin: "http://localhost:3000",
 				href: "http://localhost:3000/dashboard",
 			},
 		});
-
-		const router = createRouter({
-			routeTable,
-			fetch: fetchMock as unknown as typeof fetch,
-		});
+		const router = harness.router;
 		const store = getNavigationStore();
 
 		// useRouter() snapshots store.getState, so a commit that resolves to

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Poyo.Server.Filters;
 using Poyo.Server.Models.Auth.Requests;
 using Poyo.Server.Models.Auth.Responses;
 using Poyo.Server.Primitives;
@@ -12,6 +13,7 @@ namespace Poyo.Server.Controllers.Api;
 
 [Route("api/[controller]")]
 [ApiController]
+[PrivateNoStoreResponse]
 public class AuthController(IAuthService authService) : ControllerBase
 {
     private readonly IAuthService _authService = authService;
@@ -76,8 +78,6 @@ public class AuthController(IAuthService authService) : ControllerBase
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(claimsIdentity),
                 authProperties);
-
-
 
             return Ok(JSend.Success(response));
         }
