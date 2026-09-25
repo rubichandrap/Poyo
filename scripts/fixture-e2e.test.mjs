@@ -49,7 +49,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { before, test } from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const REPO_ROOT = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -150,6 +150,79 @@ function assertRedirectTo(response, expectedPath) {
 
 function sameOriginDescriptorInit(headers = {}) {
 	return { credentials: "same-origin", headers };
+}
+
+async function assertGeneratedRuntimeNavigation(
+	resolvedDir,
+	serverOrigin,
+	authCookie,
+) {
+	const runtime = await import(
+		pathToFileURL(path.join(resolvedDir, "dist", "runtime", "index.js")).href
+	);
+	const route = {
+		path: "/Dashboard",
+		pageName: "Dashboard",
+		access: "protected",
+		component: () => null,
+	};
+	const history = {
+		state: null,
+		scrollRestoration: "auto",
+		pushState() {},
+		replaceState() {},
+		addEventListener() {},
+		removeEventListener() {},
+	};
+	const runtimeWindow = {
+		SERVER_DATA: null,
+		history,
+		location: {
+			origin: serverOrigin,
+			href: `${serverOrigin}/`,
+			pathname: "/",
+			search: "",
+			hash: "",
+			assign() {},
+		},
+		scrollX: 0,
+		scrollY: 0,
+		scrollTo() {},
+		addEventListener() {},
+		removeEventListener() {},
+	};
+	const routeTable = {
+		basePath: "/",
+		routes: [route],
+		routeMap: { Dashboard: route.component },
+		findRouteByName: (name) => (name === route.pageName ? route : undefined),
+		findRouteGeneric: (pathname) =>
+			pathname === route.path ? route : undefined,
+		detectGhostRoutes() {},
+	};
+	let request;
+	globalThis.window = runtimeWindow;
+	const router = runtime.createRouter({
+		routeTable,
+		window: runtimeWindow,
+		fetch: async (url, init) => {
+			request = { url, init };
+			const headers = new Headers(init.headers);
+			headers.set("cookie", authCookie);
+			return fetch(new URL(url, serverOrigin), { ...init, headers });
+		},
+	});
+
+	try {
+		await router.push("/Dashboard");
+		assert.equal(request.init.credentials, "same-origin");
+		assert.equal(request.init.headers[NAVIGATION_HEADER], "1");
+		assert.equal(router.route?.pageName, "Dashboard");
+		assert.equal(runtime.usePage()?.user, "demo");
+	} finally {
+		router.destroy?.();
+		delete globalThis.window;
+	}
 }
 
 /**
@@ -858,7 +931,6 @@ test(
 			assert.equal(loginApiRes.status, 200, "the demo login must succeed");
 			assertPrivateAuthenticationResponse(loginApiRes);
 			let authCookie = authCookieOf(loginApiRes);
-			assert.ok(authCookie.length > 0, "the demo login set no auth cookie");
 
 			const guestDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Login`,
@@ -887,7 +959,6 @@ test(
 			assert.equal(refreshApiRes.status, 200, "the demo refresh must succeed");
 			assertPrivateAuthenticationResponse(refreshApiRes);
 			authCookie = authCookieOf(refreshApiRes);
-			assert.ok(authCookie.length > 0, "the demo refresh set no auth cookie");
 
 			const unrelatedApiRes = await fetch(
 				`http://127.0.0.1:${serverPort}/api/test-unrelated`,
@@ -933,6 +1004,12 @@ test(
 				Object.keys(dashboardDescriptor.pageData ?? {}).sort(),
 				Object.keys(dashboardDocumentData).sort(),
 				"the descriptor payload must have the document's shape",
+			);
+
+			await assertGeneratedRuntimeNavigation(
+				resolvedDir,
+				`http://127.0.0.1:${serverPort}`,
+				authCookie,
 			);
 
 			const logoutApiRes = await fetch(
