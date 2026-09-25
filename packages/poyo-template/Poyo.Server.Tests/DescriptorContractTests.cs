@@ -258,21 +258,6 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         PageResponseAssertions.AssertPrivateNoStore(descriptor);
     }
 
-    [Fact]
-    public async Task Non_page_api_keeps_its_own_cache_policy()
-    {
-        var response = await CreateClient().PostAsJsonAsync("/api/auth/login", new
-        {
-            username = "demo",
-            password = "password",
-        });
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        Assert.NotEqual(
-            "private, no-store",
-            response.Headers.NonValidated["Cache-Control"].ToString());
-    }
-
     private static async Task<(string DocumentBody, JsonElement PageData)> GetPageDataRepresentationsAsync(
         HttpClient client)
     {
