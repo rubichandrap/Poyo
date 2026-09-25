@@ -280,7 +280,7 @@ before(() => {
 });
 
 test(
-	"scaffolded project resolves the framework from npm and bundles the accessor",
+	"scaffolded project proves the published navigation contract",
 	// Must exceed the sum of the subprocess budgets (build 300s + scaffold
 	// 120s + install 600s + client build 300s + server boot 120s = 1440s) so the
 	// per-step timeouts, not the outer test timeout, are the effective caps.
