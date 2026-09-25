@@ -225,7 +225,13 @@ describe("Router push, replace, and fallbacks", () => {
 			credentials: "same-origin",
 			headers: { "X-Poyo-Navigation": "1" },
 		});
-		expect(fetchMock.mock.calls[0]?.[1]).not.toMatchObject({
+		const crossOriginOptions = fetchMock.mock.calls.find(
+			([url]) => url === crossOriginUrl,
+		)?.[1];
+		expect(crossOriginOptions).toMatchObject({
+			credentials: "same-origin",
+		});
+		expect(crossOriginOptions).not.toMatchObject({
 			credentials: "include",
 		});
 		expect(router.route).toEqual(activeRoute);
