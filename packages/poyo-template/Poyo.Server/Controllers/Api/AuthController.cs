@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Poyo.Server.Filters;
 using Poyo.Server.Models.Auth.Requests;
 using Poyo.Server.Models.Auth.Responses;
 using Poyo.Server.Primitives;
@@ -12,6 +13,7 @@ namespace Poyo.Server.Controllers.Api;
 
 [Route("api/[controller]")]
 [ApiController]
+[PrivateNoStoreResponse]
 public class AuthController(IAuthService authService) : ControllerBase
 {
     private readonly IAuthService _authService = authService;
@@ -22,8 +24,6 @@ public class AuthController(IAuthService authService) : ControllerBase
     [ProducesResponseType(typeof(JSendResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<JSendResponse<LoginResponse>>> Login([FromBody] LoginRequest request)
     {
-        Response.Headers.CacheControl = "private, no-store";
-
         var response = await _authService.LoginAsync(request);
 
         if (response != null)
@@ -44,9 +44,6 @@ public class AuthController(IAuthService authService) : ControllerBase
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(claimsIdentity),
                 authProperties);
-            Response.Headers.CacheControl = "private, no-store";
-            Response.Headers.Remove("Pragma");
-            Response.Headers.Remove("Expires");
 
             return Ok(JSend.Success(response));
         }
@@ -60,8 +57,6 @@ public class AuthController(IAuthService authService) : ControllerBase
     [ProducesResponseType(typeof(JSendResponse<object>), StatusCodes.Status401Unauthorized)]
     public async Task<ActionResult<JSendResponse<LoginResponse>>> Refresh([FromBody] RefreshRequest request)
     {
-        Response.Headers.CacheControl = "private, no-store";
-
         var response = await _authService.RefreshAsync(request);
 
         if (response != null)
@@ -83,9 +78,6 @@ public class AuthController(IAuthService authService) : ControllerBase
                 CookieAuthenticationDefaults.AuthenticationScheme,
                 new ClaimsPrincipal(claimsIdentity),
                 authProperties);
-            Response.Headers.CacheControl = "private, no-store";
-            Response.Headers.Remove("Pragma");
-            Response.Headers.Remove("Expires");
 
             return Ok(JSend.Success(response));
         }
@@ -97,12 +89,7 @@ public class AuthController(IAuthService authService) : ControllerBase
     [ProducesResponseType(typeof(JSendResponse<LogoutResponse>), StatusCodes.Status200OK)]
     public async Task<ActionResult<JSendResponse<LogoutResponse>>> Logout()
     {
-        Response.Headers.CacheControl = "private, no-store";
-
         await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-        Response.Headers.CacheControl = "private, no-store";
-        Response.Headers.Remove("Pragma");
-        Response.Headers.Remove("Expires");
 
         return Ok(JSend.Success(new LogoutResponse
         {

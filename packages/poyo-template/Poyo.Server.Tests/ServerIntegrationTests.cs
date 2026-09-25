@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Poyo.Server.Tests.Support;
 
@@ -41,17 +40,27 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
     }
 
-    private static void AssertPrivateNoStoreAndAuthenticationCookie(
-        HttpResponseMessage response)
+    private static void AssertPrivateNoStore(HttpResponseMessage response)
     {
         Assert.Equal(
             "private, no-store",
             Assert.Single(response.Headers.NonValidated["Cache-Control"]));
         Assert.False(response.Headers.NonValidated.Contains("Pragma"));
         Assert.False(response.Headers.NonValidated.Contains("Expires"));
+    }
+
+    private static void AssertAuthenticationCookie(HttpResponseMessage response)
+    {
         Assert.Contains(
             response.Headers.GetValues("Set-Cookie"),
             value => value.StartsWith(".AspNetCore.Cookies=", StringComparison.Ordinal));
+    }
+
+    private static void AssertPrivateNoStoreAndAuthenticationCookie(
+        HttpResponseMessage response)
+    {
+        AssertPrivateNoStore(response);
+        AssertAuthenticationCookie(response);
     }
 
     private static void ApplyResponseCookies(
@@ -241,9 +250,33 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
         });
 
         Assert.Equal(HttpStatusCode.Unauthorized, login.StatusCode);
+        AssertPrivateNoStore(login);
 
         using var body = JsonDocument.Parse(await login.Content.ReadAsStringAsync());
         Assert.Equal("fail", body.RootElement.GetProperty("status").GetString());
+    }
+
+    [Fact]
+    public async Task Login_model_validation_response_is_private_no_store()
+    {
+        var response = await CreateClient().PostAsJsonAsync("/api/auth/login", new { });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        AssertPrivateNoStore(response);
+    }
+
+    [Fact]
+    public async Task Refresh_model_validation_response_is_private_no_store()
+    {
+        using var content = new StringContent(
+            "{",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var response = await CreateClient().PostAsync("/api/auth/refresh", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        AssertPrivateNoStore(response);
     }
 
     [Fact]
@@ -253,13 +286,8 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Null(response.Headers.CacheControl);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("success", body.RootElement.GetProperty("status").GetString());
+        Assert.Equal("ok", body.RootElement.GetProperty("data").GetProperty("status").GetString());
     }
-}
-
-[ApiController]
-[Route("api/test-unrelated")]
-public sealed class TestUnrelatedApiController : ControllerBase
-{
-    [HttpGet]
-    public IActionResult Get() => Ok(new { status = "ok" });
 }
