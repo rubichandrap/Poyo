@@ -39,6 +39,7 @@ public class AccessPolicyIntegrationTests : IClassFixture<AccessPolicyServerFixt
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("/Login", response.Headers.Location?.AbsolutePath);
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 
     [Fact]
@@ -79,6 +80,7 @@ public class AccessPolicyIntegrationTests : IClassFixture<AccessPolicyServerFixt
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("/Dashboard", response.Headers.Location?.ToString());
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 
     [Fact]
@@ -131,6 +133,7 @@ public class AccessPolicyIntegrationTests : IClassFixture<AccessPolicyServerFixt
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
         Assert.Null(response.Headers.Location);
+        PageResponseAssertions.AssertPrivateNoStore(response);
     }
 
     [Fact]

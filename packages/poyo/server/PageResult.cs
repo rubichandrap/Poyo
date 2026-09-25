@@ -151,6 +151,8 @@ public sealed class PageResult : ViewResult
 
         if (_route is not null)
         {
+            PageResponsePolicy.ApplyPrivateNoStore(response);
+
             // The same URL answers two representations (document and
             // descriptor); caches must key on the distinguishing header.
             response.Headers.Vary = NavigationHeaderName;
@@ -167,14 +169,14 @@ public sealed class PageResult : ViewResult
 
     private async Task ExecuteDescriptorAsync(ActionContext context)
     {
+        var response = context.HttpContext.Response;
         var view = FindView(context);
         if (view is null)
         {
-            context.HttpContext.Response.StatusCode = StatusCodes.Status404NotFound;
+            response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
-        var response = context.HttpContext.Response;
         var descriptor = new PageDescriptor(
             _route!.Name,
             _route.Seo,
@@ -201,5 +203,35 @@ public sealed class PageResult : ViewResult
         }
 
         return found.View;
+    }
+}
+
+internal static class PageResponsePolicy
+{
+    private const string CacheControlValue = "private, no-store";
+    private static readonly object OnStartingRegisteredKey = new();
+
+    internal static void ApplyPrivateNoStore(HttpResponse response)
+    {
+        SetPrivateNoStore(response);
+
+        if (response.HttpContext.Items.ContainsKey(OnStartingRegisteredKey))
+        {
+            return;
+        }
+
+        response.HttpContext.Items[OnStartingRegisteredKey] = true;
+        response.OnStarting(() =>
+        {
+            SetPrivateNoStore(response);
+            return Task.CompletedTask;
+        });
+    }
+
+    private static void SetPrivateNoStore(HttpResponse response)
+    {
+        response.Headers.CacheControl = CacheControlValue;
+        response.Headers.Pragma = default;
+        response.Headers.Expires = default;
     }
 }
