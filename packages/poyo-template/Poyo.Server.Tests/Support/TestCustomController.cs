@@ -10,9 +10,14 @@ namespace Poyo.Server.Tests.Support;
 /// </summary>
 public sealed class TestCustomController : Controller
 {
+    // Sets every cache directive the framework claims to own, so the tests can
+    // prove Poyo replaces the application's directives rather than only adding
+    // its own on top of an otherwise clean response.
     public IActionResult Page()
     {
         Response.Headers.CacheControl = "public, max-age=3600";
+        Response.Headers.Pragma = "no-cache";
+        Response.Headers.Expires = "Wed, 21 Oct 2099 07:28:00 GMT";
         return this.PoyoPage(new
         {
             message = "hello from PoyoPage",

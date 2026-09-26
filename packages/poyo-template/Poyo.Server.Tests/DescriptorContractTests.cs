@@ -244,6 +244,11 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     [Fact]
     public async Task PoyoPage_replaces_application_cache_directives()
     {
+        // Coupled to TestCustomController.Page, which deliberately sets
+        // Cache-Control, Pragma and Expires. If those three lines are ever
+        // removed from the controller this test becomes vacuous rather than
+        // failing — it proves replacement only because something was there to
+        // replace.
         var client = CreateClient();
         await client.PostAsJsonAsync("/api/auth/login", new
         {

@@ -380,7 +380,8 @@ pnpm --filter poyo-template run build
 **Demo Only:**
 - Hardcoded credentials (`demo`/`password`)
 - Cookie-based sessions
-- Demo login, refresh, and logout responses use `Cache-Control: private, no-store` through `Response.Headers.CacheControl`; replacement cookie-mutating controllers own the same policy without adding a global API policy
+- Demo login, refresh, and logout responses use `Cache-Control: private, no-store` via the project-owned `[PrivateNoStoreResponse]` filter on `AuthController`; replacement cookie-mutating controllers own the same policy from their own project, without a global API policy
+- Poyo page responses (documents, descriptors, access challenges, guest redirects, page errors) carry `Cache-Control: private, no-store` from the server core — see ADR 0013. `no-store` makes every main document ineligible for the browser's back/forward cache, so all cross-document traversals refetch (ADR 0013 Consequences; cold-entry scroll is R06)
 - Access enforced by the registry (`access` field via `RouteAccessFilter`), plus `[Authorize]` where needed
 
 ### 6.2. Replacing Auth

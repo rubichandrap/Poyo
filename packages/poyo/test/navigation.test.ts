@@ -183,13 +183,55 @@ describe("Router push, replace, and fallbacks", () => {
 		);
 	});
 
+	it("carries third-party history state keys into the new entry", async () => {
+		const loginRoute: AppRoute = {
+			path: "/login",
+			pageName: "Login",
+			access: "public",
+			component: () => null,
+		};
+
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({
+				name: "Login",
+				seo: { title: "Login" },
+				pageData: null,
+			}),
+		});
+
+		// An entry the router did not create, carrying another library's keys.
+		const harness = createRouterHarness({
+			routes: [loginRoute],
+			fetch: fetchMock as unknown as typeof fetch,
+			historyState: { someOtherLibrary: { tab: "billing" } },
+		});
+
+		await harness.router.replace("/login");
+
+		expect(harness.history.replaceState).toHaveBeenCalledWith(
+			expect.objectContaining({
+				someOtherLibrary: { tab: "billing" },
+				__poyo: expect.objectContaining({ clientNavigated: true }),
+			}),
+			"",
+			"/login",
+		);
+		// The harness models the browser's synchronous state write.
+		expect(harness.history.state).toEqual(
+			expect.objectContaining({
+				someOtherLibrary: { tab: "billing" },
+			}),
+		);
+	});
+
 	it("degrades to document load on non-2xx response", async () => {
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: false,
 			status: 404,
 			statusText: "Not Found",
 		});
-
 		const harness = createRouterHarness({
 			fetch: fetchMock as unknown as typeof fetch,
 		});
@@ -199,6 +241,115 @@ describe("Router push, replace, and fallbacks", () => {
 
 		expect(harness.assign).toHaveBeenCalledWith("/missing");
 		expect(router.route).toBeNull();
+	});
+
+	it("requests descriptors without following redirects", async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 200,
+		});
+		const harness = createRouterHarness({
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		await harness.router.push("/dashboard");
+
+		expect(fetchMock).toHaveBeenCalledWith(
+			"/dashboard",
+			expect.objectContaining({ redirect: "manual" }),
+		);
+	});
+
+	// The access filter answers a descriptor request for a protected route with a
+	// 302 to the login page, and a guest route with a 302 to the landing page. If
+	// the client follows that redirect it receives a 200 descriptor for the *other*
+	// page, commits that page's route and Page data, and still writes the URL it
+	// asked for — so the address bar and the screen describe different pages and
+	// history holds an entry for a page that was never rendered.
+	it("degrades to document load when the descriptor request is redirected", async () => {
+		const dashboardRoute: AppRoute = {
+			path: "/dashboard",
+			pageName: "Dashboard",
+			access: "protected",
+			component: () => null,
+		};
+		const loginRoute: AppRoute = {
+			path: "/login",
+			pageName: "Login",
+			access: "guest",
+			component: () => null,
+		};
+
+		// What a browser hands back for a cross-"same-origin" redirect under
+		// redirect: "manual": an opaque response with no readable status or body.
+		const opaqueRedirect = {
+			type: "opaqueredirect",
+			url: "",
+			ok: false,
+			status: 0,
+			json: vi.fn(async () => {
+				throw new SyntaxError("Unexpected token '<'");
+			}),
+		};
+		const fetchMock = vi.fn().mockResolvedValue(opaqueRedirect);
+
+		const harness = createRouterHarness({
+			routes: [dashboardRoute, loginRoute],
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		await harness.router.push("/dashboard");
+
+		// The transport is what makes this an opaque redirect rather than some
+		// other non-2xx, so assert it here too: this test otherwise only proves
+		// the pre-existing !ok degradation path.
+		expect(fetchMock).toHaveBeenCalledWith(
+			"/dashboard",
+			expect.objectContaining({ redirect: "manual" }),
+		);
+		// Hand back to the browser for the requested URL: it applies the 302
+		// itself and lands on the login page with a fresh document.
+		expect(harness.assign).toHaveBeenCalledWith("/dashboard");
+		// The redirect target must never be committed under the requested URL.
+		expect(harness.router.route).toBeNull();
+		expect(harness.history.pushState).not.toHaveBeenCalled();
+		expect(harness.history.replaceState).not.toHaveBeenCalled();
+		// The opaque body must not even be read.
+		expect(opaqueRedirect.json).not.toHaveBeenCalled();
+	});
+
+	it("degrades to document load when a redirect resolves to a valid descriptor", async () => {
+		// Guards the same invariant against a transport that reports the redirect
+		// and still exposes the final body: a 200 descriptor for a page that is
+		// not the requested one must not be committed at the requested URL.
+		const loginRoute: AppRoute = {
+			path: "/login",
+			pageName: "Login",
+			access: "guest",
+			component: () => null,
+		};
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			redirected: true,
+			url: "http://localhost:3000/login?ReturnUrl=%2Fdashboard",
+			json: async () => ({
+				name: "Login",
+				seo: { title: "Login" },
+				pageData: { user: null },
+			}),
+		});
+
+		const harness = createRouterHarness({
+			routes: [loginRoute],
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		await harness.router.push("/dashboard");
+
+		expect(harness.assign).toHaveBeenCalledWith("/dashboard");
+		expect(harness.router.route).toBeNull();
+		expect(harness.history.pushState).not.toHaveBeenCalled();
 	});
 
 	it("does not include credentials for a cross-origin descriptor request", async () => {
@@ -224,6 +375,7 @@ describe("Router push, replace, and fallbacks", () => {
 		expect(fetchMock).toHaveBeenCalledWith(crossOriginUrl, {
 			credentials: "same-origin",
 			headers: { "X-Poyo-Navigation": "1" },
+			redirect: "manual",
 		});
 		const crossOriginOptions = fetchMock.mock.calls.find(
 			([url]) => url === crossOriginUrl,
@@ -367,10 +519,13 @@ describe("Router push, replace, and fallbacks", () => {
 		// Router state and usePage must still be fastRoute and speed: "fast"
 		expect(router.route).toEqual(fastRoute);
 		expect(usePage<{ speed: string }>()?.speed).toBe("fast");
-		// pushState must NOT have been called for /slow
+		// No history entry may exist for /slow. Asserting on the null state the
+		// router never writes would pass no matter what the supersede token did,
+		// so assert on every write the router made instead.
+		expect(harness.history.pushState).toHaveBeenCalledTimes(1);
 		expect(harness.history.pushState).not.toHaveBeenCalledWith(
-			null,
-			"",
+			expect.anything(),
+			expect.anything(),
 			"/slow",
 		);
 	});

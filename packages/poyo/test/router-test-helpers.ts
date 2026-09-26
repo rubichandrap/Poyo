@@ -9,13 +9,14 @@ export interface MockLocation {
 	search: string;
 	hash: string;
 	assign: Mock;
+	replace: Mock;
 }
 
 export interface RouterHarnessOptions {
 	routes?: AppRoute[];
 	fetch?: typeof fetch;
 	document?: Document;
-	location?: Partial<Omit<MockLocation, "assign">>;
+	location?: Partial<Omit<MockLocation, "assign" | "replace">>;
 	historyState?: unknown;
 	scrollX?: number;
 	scrollY?: number;
@@ -35,6 +36,7 @@ export interface RouterHarness {
 		forward: Mock;
 	};
 	assign: Mock;
+	replaceLocation: Mock;
 	scrollTo: Mock;
 	addEventListener: Mock;
 	popstate(state: unknown): Promise<void>;
@@ -47,6 +49,7 @@ export function createRouterHarness(
 	const origin = options.location?.origin ?? "http://localhost:3000";
 	const pathname = options.location?.pathname ?? "/";
 	const assign = vi.fn();
+	const replaceLocation = vi.fn();
 	const location: MockLocation = {
 		origin,
 		href: options.location?.href ?? `${origin}${pathname}`,
@@ -54,12 +57,40 @@ export function createRouterHarness(
 		search: options.location?.search ?? "",
 		hash: options.location?.hash ?? "",
 		assign,
+		replace: replaceLocation,
 	};
+
+	// A real browser updates the current history entry's state and the address
+	// bar synchronously inside pushState/replaceState. Modelling that is what
+	// makes the router's state merge and lastCommittedUrl observable here.
+	// The signature matters: history.pushState(state, title, url) is the
+	// browser-standard 3-argument form the router uses, so the URL is the third
+	// argument. A two-parameter signature silently binds it to the title and
+	// never writes the address bar — see createRouterHarness's own tests.
+	//
+	// Known under-model: the browser throws a SecurityError when pushState is
+	// given a cross-origin URL; `new URL` here accepts it. Not exercised today
+	// because Link and the router only navigate same-origin paths.
+	const applyHistoryWrite = (
+		state: unknown,
+		_title?: unknown,
+		url?: string | null,
+	) => {
+		history.state = (state ?? null) as History["state"];
+		if (typeof url === "string") {
+			const next = new URL(url, location.href);
+			location.href = next.href;
+			location.pathname = next.pathname;
+			location.search = next.search;
+			location.hash = next.hash;
+		}
+	};
+
 	const history = {
 		state: options.historyState ?? null,
 		scrollRestoration: "auto" as ScrollRestoration,
-		pushState: vi.fn(),
-		replaceState: vi.fn(),
+		pushState: vi.fn(applyHistoryWrite),
+		replaceState: vi.fn(applyHistoryWrite),
 		back: vi.fn(),
 		forward: vi.fn(),
 	};
@@ -123,6 +154,7 @@ export function createRouterHarness(
 		location,
 		history,
 		assign,
+		replaceLocation,
 		scrollTo,
 		addEventListener,
 		popstate: async (state) => {
