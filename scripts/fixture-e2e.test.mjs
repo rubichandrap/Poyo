@@ -42,14 +42,14 @@
  * to prove the published packages work together.
  */
 
-import { before, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { before, test } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const REPO_ROOT = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
@@ -103,17 +103,137 @@ function collectFiles(dir, files = []) {
 	return files;
 }
 
+const PRIVATE_NO_STORE = "private, no-store";
+const NAVIGATION_HEADER = "X-Poyo-Navigation";
+const AUTH_COOKIE_PREFIX = ".AspNetCore.Cookies=";
+
+function setCookiesOf(response) {
+	return typeof response.headers.getSetCookie === "function"
+		? response.headers.getSetCookie()
+		: [response.headers.get("set-cookie")].filter(Boolean);
+}
+
+function assertPrivateNoStore(response) {
+	assert.equal(response.headers.get("cache-control"), PRIVATE_NO_STORE);
+	assert.equal(response.headers.get("pragma"), null);
+	assert.equal(response.headers.get("expires"), null);
+}
+
+function assertPageResponse(response) {
+	assertPrivateNoStore(response);
+	assert.equal(response.headers.get("vary"), NAVIGATION_HEADER);
+}
+
+function assertAuthenticationCookie(response) {
+	assert.ok(
+		setCookiesOf(response).some((cookie) =>
+			cookie.startsWith(AUTH_COOKIE_PREFIX),
+		),
+		"authentication response did not set the session cookie",
+	);
+}
+
+function assertPrivateAuthenticationResponse(response) {
+	assertPrivateNoStore(response);
+	assertAuthenticationCookie(response);
+}
+
+function assertRedirectTo(response, expectedPath) {
+	assert.ok(
+		[301, 302, 307, 308].includes(response.status),
+		`expected a redirect (status was ${response.status})`,
+	);
+	const location = response.headers.get("location");
+	assert.ok(location, "redirect response has no Location header");
+	assert.equal(new URL(location, "http://fixture.test").pathname, expectedPath);
+}
+
+function sameOriginDescriptorInit(headers = {}) {
+	return { credentials: "same-origin", headers };
+}
+
+async function assertGeneratedRuntimeNavigation(
+	resolvedDir,
+	serverOrigin,
+	authCookie,
+) {
+	const runtime = await import(
+		pathToFileURL(path.join(resolvedDir, "dist", "runtime", "index.js")).href
+	);
+	const route = {
+		path: "/Dashboard",
+		pageName: "Dashboard",
+		access: "protected",
+		component: () => null,
+	};
+	const history = {
+		state: null,
+		scrollRestoration: "auto",
+		pushState() {},
+		replaceState() {},
+		addEventListener() {},
+		removeEventListener() {},
+	};
+	const runtimeWindow = {
+		SERVER_DATA: null,
+		history,
+		location: {
+			origin: serverOrigin,
+			href: `${serverOrigin}/`,
+			pathname: "/",
+			search: "",
+			hash: "",
+			assign() {},
+		},
+		scrollX: 0,
+		scrollY: 0,
+		scrollTo() {},
+		addEventListener() {},
+		removeEventListener() {},
+	};
+	const routeTable = {
+		basePath: "/",
+		routes: [route],
+		routeMap: { Dashboard: route.component },
+		findRouteByName: (name) => (name === route.pageName ? route : undefined),
+		findRouteGeneric: (pathname) =>
+			pathname === route.path ? route : undefined,
+		detectGhostRoutes() {},
+	};
+	let request;
+	globalThis.window = runtimeWindow;
+	const router = runtime.createRouter({
+		routeTable,
+		window: runtimeWindow,
+		fetch: async (url, init) => {
+			request = { url, init };
+			const headers = new Headers(init.headers);
+			headers.set("cookie", authCookie);
+			return fetch(new URL(url, serverOrigin), { ...init, headers });
+		},
+	});
+
+	try {
+		await router.push("/Dashboard");
+		assert.equal(request.init.credentials, "same-origin");
+		assert.equal(request.init.headers[NAVIGATION_HEADER], "1");
+		assert.equal(router.route?.pageName, "Dashboard");
+		assert.equal(runtime.usePage()?.user, "demo");
+	} finally {
+		router.destroy?.();
+		delete globalThis.window;
+	}
+}
+
 /**
  * Returns the response's cookies as one Cookie request header value. The demo
  * login sets the auth cookie; the fixture relays it by hand because its fetch
  * has no cookie jar.
  */
 function authCookieOf(response) {
-	const setCookies =
-		typeof response.headers.getSetCookie === "function"
-			? response.headers.getSetCookie()
-			: [response.headers.get("set-cookie")].filter(Boolean);
-	return setCookies.map((cookie) => cookie.split(";")[0]).join("; ");
+	return setCookiesOf(response)
+		.map((cookie) => cookie.split(";")[0])
+		.join("; ");
 }
 
 function extractDocumentPageData(documentBody) {
@@ -160,7 +280,7 @@ before(() => {
 });
 
 test(
-	"scaffolded project resolves the framework from npm and bundles the accessor",
+	"scaffolded project proves the published navigation contract",
 	// Must exceed the sum of the subprocess budgets (build 300s + scaffold
 	// 120s + install 600s + client build 300s + server boot 120s = 1440s) so the
 	// per-step timeouts, not the outer test timeout, are the effective caps.
@@ -306,6 +426,51 @@ test(
 			assert.ok(
 				!fs.existsSync(path.join(fixture, CLIENT_DIR, "src", "index.html")),
 				"the scaffolded client must not ship a src/index.html",
+			);
+
+			const missingViewRoute = {
+				path: "/MissingView",
+				name: "MissingView",
+				files: {
+					react: "src/pages/MissingView/index.page.tsx",
+					view: "Views/DoesNotExist/Index.cshtml",
+				},
+				access: "public",
+			};
+			scaffoldedRoutes.push(missingViewRoute);
+			fs.writeFileSync(
+				path.join(fixture, "routes.json"),
+				`${JSON.stringify(scaffoldedRoutes, null, 2)}\n`,
+			);
+			const missingViewPage = path.join(
+				fixture,
+				CLIENT_DIR,
+				"src",
+				"pages",
+				"MissingView",
+				"index.page.tsx",
+			);
+			fs.mkdirSync(path.dirname(missingViewPage), { recursive: true });
+			fs.copyFileSync(
+				path.join(
+					fixture,
+					CLIENT_DIR,
+					"src",
+					"pages",
+					"Register",
+					"index.page.tsx",
+				),
+				missingViewPage,
+			);
+			fs.writeFileSync(
+				path.join(
+					fixture,
+					SERVER_DIR,
+					"Controllers",
+					"Api",
+					"TestUnrelatedController.cs",
+				),
+				`using Microsoft.AspNetCore.Mvc;\nusing ${PROJECT_PASCAL}.Server.Primitives;\n\nnamespace ${PROJECT_PASCAL}.Server.Controllers.Api;\n\n[ApiController]\n[Route("api/[controller]")]\npublic sealed class TestUnrelatedController : ControllerBase\n{\n    [HttpGet]\n    public ActionResult<JSendResponse<object>> Get()\n    {\n        return Ok(JSend.Success<object>(new { status = "ok" }));\n    }\n}\n`,
 			);
 
 			const initialSnapshot = path.join(
@@ -532,6 +697,11 @@ test(
 			);
 			assert.match(
 				bundle,
+				/same-origin/,
+				"the router's same-origin credential mode is missing from the built client bundle",
+			);
+			assert.match(
+				bundle,
 				/data-dynamic-nav/,
 				"the Link module's opt-out attribute is missing from the built client bundle",
 			);
@@ -635,6 +805,7 @@ test(
 			//     - Protected page (/Dashboard): redirects unauthenticated guest to /Login
 			const loginRes = await fetch(`http://127.0.0.1:${serverPort}/Login`);
 			assert.equal(loginRes.status, 200);
+			assertPageResponse(loginRes);
 			const loginHtml = await loginRes.text();
 			assert.match(
 				loginHtml,
@@ -654,6 +825,7 @@ test(
 
 			const homeRes = await fetch(`http://127.0.0.1:${serverPort}/`);
 			assert.equal(homeRes.status, 200);
+			assertPageResponse(homeRes);
 			const homeHtml = await homeRes.text();
 			assert.match(
 				homeHtml,
@@ -664,15 +836,8 @@ test(
 			const dashRes = await fetch(`http://127.0.0.1:${serverPort}/Dashboard`, {
 				redirect: "manual",
 			});
-			assert.ok(
-				[301, 302, 307, 308].includes(dashRes.status),
-				`Protected route /Dashboard should redirect anonymous request (status was ${dashRes.status})`,
-			);
-			assert.match(
-				dashRes.headers.get("location") || "",
-				/\/Login/,
-				"Protected route redirect should target /Login",
-			);
+			assertRedirectTo(dashRes, "/Login");
+			assertPrivateNoStore(dashRes);
 
 			// 11. The dynamic-navigation wire contract (ADR 0009) as the
 			//     scaffolded server answers it: descriptor JSON + Vary for
@@ -683,7 +848,7 @@ test(
 
 			const loginDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Login`,
-				{ headers: navHeaders },
+				sameOriginDescriptorInit(navHeaders),
 			);
 			assert.equal(
 				loginDescriptorRes.status,
@@ -695,11 +860,7 @@ test(
 				"application/json",
 				"a descriptor request must answer JSON, not the document",
 			);
-			assert.match(
-				loginDescriptorRes.headers.get("vary") || "",
-				/X-Poyo-Navigation/,
-				"the descriptor response must vary on the navigation header",
-			);
+			assertPageResponse(loginDescriptorRes);
 			const loginDescriptor = await loginDescriptorRes.json();
 			assert.equal(loginDescriptor.name, "Login");
 			assert.equal(loginDescriptor.seo?.title, "Login");
@@ -724,42 +885,38 @@ test(
 			// even when the request carries the navigation header.
 			const registerRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Register`,
-				{ headers: navHeaders },
+				sameOriginDescriptorInit(navHeaders),
 			);
 			assert.equal(registerRes.status, 200);
+			assertPageResponse(registerRes);
 			assert.match(
 				registerRes.headers.get("content-type") || "",
 				/^text\/html/,
 				"the opted-out route must answer descriptor requests with the document",
 			);
-			assert.match(
-				registerRes.headers.get("vary") || "",
-				/X-Poyo-Navigation/,
-				"the opted-out document must still vary on the navigation header",
-			);
 			const registerHtml = await registerRes.text();
 			assert.match(registerHtml, /<!DOCTYPE html>/);
 			assert.match(registerHtml, /data-page-name="Register"/);
+
+			const missingDescriptorRes = await fetch(
+				`http://127.0.0.1:${serverPort}/MissingView`,
+				sameOriginDescriptorInit(navHeaders),
+			);
+			assert.equal(missingDescriptorRes.status, 404);
+			assertPageResponse(missingDescriptorRes);
 
 			// The protected route challenges an anonymous descriptor request;
 			// no payload may leak through the challenge.
 			const protectedDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Dashboard`,
-				{ headers: navHeaders, redirect: "manual" },
+				{ ...sameOriginDescriptorInit(navHeaders), redirect: "manual" },
 			);
-			assert.ok(
-				[301, 302, 307, 308].includes(protectedDescriptorRes.status),
-				`anonymous descriptor request should challenge (status was ${protectedDescriptorRes.status})`,
-			);
-			assert.match(
-				protectedDescriptorRes.headers.get("location") || "",
-				/\/Login/,
-				"the protected descriptor challenge should target /Login",
-			);
+			assertRedirectTo(protectedDescriptorRes, "/Login");
 			assert.ok(
 				!(await protectedDescriptorRes.text()).includes("pageData"),
 				"a challenged descriptor must not leak its payload",
 			);
+			assertPrivateNoStore(protectedDescriptorRes);
 
 			// The descriptor and document use the same representation for the
 			// stable fields; the controller's timestamp is request-specific.
@@ -772,22 +929,64 @@ test(
 				},
 			);
 			assert.equal(loginApiRes.status, 200, "the demo login must succeed");
-			const authCookie = authCookieOf(loginApiRes);
-			assert.ok(authCookie.length > 0, "the demo login set no auth cookie");
+			assertPrivateAuthenticationResponse(loginApiRes);
+			let authCookie = authCookieOf(loginApiRes);
+
+			const guestDescriptorRes = await fetch(
+				`http://127.0.0.1:${serverPort}/Login`,
+				{
+					...sameOriginDescriptorInit({ ...navHeaders, cookie: authCookie }),
+					redirect: "manual",
+				},
+			);
+			assertRedirectTo(guestDescriptorRes, "/Dashboard");
+			assertPrivateNoStore(guestDescriptorRes);
+
+			const refreshApiRes = await fetch(
+				`http://127.0.0.1:${serverPort}/api/Auth/Refresh`,
+				{
+					method: "POST",
+					headers: {
+						"content-type": "application/json",
+						cookie: authCookie,
+					},
+					body: JSON.stringify({
+						token: "demo-token",
+						refreshToken: "demo-refresh-token",
+					}),
+				},
+			);
+			assert.equal(refreshApiRes.status, 200, "the demo refresh must succeed");
+			assertPrivateAuthenticationResponse(refreshApiRes);
+			authCookie = authCookieOf(refreshApiRes);
+
+			const unrelatedApiRes = await fetch(
+				`http://127.0.0.1:${serverPort}/api/test-unrelated`,
+				{ headers: { cookie: authCookie } },
+			);
+			assert.equal(unrelatedApiRes.status, 200);
+			assert.equal(unrelatedApiRes.headers.get("cache-control"), null);
+			assert.equal(unrelatedApiRes.headers.get("pragma"), null);
+			assert.equal(unrelatedApiRes.headers.get("expires"), null);
+			const unrelatedApiBody = await unrelatedApiRes.json();
+			assert.equal(unrelatedApiBody.status, "success");
+			assert.equal(unrelatedApiBody.data.status, "ok");
 
 			const dashboardDocumentRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Dashboard`,
 				{ headers: { cookie: authCookie } },
 			);
 			assert.equal(dashboardDocumentRes.status, 200);
+			assertPageResponse(dashboardDocumentRes);
 			const dashboardHtml = await dashboardDocumentRes.text();
 			const dashboardDocumentData = extractDocumentPageData(dashboardHtml);
 
 			const dashboardDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/Dashboard`,
-				{ headers: { ...navHeaders, cookie: authCookie } },
+				sameOriginDescriptorInit({ ...navHeaders, cookie: authCookie }),
 			);
 			assert.equal(dashboardDescriptorRes.status, 200);
+			assertPageResponse(dashboardDescriptorRes);
 			const dashboardDescriptor = await dashboardDescriptorRes.json();
 			assert.equal(dashboardDescriptor.name, "Dashboard");
 			assert.equal(dashboardDescriptor.seo?.title, "Dashboard");
@@ -806,6 +1005,27 @@ test(
 				Object.keys(dashboardDocumentData).sort(),
 				"the descriptor payload must have the document's shape",
 			);
+
+			await assertGeneratedRuntimeNavigation(
+				resolvedDir,
+				`http://127.0.0.1:${serverPort}`,
+				authCookie,
+			);
+
+			const logoutApiRes = await fetch(
+				`http://127.0.0.1:${serverPort}/api/Auth/Logout`,
+				{ method: "POST", headers: { cookie: authCookie } },
+			);
+			assert.equal(logoutApiRes.status, 200, "the demo logout must succeed");
+			assertPrivateAuthenticationResponse(logoutApiRes);
+
+			const loggedOutCookie = authCookieOf(logoutApiRes);
+			const postLogoutRes = await fetch(
+				`http://127.0.0.1:${serverPort}/Dashboard`,
+				{ headers: { cookie: loggedOutCookie }, redirect: "manual" },
+			);
+			assertRedirectTo(postLogoutRes, "/Login");
+			assertPrivateNoStore(postLogoutRes);
 
 			if (serverProcess && !serverProcess.killed) {
 				serverProcess.kill("SIGTERM");
