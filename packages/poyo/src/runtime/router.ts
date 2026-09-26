@@ -238,12 +238,30 @@ async function fetchAndResolveDescriptor(
 ): Promise<{ route: AppRoute; body: PageDescriptor } | null> {
 	if (!fetchFn || !routeTable) return null;
 	const fetchUrl = url.split("#")[0] || url;
+	// A descriptor request is one representation of one resource, so a 3xx means
+	// the server declined to serve *this* resource here — it is not a descriptor
+	// for some other page. Following the redirect would commit that other page's
+	// route, Page data and SEO while history records the URL that was asked for,
+	// leaving the address bar and the screen describing different pages. With
+	// manual handling the response is an opaque redirect (status 0, not ok), so
+	// the check below degrades to a document load of the requested URL. The
+	// browser then applies the redirect itself and boots a fresh document, which
+	// re-evaluates access server-side and discards the previous session's client
+	// state. The cost is a second round trip — the aborted descriptor request plus
+	// the document request — and it is the same shape as clicking a plain
+	// <a href>.
 	const response = await fetchFn(fetchUrl, {
 		credentials: "same-origin",
+		redirect: "manual",
 		headers: {
 			[NAVIGATION_HEADER]: NAVIGATION_HEADER_VALUE,
 		},
 	});
+	// `redirect: "manual"` means a real browser cannot hand back a followed
+	// redirect, so this is defense for an injected transport that does follow.
+	// The invariant is that a descriptor describes the resource that was asked
+	// for; a response that reports a redirect describes some other one.
+	if (response.redirected === true) return null;
 	if (token !== getSupercedeToken() || !response.ok) return null;
 	let body: unknown;
 	try {
@@ -302,12 +320,22 @@ export function createRouter(options?: RouterOptions): Router {
 		}
 	}
 
-	const fallback = (url: string, token: number) => {
+	// A descriptor request that cannot be answered hands the decision back to the
+	// browser, which applies the redirect itself. `replace` is for the traversal
+	// paths: the browser has already moved the current history entry to the
+	// target, so a document load must settle that entry rather than risk growing
+	// or truncating the stack. It is equivalent to a reload when the browser
+	// agrees the entry is already correct, and it is the only form that cannot
+	// leave a stale forward entry behind if it does not. Push/replace for a
+	// client-initiated navigation is a separate question (R05).
+	const fallback = (url: string, token: number, replace = false) => {
 		if (token !== supersedeToken) return;
-		if (win?.location?.assign) {
-			win.location.assign(url);
-		} else if (typeof window !== "undefined" && window.location?.assign) {
-			window.location.assign(url);
+		const target = win ?? (typeof window !== "undefined" ? window : undefined);
+		const location = target?.location;
+		if (!location) return;
+		const method = replace ? location.replace : location.assign;
+		if (typeof method === "function") {
+			method.call(location, url);
 		}
 	};
 
@@ -394,7 +422,7 @@ export function createRouter(options?: RouterOptions): Router {
 		const state = event.state ?? win?.history?.state;
 		if (!isPoyoHistoryState(state)) {
 			const currentToken = ++supersedeToken;
-			fallback(targetUrl, currentToken);
+			fallback(targetUrl, currentToken, true);
 			return;
 		}
 
@@ -415,7 +443,7 @@ export function createRouter(options?: RouterOptions): Router {
 			}
 
 			if (!result) {
-				fallback(targetUrl, currentToken);
+				fallback(targetUrl, currentToken, true);
 				return;
 			}
 
@@ -440,7 +468,7 @@ export function createRouter(options?: RouterOptions): Router {
 				}
 			}
 		} catch {
-			fallback(targetUrl, currentToken);
+			fallback(targetUrl, currentToken, true);
 		}
 	};
 

@@ -48,7 +48,7 @@ describe("Router Traversal — Slice 1: Cold entry traversal", () => {
 		expect(harness.history.scrollRestoration).toBe("manual");
 	});
 
-	it("triggers an ordinary document load (assign) on cold-entry Back/Forward traversal", async () => {
+	it("triggers a replace-equivalent document load on cold-entry Back/Forward traversal", async () => {
 		const fetchMock = vi.fn();
 		const harness = createRouterHarness({
 			routes,
@@ -62,7 +62,7 @@ describe("Router Traversal — Slice 1: Cold entry traversal", () => {
 
 		await harness.popstate(null);
 
-		expect(harness.assign).toHaveBeenCalledWith("/");
+		expect(harness.replaceLocation).toHaveBeenCalledWith("/");
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 
@@ -80,7 +80,7 @@ describe("Router Traversal — Slice 1: Cold entry traversal", () => {
 
 		await harness.popstate({ someOtherLib: 123 });
 
-		expect(harness.assign).toHaveBeenCalledWith("/some-page");
+		expect(harness.replaceLocation).toHaveBeenCalledWith("/some-page");
 		expect(fetchMock).not.toHaveBeenCalled();
 	});
 });
@@ -147,12 +147,14 @@ describe("Router Traversal — Slice 2: Client-navigated traversal swaps page vi
 		expect(fetchMock).toHaveBeenCalledWith("/dashboard", {
 			credentials: "same-origin",
 			headers: { "X-Poyo-Navigation": "1" },
+			redirect: "manual",
 		});
 
 		const store = getNavigationStore();
 		expect(store.getRoute()).toEqual(dashboardRoute);
 		expect(store.getPageData()).toEqual({ count: 42 });
 		expect(harness.assign).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
 		expect(harness.history.pushState).not.toHaveBeenCalled();
 		expect(harness.history.replaceState).not.toHaveBeenCalled();
 	});
@@ -396,6 +398,7 @@ describe("Router Traversal — Slice 4: Hash-only changes keep native anchor beh
 
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(harness.assign).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
 		expect(harness.scrollTo).not.toHaveBeenCalled();
 		expect(getNavigationStore().getRoute()).toEqual(dashboardRoute);
 		expect(getNavigationStore().getPageData()).toEqual({ initial: true });
@@ -427,6 +430,7 @@ describe("Router Traversal — Slice 4: Hash-only changes keep native anchor beh
 
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(harness.assign).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
 		expect(harness.scrollTo).not.toHaveBeenCalled();
 	});
 
@@ -464,6 +468,7 @@ describe("Router Traversal — Slice 4: Hash-only changes keep native anchor beh
 		expect(fetchMock).toHaveBeenCalledWith("/", {
 			credentials: "same-origin",
 			headers: { "X-Poyo-Navigation": "1" },
+			redirect: "manual",
 		});
 		expect(getNavigationStore().getRoute()).toEqual(homeRoute);
 	});
@@ -507,7 +512,7 @@ describe("Router Traversal — Slice 5: Failed and superseded traversal handling
 
 		await harness.popstate(poyoState);
 
-		expect(harness.assign).toHaveBeenCalledWith("/dashboard");
+		expect(harness.replaceLocation).toHaveBeenCalledWith("/dashboard");
 	});
 
 	it("degrades to document load on invalid descriptor format during traversal", async () => {
@@ -534,7 +539,7 @@ describe("Router Traversal — Slice 5: Failed and superseded traversal handling
 
 		await harness.popstate(poyoState);
 
-		expect(harness.assign).toHaveBeenCalledWith("/dashboard");
+		expect(harness.replaceLocation).toHaveBeenCalledWith("/dashboard");
 	});
 
 	it("degrades to document load when descriptor name is unknown in route table", async () => {
@@ -561,7 +566,7 @@ describe("Router Traversal — Slice 5: Failed and superseded traversal handling
 
 		await harness.popstate(poyoState);
 
-		expect(harness.assign).toHaveBeenCalledWith("/unknown");
+		expect(harness.replaceLocation).toHaveBeenCalledWith("/unknown");
 	});
 
 	it("degrades to document load on network failure during traversal", async () => {
@@ -584,7 +589,7 @@ describe("Router Traversal — Slice 5: Failed and superseded traversal handling
 
 		await harness.popstate(poyoState);
 
-		expect(harness.assign).toHaveBeenCalledWith("/dashboard");
+		expect(harness.replaceLocation).toHaveBeenCalledWith("/dashboard");
 	});
 
 	it("ensures rapid successive traversals are last-write-wins (supersede token)", async () => {
@@ -642,6 +647,7 @@ describe("Router Traversal — Slice 5: Failed and superseded traversal handling
 		expect(getNavigationStore().getRoute()).toEqual(dashboardRoute);
 		expect(getNavigationStore().getPageData()).toEqual({ fast: true });
 		expect(harness.assign).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
 	});
 
 	it("drops superseded traversal when a push navigation arrives before traversal completes", async () => {
@@ -696,5 +702,6 @@ describe("Router Traversal — Slice 5: Failed and superseded traversal handling
 		expect(getNavigationStore().getRoute()).toEqual(dashboardRoute);
 		expect(getNavigationStore().getPageData()).toEqual({ pushed: true });
 		expect(harness.assign).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
 	});
 });

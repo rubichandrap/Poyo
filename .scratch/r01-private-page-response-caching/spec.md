@@ -51,7 +51,8 @@ The no-store policy remains internal to the framework-owned page result and acce
 - The exact response directive is `Cache-Control: private, no-store`.
 - Poyo does not add `Pragma: no-cache` or `Expires: 0` compatibility headers.
 - Poyo retains `Vary: X-Poyo-Navigation`; the request header remains the representation selector and the response header remains cache metadata.
-- The template’s cookie-mutating login, refresh, and logout actions apply the same no-store policy using ASP.NET Core’s standard typed response-header interface.
+- The template’s cookie-mutating login, refresh, and logout actions apply the same no-store policy through a project-owned `PrivateNoStoreResponseAttribute` — an internal `IResourceFilter` that sets `IHeaderDictionary.CacheControl` and clears `Pragma`/`Expires`, applied at class level on `AuthController`. The original wording here (“ASP.NET Core’s standard typed response-header interface”) stated an intent the implementation superseded; ADR 0013 records the shipped mechanism.
+- Dynamic descriptor requests state `credentials: "same-origin"` explicitly. That is already the `fetch` default, so the change is declarative pinning, not a behavior change; the runtime tests assert the option literal, not credential transmission.
 - Custom authentication controllers own the cache policy for their own cookie-mutating endpoints; they are not forced through a public Poyo API.
 - The no-store policy does not apply blanket-wide to unrelated API responses.
 - Dynamic descriptor requests use explicit same-origin credentials. They do not use cross-origin credential inclusion.

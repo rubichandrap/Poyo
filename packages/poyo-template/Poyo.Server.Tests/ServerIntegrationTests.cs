@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Poyo.Server.Tests.Support;
+using static Poyo.Server.Tests.Support.PageResponseAssertions;
 
 namespace Poyo.Server.Tests;
 
@@ -38,15 +39,6 @@ public class ServerIntegrationTests : IClassFixture<ServerFixture>
         });
 
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
-    }
-
-    private static void AssertPrivateNoStore(HttpResponseMessage response)
-    {
-        Assert.Equal(
-            "private, no-store",
-            Assert.Single(response.Headers.NonValidated["Cache-Control"]));
-        Assert.False(response.Headers.NonValidated.Contains("Pragma"));
-        Assert.False(response.Headers.NonValidated.Contains("Expires"));
     }
 
     private static void AssertAuthenticationCookie(HttpResponseMessage response)
