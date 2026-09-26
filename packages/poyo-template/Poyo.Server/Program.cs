@@ -3,8 +3,8 @@ using Microsoft.OpenApi;
 using Poyo.Framework;
 using Vite.AspNetCore;
 
-var root = Directory.GetParent(Directory.GetCurrentDirectory())!.FullName;
-var envPath = Path.Combine(root, ".env");
+string? root = Directory.GetParent(Directory.GetCurrentDirectory())!.FullName;
+string? envPath = Path.Combine(root, ".env");
 
 Env.Load(envPath);
 
@@ -32,7 +32,7 @@ if (!int.TryParse(
         "Vite__Server__Port must be a valid integer");
 }
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder? builder = WebApplication.CreateBuilder(args);
 
 RequireEnv(
     "ASPNETCORE_ENVIRONMENT",
@@ -49,7 +49,7 @@ if (builder.Environment.IsDevelopment())
 // Route policy + universal access/SEO enforcement (the server core ships
 // inside @rubichandrap/poyo and compiles in place — ADR 0008). The registry
 // lives at the project root; Routes:JsonPath overrides it for hosted runs.
-var routesJsonPath = builder.Configuration["Routes:JsonPath"]
+string? routesJsonPath = builder.Configuration["Routes:JsonPath"]
     ?? Path.Combine(root, "routes.json");
 builder.Services.AddPoyo(builder.Configuration, routesJsonPath);
 
@@ -84,7 +84,7 @@ builder.Services.AddAuthentication(options =>
         // Override default redirect behavior for API calls
         options.Events.OnRedirectToLogin = context =>
         {
-            var path = context.Request.Path;
+            PathString path = context.Request.Path;
             if (path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase))
             {
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -131,7 +131,7 @@ if (builder.Environment.IsDevelopment())
     });
 }
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -169,7 +169,3 @@ app.MapControllerRoute(
     pattern: "{controller}/{action}/{id?}");
 
 app.Run();
-
-public partial class Program
-{
-}
