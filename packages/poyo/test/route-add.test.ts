@@ -475,11 +475,39 @@ describe("poyo route registry validation", () => {
 		expect(result.stderr).toContain("access");
 	});
 
-	it("rejects a missing access field", () => {
+	it("accepts a missing access field, the server's own default", () => {
+		// The server deserializes an absent access to protected, and a
+		// registry that omits it is one it serves. Refusing it here would
+		// reject a registry the server accepts.
 		const fixture = registryWith({ access: undefined });
 		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(0);
+		const written = fixture.routesJson().find((r) => r.path === "/About");
+		expect(written?.access).toBe("protected");
+	});
+
+	it("treats a null controller or action as undeclared, as the server does", () => {
+		// route.Controller is not null is false for a null field, so the
+		// server reads null as "not declared" rather than as a declaration it
+		// cannot act on.
+		const fixture = registryWith({ controller: null, action: null });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(0);
+	});
+
+	it("still rejects a blank controller, which is a declaration", () => {
+		const fixture = registryWith({ controller: "  ", action: "Index" });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
 		expect(result.status).toBe(1);
-		expect(result.stderr).toContain("access");
+		expect(result.stderr).toContain("controller");
+	});
+
+	it("does not import the identity notion of blank into file fields", () => {
+		// A file field is not a route's identity and the server never checks
+		// one, so a whitespace-only path is left to fail at request time.
+		const fixture = registryWith({ files: { react: " ", view: "y.cshtml" } });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(0);
 	});
 
 	it("rejects controller without action", () => {

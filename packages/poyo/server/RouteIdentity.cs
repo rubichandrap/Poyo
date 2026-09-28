@@ -40,7 +40,7 @@ public static class RouteIdentity
     /// value that is wrong, because a registry with twenty entries is still
     /// easy to fix when you are told which one.
     /// </summary>
-    public static void Validate(RouteDefinition route, string routesJsonPath)
+    private static void Validate(RouteDefinition route, string routesJsonPath)
     {
         ValidatePath(route, routesJsonPath);
         ValidateName(route, routesJsonPath);

@@ -37,11 +37,30 @@ function expectNonEmptyString(
 }
 
 /**
+ * A file field is not part of a route's identity, and the server never checks
+ * one: a blank view path boots and fails when the route is requested. This is
+ * the route manager's own earlier guard, so it stays as it was rather than
+ * borrowing the identity rule's notion of blank.
+ */
+function expectFileString(
+	label: string,
+	pathLabel: string,
+	field: string,
+	value: unknown,
+): void {
+	if (typeof value !== "string" || value.length === 0) {
+		throw new CliError(
+			`${label} ("${pathLabel}"): "files.${field}" must be a non-empty string`,
+		);
+	}
+}
+
+/**
  * A route's identity is one thing, defined once: the registry is authored, so
  * it is held to a canonical form, and the server enforces the same rules at
  * boot. This module is the route manager's half of that contract — it exists
  * so an invalid registry is rejected when it is authored rather than when it
- * is deployed, not so the two runtimes can disagree. Both refuse the same
+ * is deployed, not so the two runtimes can disagree. Each refuses the same
  * registries; each picks the offending route in its own pass order, so the
  * wording here deliberately mirrors the server's rather than repeating it.
  */
@@ -112,17 +131,22 @@ function validateRouteIdentity(route: unknown, index: number): void {
 			);
 		}
 	}
-	expectNonEmptyString(label, routePath, "files.react", fileEntries.react);
-	expectNonEmptyString(label, routePath, "files.view", fileEntries.view);
+	expectFileString(label, routePath, "react", fileEntries.react);
+	expectFileString(label, routePath, "view", fileEntries.view);
 
-	if (!isRouteAccess(entry.access)) {
+	// `access` is optional and defaults to protected, which is the server's own
+	// default for an absent field. Refusing an absent one would make this side
+	// reject a registry the server serves.
+	if (entry.access !== undefined && !isRouteAccess(entry.access)) {
 		throw new CliError(
 			`${label} ("${routePath}"): "access" must be one of: public, guest, protected`,
 		);
 	}
 
-	const hasController = entry.controller !== undefined;
-	const hasAction = entry.action !== undefined;
+	// JSON null means undeclared, the same reading the server's deserializer
+	// gives it: `route.Controller is not null` is false for a null field.
+	const hasController = entry.controller != null;
+	const hasAction = entry.action != null;
 	if (hasController && !hasAction) {
 		throw new CliError(
 			`${label} ("${routePath}"): "controller" is specified without "action" — declare ` +

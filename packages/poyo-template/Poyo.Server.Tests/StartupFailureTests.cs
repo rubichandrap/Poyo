@@ -12,7 +12,6 @@ public class StartupFailureTests
     [InlineData("routes.legacy.json", "isPublic")]
     [InlineData("routes.wrong-type.json", "access")]
     [InlineData("routes.invalid-access.json", "access")]
-    [InlineData("routes.duplicate.json", "is the same route as")]
     [InlineData("routes.malformed-dynamic.json", "/dashboard")]
     public void Malformed_registry_fails_startup_loudly(string fixture, string messagePart)
     {

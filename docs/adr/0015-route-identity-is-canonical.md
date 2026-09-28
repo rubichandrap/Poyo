@@ -2,9 +2,11 @@
 
 **Status**: Accepted
 
-A route's identity — the path and name that make it referable — is defined once and expressed in two places with two disciplines. The declared registry is **strict**: a path is rooted and carries no trailing slash except for the root, a name is present and slash-free, both are unique across the registry ignoring case, and a controller and an action are declared together or not at all, neither of them blank. The incoming request is **liberal**: its path is normalized — trailing slashes trimmed, the root preserved — and matched case-insensitively, so `/login`, `/Login` and `/Login/` all serve the declared `/Login`. The asymmetry is deliberate: the file is authored, the request is not.
+A route's identity — the path and name that make it referable — is defined once and expressed in two places with two disciplines. The declared registry is **strict**: a path is rooted and carries no trailing slash except for the root, a name is present and carries no leading or trailing slash, both are unique across the registry ignoring case, and a controller and an action are declared together or not at all, neither of them blank. The incoming request is **liberal**: its path is normalized — trailing slashes trimmed, the root preserved — and matched case-insensitively, so `/login`, `/Login` and `/Login/` all serve the declared `/Login`. The asymmetry is deliberate: the file is authored, the request is not.
 
 Every identity violation is a startup failure naming the offending route and the value. None is a warning. `RouteIdentity` owns the rules, the uniqueness, and the request-path normalization; the route policy keeps its ordered list of routes — declaration order drives error messages and endpoint registration — beside a normalized-path index used by every request-time lookup.
+
+The framework package's route manager enforces the same rules on every read and write, so the server and the CLI refuse the same registries: a contributor learns about a bad registry when they author it, not when they deploy it, and the manifest can only ever hold a canonical path. "Blank" means the same thing on both sides — a name of `"   "` and a controller of `""` are declarations the server cannot act on, so both are refused. Two JSON readings had to be pinned for that to hold, and both follow the server: an absent `access` is its documented `protected` default rather than a refusal, and a `"controller": null` is *undeclared* rather than a declaration that is blank. A field that is not part of a route's identity is left alone: the server never checks a file path, so the route manager does not import the identity notion of blank into one.
 
 ## Considered Options
 
@@ -17,7 +19,7 @@ Every identity violation is a startup failure naming the offending route and the
 
 ## Consequences
 
-A registry that booted under the weaker rules now fails to start: a non-canonical path, a blank name, a slash in a name, a duplicate name, a lone or blank controller or action. Every message states the value and the canonical form to use instead, so the fix is a read rather than an investigation.
+A registry that booted under the weaker rules now fails to start: a non-canonical path, a blank name, a leading or trailing slash in a name, a duplicate name, a lone or blank controller or action. Every message names the offending route and the value, and the two path messages also name the canonical form to use instead, so the commonest mistake is a read rather than an investigation.
 
 `RoutePolicy` keeps `Routes` in declaration order and looks requests up through a normalized-path index, so error messages and endpoint registration are unaffected while a request no longer scans the list. `RouteIdentity` is new public surface in the framework package's server core, and it is the only place the canonical form, the uniqueness rules, and the request-path normalization are written down. The route policy's public behavior is otherwise unchanged: `Find` still resolves a request path case-insensitively with trailing slashes ignored, and now does so through the index.
 
