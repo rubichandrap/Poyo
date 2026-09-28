@@ -118,6 +118,51 @@ public class RoutePolicyTests
         Assert.Contains("/dashboard", ex.Message);
     }
 
+    /// <summary>
+    /// The truth table of the one function that makes a request liberal: a
+    /// request URL is owned by the browser, so a trailing slash is trimmed and
+    /// the root path survives the trim.
+    /// </summary>
+    [Theory]
+    [InlineData(null, "/")]
+    [InlineData("", "/")]
+    [InlineData("/", "/")]
+    [InlineData("//", "/")]
+    [InlineData("/Dashboard", "/Dashboard")]
+    [InlineData("/Dashboard/", "/Dashboard")]
+    [InlineData("/Dashboard///", "/Dashboard")]
+    [InlineData("/reports/monthly/", "/reports/monthly")]
+    [InlineData("Dashboard", "Dashboard")]
+    public void A_request_path_is_normalized_without_touching_its_case(string? requestPath, string expected)
+    {
+        Assert.Equal(expected, RouteIdentity.NormalizeRequestPath(requestPath));
+    }
+
+    [Fact]
+    public void Find_resolves_a_normalized_path_through_the_index()
+    {
+        var policy = RoutePolicy.Load(TestEnvironment.FixturePath("routes.valid.json"));
+
+        Assert.Equal("Dashboard", policy.Find("/DASHBOARD")?.Name);
+        Assert.Equal("Dashboard", policy.Find("/Dashboard///")?.Name);
+        Assert.Null(policy.Find("/Dashboard/Extra"));
+    }
+
+    /// <summary>
+    /// The ordered list and the lookup index are two views of one registry:
+    /// declaration order still answers error messages and endpoint
+    /// registration, and the index is an acceleration over normalized paths.
+    /// </summary>
+    [Fact]
+    public void The_ordered_list_is_retained_alongside_the_index()
+    {
+        var policy = RoutePolicy.Load(TestEnvironment.FixturePath("routes.valid.json"));
+
+        Assert.Equal(
+            new[] { "/", "/Dashboard", "/Login", "/Register" },
+            policy.Routes.Select(route => route.Path));
+    }
+
     [Fact]
     public void Load_throws_on_malformed_dynamic_value_naming_the_route()
     {
