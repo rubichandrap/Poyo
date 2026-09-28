@@ -9,8 +9,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Security
 
+- The Routes registry is a required deployment artifact and the server treats it as one (ADR 0014). A registry that is missing, empty, unreadable, or unparseable now fails startup with a message naming which of the four it was, instead of booting an application whose access model, SEO policy, and `private, no-store` guarantee were all switched off by the same missing file. A registry that declares no routes is a startup failure, never a degraded mode.
+- Registry resolution no longer reads the process working directory — in ASP.NET it is also the default content root, so a deployment's access model no longer depends on the directory its host happened to start it in. It resolves from an explicit value (`AddPoyo`'s argument or `Routes:JsonPath`, a relative value against the content root), then `routes.json` beside the application assembly, then a hard failure. The server csproj copies the project-root registry beside the assembly, so a published output is self-contained, and the framework package's own default resolution moved to the same anchor.
 - Poyo-owned page responses now emit `Cache-Control: private, no-store`: HTML documents, navigation descriptors, access challenges, guest redirects and page errors. `Vary: X-Poyo-Navigation` is retained as the representation selector. Because the directive applies to every document, main documents are no longer eligible for the browser's back/forward cache, so cross-document Back/Forward refetches instead of restoring instantly (ADR 0013).
 - The template's cookie-mutating login, refresh and logout responses apply the same policy through the project-owned `[PrivateNoStoreResponse]` filter. Unrelated API responses are unaffected.
+
+### Changed
+
+- The server bootstrap no longer derives a directory from the working directory, which removes the null-forgiving dereference that threw when the working directory was the filesystem root. Development launches get their values — the project-root registry and the optional `.env` — from `Poyo.Server/Properties/launchSettings.json`, so a run-from-source launch works with no environment file present.
 
 ### Fixed
 

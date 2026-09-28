@@ -73,6 +73,12 @@ The server carries no routing code of its own: `Poyo.Server.csproj` compiles the
 
 On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it globs the page files, resolves the server-injected base path (`data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), and calls `createRouteTable` from `@rubichandrap/poyo/runtime` with `routes.json` — route resolution ships from the framework package, not from this project. The typed manifest `routes.generated.ts` is gitignored at the client package root and kept fresh by every route command and `poyo generate` — use `routePath("Login")` (imported from `@rubichandrap/poyo/runtime`) for static links so a renamed route breaks the build instead of 404ing.
 
+### Deploying the registry
+
+`routes.json` is a required deployment artifact, not a content file: the access model, the SEO policy, and the private no-store guarantee are all gated on the server reading it, so an application whose registry is missing, empty, unreadable, or unparseable **refuses to start** and says which of the four it was. A deployment is therefore a failed deploy rather than a site with no access control.
+
+The server resolves it from `Routes:JsonPath` when the host names a location (a relative value resolves against the content root), and otherwise from `routes.json` beside the application assembly. `Poyo.Server.csproj` copies the project-root registry there on build and publish, so `dotnet publish` output is self-contained and serves the same routes from any working directory — the working directory is never consulted. Keep editing the single project-root `routes.json`; the copy in the build output is not the source of truth. Development launches name the project-root registry (and the optional `.env`) in `Poyo.Server/Properties/launchSettings.json`, so `pnpm run dev` works on a fresh clone with no `.env` present.
+
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 
 ```bash

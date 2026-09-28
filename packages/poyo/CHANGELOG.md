@@ -9,8 +9,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Security
 
+- The Routes registry is a required deployment artifact and the server core treats it as one (ADR 0014). A registry that is missing, empty, unreadable, or unparseable now fails startup with a message naming which of the four it was, instead of booting an application whose access model, SEO policy, and `private, no-store` guarantee were all switched off by the same missing file. A registry that declares no routes is a startup failure.
+- Registry resolution no longer reads the process working directory — in ASP.NET it is also the default content root, so a deployment's access model no longer depends on the directory its host happened to start it in. `AddPoyo(configuration, registryPath?, contentRootPath?)` resolves the registry from the explicit argument, then `Routes:JsonPath` configuration (a relative value resolves against the content root), then `routes.json` beside the application assembly, then a hard failure. Ship the registry beside the application so a published output boots from any working directory.
 - Poyo-owned page responses now emit `Cache-Control: private, no-store`: HTML documents, navigation descriptors, access challenges, guest redirects and page errors. `Vary: X-Poyo-Navigation` is retained as the representation selector. Because the directive applies to every document, main documents are no longer eligible for the browser's back/forward cache, so cross-document Back/Forward refetches instead of restoring instantly (ADR 0013).
 - The template's cookie-mutating login, refresh and logout responses apply the same policy through the project-owned `[PrivateNoStoreResponse]` filter. Unrelated API responses are unaffected.
+
+### Changed
+
+- **Contract change:** `RoutePolicy.Load(path)` throws `RoutePolicyException` for a missing file and for an empty registry where it previously returned an empty route policy, and the unparseable message now says `is not valid JSON`. A consumer that called the loader directly, or that booted with no registry at all, must ship one.
+- **Contract change:** the default registry resolution in `AddPoyo` no longer ends at the process working directory; it ends at the application installation directory. A consumer that passed no explicit path and relied on the working directory must name the location (or ship the registry beside the application).
+- `AddPoyo` takes an optional `contentRootPath`, which resolves a relative `registryPath` or `Routes:JsonPath`.
 
 ### Fixed
 

@@ -111,6 +111,8 @@ export default function DashboardPage() {
 
 The client route loader is a thin Vite adapter. Route resolution, typed route names, and `routePath()` come from `@rubichandrap/poyo/runtime`.
 
+The registry is also a required deployment artifact: the access model, the SEO policy, and the private no-store guarantee are all gated on it, so an application whose registry is missing, empty, unreadable, or unparseable refuses to start. It resolves from `Routes:JsonPath` (a relative value against the content root), then from `routes.json` beside the application assembly — the server build copies the project-root registry there, so a published output is self-contained — and the process working directory is never consulted. See [ADR 0014](docs/adr/0014-routes-registry-is-a-required-deployment-artifact.md).
+
 Manage routes with the project CLI:
 
 ```bash

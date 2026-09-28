@@ -33,21 +33,33 @@ public class RoutePolicyTests
     }
 
     [Fact]
-    public void Load_accepts_empty_registry()
+    public void Load_throws_on_registry_declaring_no_routes()
     {
-        var policy = RoutePolicy.Load(TestEnvironment.FixturePath("routes.empty.json"));
+        var ex = Assert.Throws<RoutePolicyException>(
+            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.empty.json")));
 
-        Assert.Empty(policy.Routes);
+        Assert.Contains("is empty", ex.Message);
+        Assert.Contains("no routes", ex.Message);
     }
 
     [Fact]
-    public void Load_returns_empty_policy_when_registry_missing()
+    public void Load_throws_on_registry_file_with_no_content()
     {
-        var missing = Path.Combine(Path.GetTempPath(), "does-not-exist-routes.json");
+        var ex = Assert.Throws<RoutePolicyException>(
+            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.blank.json")));
 
-        var policy = RoutePolicy.Load(missing);
+        Assert.Contains("is empty", ex.Message);
+        Assert.Contains("no content", ex.Message);
+    }
 
-        Assert.Empty(policy.Routes);
+    [Fact]
+    public void Load_throws_when_registry_missing()
+    {
+        var ex = Assert.Throws<RoutePolicyException>(
+            () => RoutePolicy.Load(TestEnvironment.MissingRegistryPath()));
+
+        Assert.Contains("was not found", ex.Message);
+        Assert.Contains(TestEnvironment.MissingRegistryPath(), ex.Message);
     }
 
     [Fact]
@@ -127,4 +139,36 @@ public class RoutePolicyTests
         Assert.Null(policy.Find("/NotARoute"));
         Assert.Null(policy.Find("/api/auth/login"));
     }
+
+    /// <summary>
+    /// An operator reading a startup failure should not have to guess from a
+    /// stack trace which of the four states the registry arrived in, so each
+    /// message carries its own state and no other one's.
+    /// </summary>
+    [Fact]
+    public void The_four_unusable_registry_states_are_told_apart()
+    {
+        using var unreadable = TestEnvironment.LockRegistry("routes.valid.json");
+
+        var states = new (string Marker, string Message)[]
+        {
+            ("was not found", CaptureFailure(TestEnvironment.MissingRegistryPath())),
+            ("is empty", CaptureFailure(TestEnvironment.FixturePath("routes.empty.json"))),
+            ("cannot read", CaptureFailure(unreadable.RegistryPath)),
+            ("is not valid JSON", CaptureFailure(TestEnvironment.FixturePath("routes.malformed.json"))),
+        };
+
+        foreach (var (marker, message) in states)
+        {
+            Assert.Contains(marker, message, StringComparison.OrdinalIgnoreCase);
+
+            foreach (var (otherMarker, _) in states.Where(s => s.Marker != marker))
+            {
+                Assert.DoesNotContain(otherMarker, message, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    private static string CaptureFailure(string registryPath) =>
+        Assert.Throws<RoutePolicyException>(() => RoutePolicy.Load(registryPath)).Message;
 }

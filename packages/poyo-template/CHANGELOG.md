@@ -9,8 +9,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Security
 
+- The Routes registry is a required deployment artifact (ADR 0014): an application whose registry is missing, empty, unreadable, or unparseable now refuses to start and says which of the four it was, instead of booting with its access model, SEO policy, and `private, no-store` guarantee all switched off by the same missing file. The project-root registry is copied beside the application assembly on build and publish, so a `dotnet publish` output serves every registry route from any working directory — including the filesystem root, which the old working-directory derivation crashed on. Development launches name the project-root registry and the optional `.env` from `Poyo.Server/Properties/launchSettings.json`, so `pnpm run dev` works on a fresh clone with no environment file present.
 - Poyo-owned page responses now emit `Cache-Control: private, no-store`: HTML documents, navigation descriptors, access challenges, guest redirects and page errors. `Vary: X-Poyo-Navigation` is retained as the representation selector. Because the directive applies to every document, main documents are no longer eligible for the browser's back/forward cache, so cross-document Back/Forward refetches instead of restoring instantly (ADR 0013).
 - The template's cookie-mutating login, refresh and logout responses apply the same policy through the project-owned `[PrivateNoStoreResponse]` filter. Unrelated API responses are unaffected.
+
+### Changed
+
+- `Program.cs` wires the server core with `AddPoyo(builder.Configuration, contentRootPath: builder.Environment.ContentRootPath)`: the registry resolves from `Routes:JsonPath` (a relative value against the content root) or from `routes.json` beside the application, never from the process working directory. Deployments that stored the registry path in a hand-edited environment file keep working through `Routes:JsonPath`; deployments that relied on the file sitting in the working directory must ship it with the application.
 
 ### Fixed
 

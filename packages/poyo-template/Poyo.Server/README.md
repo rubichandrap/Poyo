@@ -49,7 +49,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 ### 1. Registry Routing (`routes.json`)
 
-Poyo uses a registry-driven routing system. Routes are defined in `routes.json` (at the template root, the parent of this folder). `RoutePolicy` — the single place the server interprets the registry — validates it at startup (failing loudly on malformed entries) and maps each route to a controller action.
+Poyo uses a registry-driven routing system. Routes are defined in `routes.json` (at the template root, the parent of this folder), which is the source of truth — the csproj copies it beside the assembly so a published output carries it, and the server resolves it from there rather than from the process working directory. `RoutePolicy` — the single place the server interprets the registry — validates it at startup (failing loudly on malformed entries) and maps each route to a controller action. A registry that is missing, empty, unreadable, or unparseable fails startup by design: the access model, the SEO policy, and the no-store guarantee are all gated on it, so there is no safe way to boot without one. Set `Routes:JsonPath` to point at a different location.
 
 - **Default routes**: Most pages are served by `PageController` with a single `Index` action; the view path comes from the registry.
 - **Custom controller routes**: `controller`/`action` in the registry point a route at your own controller. Return `this.PoyoPage(data)` to join the framework's page result.

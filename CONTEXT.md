@@ -41,7 +41,7 @@ The optional JSON object a controller supplies for a React route, embedded in th
 _Avoid_: server state, props injection, hydration data
 
 **Routes registry**:
-The `routes.json` file that maps URL paths to their React page and server view files. The single source of truth for route existence.
+The `routes.json` file that maps URL paths to their React page and server view files. The single source of truth for route existence, and a required deployment artifact: it ships beside the application, the access model and the SEO policy are gated on it, and a deployment without one fails to start rather than serving unprotected pages.
 _Avoid_: route map, route config
 
 **Route table**:

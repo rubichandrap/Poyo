@@ -3,10 +3,16 @@ using Microsoft.OpenApi;
 using Poyo.Framework;
 using Vite.AspNetCore;
 
-string? root = Directory.GetParent(Directory.GetCurrentDirectory())!.FullName;
-string? envPath = Path.Combine(root, ".env");
+// The environment file is a development convenience, never a deployment
+// requirement: the launcher names it, and a missing file is not a failure.
+// Run-from-source launches take the values the server core requires from
+// Properties/launchSettings.json, so a fresh clone boots without one.
+string? envFile = Environment.GetEnvironmentVariable("EnvFile");
 
-Env.Load(envPath);
+if (!string.IsNullOrWhiteSpace(envFile) && File.Exists(envFile))
+{
+    Env.Load(envFile);
+}
 
 static void RequireEnv(params string[] keys)
 {
@@ -48,10 +54,13 @@ if (builder.Environment.IsDevelopment())
 
 // Route policy + universal access/SEO enforcement (the server core ships
 // inside @rubichandrap/poyo and compiles in place — ADR 0008). The registry
-// lives at the project root; Routes:JsonPath overrides it for hosted runs.
-string? routesJsonPath = builder.Configuration["Routes:JsonPath"]
-    ?? Path.Combine(root, "routes.json");
-builder.Services.AddPoyo(builder.Configuration, routesJsonPath);
+// is a required deployment artifact: it travels beside the application, and
+// Routes:JsonPath overrides its location for hosted runs. The content root
+// resolves a relative Routes:JsonPath, and the working directory is never
+// consulted.
+builder.Services.AddPoyo(
+    builder.Configuration,
+    contentRootPath: builder.Environment.ContentRootPath);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();

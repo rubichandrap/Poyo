@@ -6,8 +6,11 @@ namespace Poyo.Framework;
 
 /// <summary>
 /// The single place the server reads and interprets the routes registry.
-/// Fails startup loudly when the registry violates the route schema;
-/// missing view files stay a per-route runtime error.
+/// The registry is a required deployment artifact, not content: it gates the
+/// access model, the SEO policy and the private no-store guarantee, so a
+/// registry that is missing, empty, unreadable or unparseable fails startup
+/// loudly rather than leaving the application with no policy at all.
+/// Missing view files stay a per-route runtime error.
 /// </summary>
 public sealed class RoutePolicy
 {
@@ -29,29 +32,7 @@ public sealed class RoutePolicy
 
     public static RoutePolicy Load(string routesJsonPath)
     {
-        if (!File.Exists(routesJsonPath))
-        {
-            return new RoutePolicy([]);
-        }
-
-        List<RouteDefinition> routes;
-
-        try
-        {
-            var json = File.ReadAllText(routesJsonPath);
-            ValidateDynamicField(json, routesJsonPath);
-            routes = JsonSerializer.Deserialize<List<RouteDefinition>>(json, JsonOptions) ?? [];
-        }
-        catch (JsonException ex)
-        {
-            throw new RoutePolicyException(
-                $"Routes registry '{routesJsonPath}' is not valid: {ex.Message}", ex);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        {
-            throw new RoutePolicyException(
-                $"Cannot read routes registry '{routesJsonPath}': {ex.Message}", ex);
-        }
+        var routes = DeserializeRoutes(ReadRegistryText(routesJsonPath), routesJsonPath);
 
         var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var route in routes)
@@ -64,6 +45,67 @@ public sealed class RoutePolicy
         }
 
         return new RoutePolicy(routes);
+    }
+
+    /// <summary>
+    /// Reads the registry, naming the state that stopped it: a missing file and
+    /// an unreadable file are different deployment mistakes and get different
+    /// messages.
+    /// </summary>
+    private static string ReadRegistryText(string routesJsonPath)
+    {
+        if (!File.Exists(routesJsonPath))
+        {
+            throw new RoutePolicyException(
+                $"Routes registry '{routesJsonPath}' was not found. The registry is a required " +
+                "deployment artifact: set 'Routes:JsonPath', or ship routes.json beside the application.");
+        }
+
+        string json;
+
+        try
+        {
+            json = File.ReadAllText(routesJsonPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            throw new RoutePolicyException(
+                $"Cannot read routes registry '{routesJsonPath}': {ex.Message}", ex);
+        }
+
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            throw new RoutePolicyException(
+                $"Routes registry '{routesJsonPath}' is empty: the file has no content.");
+        }
+
+        return json;
+    }
+
+    private static List<RouteDefinition> DeserializeRoutes(string json, string routesJsonPath)
+    {
+        List<RouteDefinition>? routes;
+
+        try
+        {
+            ValidateDynamicField(json, routesJsonPath);
+            routes = JsonSerializer.Deserialize<List<RouteDefinition>>(json, JsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            throw new RoutePolicyException(
+                $"Routes registry '{routesJsonPath}' is not valid JSON: {ex.Message}", ex);
+        }
+
+        if (routes is null || routes.Count == 0)
+        {
+            throw new RoutePolicyException(
+                $"Routes registry '{routesJsonPath}' is empty: it declares no routes. An empty " +
+                "registry switches off the access model, the SEO policy and the private no-store " +
+                "guarantee, so it is a startup failure rather than a degraded mode.");
+        }
+
+        return routes;
     }
 
     /// <summary>
