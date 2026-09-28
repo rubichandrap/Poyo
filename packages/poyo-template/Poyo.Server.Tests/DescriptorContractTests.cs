@@ -32,15 +32,6 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
             AllowAutoRedirect = false,
         });
 
-    private static HttpRequestMessage DescriptorRequest(string path)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Add(
-            PageResult.NavigationHeaderName,
-            PageResult.NavigationHeaderValue);
-        return request;
-    }
-
     [Fact]
     public async Task Document_request_renders_the_page_as_before()
     {
@@ -56,7 +47,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     [Fact]
     public async Task Descriptor_request_returns_json_page_descriptor()
     {
-        var response = await CreateClient().SendAsync(DescriptorRequest("/Public"));
+        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/Public"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
@@ -77,7 +68,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     public async Task Descriptor_request_against_opt_out_route_returns_document_with_vary()
     {
         var client = CreateClient();
-        var request = DescriptorRequest("/OptOut");
+        var request = NavigationRequests.Descriptor("/OptOut");
 
         var response = await client.SendAsync(request);
 
@@ -147,7 +138,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     [Fact]
     public async Task Registry_seo_reaches_the_descriptor()
     {
-        var response = await CreateClient().SendAsync(DescriptorRequest("/Public"));
+        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/Public"));
 
         var descriptor = await response.Content.ReadFromJsonAsync<JsonElement>();
         var seo = descriptor.GetProperty("seo");
@@ -157,7 +148,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     [Fact]
     public async Task Descriptor_for_route_without_server_data_has_null_page_data()
     {
-        var response = await CreateClient().SendAsync(DescriptorRequest("/Guest"));
+        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/Guest"));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var descriptor = await response.Content.ReadFromJsonAsync<JsonElement>();
@@ -168,7 +159,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     [Fact]
     public async Task Missing_view_descriptor_is_not_found_not_server_error()
     {
-        var response = await CreateClient().SendAsync(DescriptorRequest("/MissingView"));
+        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/MissingView"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         PageResponseAssertions.AssertPrivateNoStore(response);
@@ -177,7 +168,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     [Fact]
     public async Task Missing_view_descriptor_is_not_found_for_custom_controller_routes()
     {
-        var response = await CreateClient().SendAsync(DescriptorRequest("/CustomMissingView"));
+        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/CustomMissingView"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         PageResponseAssertions.AssertPrivateNoStore(response);
@@ -186,7 +177,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     [Fact]
     public async Task Protected_descriptor_challenges_anonymous_callers()
     {
-        var response = await CreateClient().SendAsync(DescriptorRequest("/Protected"));
+        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/Protected"));
 
         // RouteAccessFilter runs before the result executes: the challenge —
         // not a descriptor payload — is what an anonymous caller receives.
@@ -206,7 +197,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         });
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
 
-        var response = await client.SendAsync(DescriptorRequest("/Guest"));
+        var response = await client.SendAsync(NavigationRequests.Descriptor("/Guest"));
 
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         Assert.Equal("/Dashboard", response.Headers.Location?.ToString());
@@ -227,7 +218,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         Assert.Equal(HttpStatusCode.OK, document.StatusCode);
         var documentBody = await document.Content.ReadAsStringAsync();
 
-        var descriptor = await client.SendAsync(DescriptorRequest("/Custom"));
+        var descriptor = await client.SendAsync(NavigationRequests.Descriptor("/Custom"));
         Assert.Equal(HttpStatusCode.OK, descriptor.StatusCode);
 
         // The view carries the data-page marker; the descriptor carries the
@@ -257,7 +248,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         });
 
         var document = await client.GetAsync("/Custom");
-        var descriptor = await client.SendAsync(DescriptorRequest("/Custom"));
+        var descriptor = await client.SendAsync(NavigationRequests.Descriptor("/Custom"));
 
         PageResponseAssertions.AssertPrivateNoStore(document);
         PageResponseAssertions.AssertPrivateNoStore(descriptor);
@@ -270,7 +261,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         Assert.Equal(HttpStatusCode.OK, document.StatusCode);
         var documentBody = await document.Content.ReadAsStringAsync();
 
-        var descriptor = await client.SendAsync(DescriptorRequest("/StaticData"));
+        var descriptor = await client.SendAsync(NavigationRequests.Descriptor("/StaticData"));
         Assert.Equal(HttpStatusCode.OK, descriptor.StatusCode);
         using var descriptorDocument = JsonDocument.Parse(
             await descriptor.Content.ReadAsStringAsync());

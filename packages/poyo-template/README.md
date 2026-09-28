@@ -94,6 +94,14 @@ The server **refuses to start** — naming the route and the value — when a ro
 
 In the browser it stays forgiving. A request is normalized (trailing slashes trimmed, the root path preserved) and matched case-insensitively, so `/login`, `/Login` and `/Login/` all serve the declared `/Login` — with the same status, page name, and privacy headers.
 
+### One URL per route
+
+`routes.json` is the single source of truth for route existence, so a page is served at exactly one URL: the path its registry entry declares. `Program.cs` maps the registry and nothing else — there is no conventional `{controller}/{action}` route — so any other path is answered by routing with a clean 404, before the access filter, the SEO filter, or the page itself runs. Every URL that reaches a page therefore carries the same access model, the same registry SEO, the navigation descriptor, and `Cache-Control: private, no-store`. There is no weaker path to a page.
+
+That is why a custom controller does not give you a second URL for free. `/Dashboard` maps to `DashboardController.Index`; `/Dashboard/Index` is not a page, and asking for it 404s whether you are signed in or not.
+
+> **Upgrading?** A link to a page route by its conventional URL now returns 404. Point it at the declared path (`/Dashboard`, not `/Dashboard/Index`) — or, better, use `routePath("Dashboard")` so a renamed route breaks the build instead of 404ing. If you genuinely need two URLs for one action, declare a second route in `routes.json` pointing at the same controller: two declared routes are two URLs the registry authorizes, which is not what a conventional alias was.
+
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 
 ```bash

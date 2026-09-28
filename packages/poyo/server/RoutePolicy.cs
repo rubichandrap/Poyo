@@ -108,53 +108,19 @@ public sealed class RoutePolicy
 
     /// <summary>
     /// Finds the registry route serving the given request path, or null
-    /// when the path is not a registry route (API, fallback, static).
+    /// when the path is not a registry route (API, static, or a URL outside
+    /// the registry). This is the only lookup every server seam uses to
+    /// answer "which route serves this request", so the access policy, the
+    /// SEO policy, the page controller and the controller extension cannot
+    /// reach different conclusions about one request.
     /// Requests are matched liberally against a strict file: the path is
-    /// normalized and compared case-insensitively, so a request URL the browser
-    /// spelled differently still reaches the declared route.
+    /// normalized and compared case-insensitively, so a request URL the
+    /// browser spelled differently still reaches the declared route.
     /// </summary>
     public RouteDefinition? Find(string path)
     {
         return _routesByPath.GetValueOrDefault(RouteIdentity.NormalizeRequestPath(path));
     }
-
-    public RouteDefinition? FindForRequest(
-        string path,
-        string? controllerName,
-        string? actionName)
-    {
-        return Find(path) ?? FindForControllerAction(controllerName, actionName);
-    }
-
-    private RouteDefinition? FindForControllerAction(
-        string? controllerName,
-        string? actionName)
-    {
-        if (string.IsNullOrWhiteSpace(controllerName) || string.IsNullOrWhiteSpace(actionName))
-        {
-            return null;
-        }
-
-        return _routes
-            .Where(route =>
-                GetControllerName(route).Equals(controllerName, StringComparison.OrdinalIgnoreCase)
-                && GetActionName(route).Equals(actionName, StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(route => AccessPriority(route.Access))
-            .FirstOrDefault();
-    }
-
-    private static string GetControllerName(RouteDefinition route) =>
-        string.IsNullOrWhiteSpace(route.Controller) ? "Page" : route.Controller;
-
-    private static string GetActionName(RouteDefinition route) =>
-        string.IsNullOrWhiteSpace(route.Action) ? "Index" : route.Action;
-
-    private static int AccessPriority(RouteAccess access) => access switch
-    {
-        RouteAccess.Protected => 3,
-        RouteAccess.Guest => 2,
-        _ => 1,
-    };
 
     public void MapRoutes(IEndpointRouteBuilder endpoints)
     {

@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Newly scaffolded projects publish one URL per route. The conventional `{controller}/{action}/{id?}` route is no longer mapped, so a page route is served only at the path `routes.json` declares and a URL outside the registry is answered by routing with a clean 404. Every URL that reaches a page therefore carries the same access, SEO, navigation-descriptor and `private, no-store` policy (ADR 0016). Existing projects upgrading from an earlier release must apply the `Program.cs` change and repoint any link to a conventional URL at the route's declared path; see the `poyo-template` changelog for the migration note.
+
 
 ## [0.5.0-beta.2] - 2026-09-24
 

@@ -79,6 +79,12 @@ Poyo is intentionally minimal. It provides:
 - `guest` + authenticated → redirect to the configured landing page (`Routes:LandingPath`, default `/Dashboard`)
 - `public` → open to everyone
 - Applies to custom-controller routes exactly like default ones.
+- One lookup, by request path, answers "which route serves this request" at every seam — the access filter, the SEO filter, the page controller, and `ControllerExtensions.PoyoPage` (ADR 0016). A URL the registry does not own resolves to no route, so no access decision and no page policy apply to it.
+
+**One URL per route (ADR 0016):**
+- There is no conventional `controller/action` route. `Program.cs` maps the registry and nothing else, so a page route is served only at its declared path and every other path is answered by routing with a clean 404, before any framework filter runs.
+- A conventional URL is therefore not a weaker path to a page: it is not a path. Do not re-add a `MapControllerRoute("{controller}/{action}")` fallback — it republishes a second URL for every controller the registry names, on a page action no registry route authorizes, with no access model, no SEO, no descriptor and no `private, no-store` policy behind it.
+- Need a second URL? Declare a second route in `routes.json` pointing at the same controller action.
 
 **Attributes:**
 - Page data has no attribute path; controller actions return `this.PoyoPage(data)`.

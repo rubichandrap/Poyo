@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Poyo.Server.Tests.Support;
 
@@ -33,7 +34,15 @@ public class MissingViewRouteTests : IClassFixture<MissingViewServerFixture>
     {
         var response = await CreateClient().GetAsync("/MissingView");
 
+        // The removed fallback route was never the error path: the exception
+        // handler writes its own response, with no status-code-pages middleware
+        // in between, so an action that throws still answers as the handler
+        // wrote it.
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(500, body.RootElement.GetProperty("code").GetInt32());
+        Assert.False(
+            string.IsNullOrWhiteSpace(body.RootElement.GetProperty("data").GetString()));
         PageResponseAssertions.AssertPrivateNoStore(response);
     }
 }

@@ -2,7 +2,6 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Poyo.Framework;
 using Poyo.Server.Tests.Support;
 
 namespace Poyo.Server.Tests;
@@ -41,18 +40,9 @@ public class RequestNormalizationTests : IClassFixture<RequestNormalizationServe
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
     }
 
-    private static HttpRequestMessage DescriptorRequest(string path)
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, path);
-        request.Headers.Add(
-            PageResult.NavigationHeaderName,
-            PageResult.NavigationHeaderValue);
-        return request;
-    }
-
     private static async Task<PageRepresentation> DescribeAsync(HttpClient client, string path)
     {
-        var response = await client.SendAsync(DescriptorRequest(path));
+        var response = await client.SendAsync(NavigationRequests.Descriptor(path));
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         PageResponseAssertions.AssertPrivateNoStore(response);

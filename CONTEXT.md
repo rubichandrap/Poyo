@@ -36,6 +36,10 @@ _Avoid_: route validation, canonical routes, path cleanup
 The server's translation of a Route into an ASP.NET route mapping — which controller action serves it, which access rules apply, and how its SEO is applied. The single place the server interprets the Routes registry; it fails startup loudly when the registry violates the route schema or a route's identity is not canonical.
 _Avoid_: route mapper, route interpreter, dynamic routing
 
+**Request resolution**:
+How a request finds its Route: one lookup, by normalized request path, answering "which route serves this request" for the access filter, the SEO filter, the page controller and the controller extension alike. A path the registry does not own resolves to no route, and routing answers it with a clean 404. A page therefore has exactly one URL — the path its registry entry declares.
+_Avoid_: route resolution, route matching, controller/action resolution
+
 **Generated project**:
 A standalone project produced by the scaffolder: the template plus the framework package as a dev dependency.
 _Avoid_: consumer, target app, scaffolded app
