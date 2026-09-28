@@ -113,6 +113,8 @@ The client route loader is a thin Vite adapter. Route resolution, typed route na
 
 The registry is also a required deployment artifact: the access model, the SEO policy, and the private no-store guarantee are all gated on it, so an application whose registry is missing, empty, unreadable, or unparseable refuses to start. It resolves from `Routes:JsonPath` (a relative value against the content root), then from `routes.json` beside the application assembly — the server build copies the project-root registry there, so a published output is self-contained — and the process working directory is never consulted. See [ADR 0014](docs/adr/0014-routes-registry-is-a-required-deployment-artifact.md).
 
+A route's identity is one thing, defined once, and enforced in two disciplines: the authored file is held to a canonical form, and the incoming request is normalized rather than rejected. A declared `path` must begin with `/` and carry no trailing slash except for the root; a `name` must be present and slash-free; both must be unique across the registry ignoring case; and `controller` and `action` are declared together or not at all, neither blank. Each of those is a startup failure naming the route and the value — the `poyo` route manager refuses the same registries when it reads or writes them. In the browser it stays forgiving: `/login`, `/Login` and `/Login/` all serve the declared `/Login`. See [ADR 0015](docs/adr/0015-route-identity-is-canonical.md).
+
 Manage routes with the project CLI:
 
 ```bash

@@ -337,6 +337,50 @@ describe("poyo route registry validation", () => {
 		expect(result.stderr).toContain("/home");
 	});
 
+	it("rejects a path with a trailing slash, naming the canonical form", () => {
+		const fixture = registryWith({ path: "/Home/" });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("trailing slash");
+		expect(result.stderr).toContain("/Home/");
+		expect(result.stderr).toContain('"/Home"');
+	});
+
+	it("rejects two paths differing only by a trailing slash", () => {
+		const fixture = registryRaw([baseRoute, { ...baseRoute, path: "/Home/" }]);
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("trailing slash");
+		expect(result.stderr).toContain("/Home/");
+	});
+
+	it("accepts the root path", () => {
+		const fixture = registryWith({ path: "/", name: "Home" });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(0);
+	});
+
+	it("rejects duplicate case-insensitive names", () => {
+		const fixture = registryRaw([
+			baseRoute,
+			{ ...baseRoute, path: "/Second", name: "home" },
+		]);
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("Duplicate route name");
+		expect(result.stderr).toContain("home");
+		expect(result.stderr).toContain("/Second");
+	});
+
+	it("accepts a route that declares both a controller and an action", () => {
+		const fixture = registryWith({
+			controller: "Custom",
+			action: "Index",
+		});
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(0);
+	});
+
 	it("rejects a path without a leading slash", () => {
 		const fixture = registryWith({ path: "Home" });
 		const result = execInFixture(fixture, ["route", "add", "/About"]);
@@ -354,6 +398,41 @@ describe("poyo route registry validation", () => {
 
 	it("rejects a name with edge slashes", () => {
 		const fixture = registryWith({ name: "/Home/" });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("name");
+	});
+
+	it("rejects a controller without an action", () => {
+		const fixture = registryWith({ controller: "Custom" });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain(
+			'"controller" is specified without "action"',
+		);
+		expect(result.stderr).toContain("/Home");
+	});
+
+	it("rejects an action without a controller", () => {
+		const fixture = registryWith({ action: "Index" });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain(
+			'"action" is specified without "controller"',
+		);
+		expect(result.stderr).toContain("/Home");
+	});
+
+	it("rejects a blank controller, which is a declaration the server cannot act on", () => {
+		const fixture = registryWith({ controller: "", action: "Index" });
+		const result = execInFixture(fixture, ["route", "add", "/About"]);
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("controller");
+		expect(result.stderr).toContain("/Home");
+	});
+
+	it("rejects a whitespace-only name, as the server's blank-name rule does", () => {
+		const fixture = registryWith({ name: "   " });
 		const result = execInFixture(fixture, ["route", "add", "/About"]);
 		expect(result.status).toBe(1);
 		expect(result.stderr).toContain("name");

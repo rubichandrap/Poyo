@@ -10,6 +10,8 @@ namespace Poyo.Framework;
 /// access model, the SEO policy and the private no-store guarantee, so a
 /// registry that is missing, empty, unreadable or unparseable fails startup
 /// loudly rather than leaving the application with no policy at all.
+/// A registry whose route identities are not canonical fails the same way, and
+/// a request is still matched liberally against the file it produced.
 /// Missing view files stay a per-route runtime error.
 /// </summary>
 public sealed class RoutePolicy
@@ -22,29 +24,25 @@ public sealed class RoutePolicy
     };
 
     private readonly IReadOnlyList<RouteDefinition> _routes;
+    private readonly Dictionary<string, RouteDefinition> _routesByPath;
 
     public IReadOnlyList<RouteDefinition> Routes => _routes;
 
-    private RoutePolicy(IReadOnlyList<RouteDefinition> routes)
+    private RoutePolicy(IReadOnlyList<RouteDefinition> routes, string routesJsonPath)
     {
+        RouteIdentity.Validate(routes, routesJsonPath);
+
         _routes = routes;
+        _routesByPath = routes.ToDictionary(
+            route => RouteIdentity.NormalizeRequestPath(route.Path),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     public static RoutePolicy Load(string routesJsonPath)
     {
         var routes = DeserializeRoutes(ReadRegistryText(routesJsonPath), routesJsonPath);
 
-        var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var route in routes)
-        {
-            if (!seenPaths.Add(route.Path))
-            {
-                throw new RoutePolicyException(
-                    $"Routes registry '{routesJsonPath}' contains duplicate route path '{route.Path}'.");
-            }
-        }
-
-        return new RoutePolicy(routes);
+        return new RoutePolicy(routes, routesJsonPath);
     }
 
     /// <summary>
@@ -111,19 +109,13 @@ public sealed class RoutePolicy
     /// <summary>
     /// Finds the registry route serving the given request path, or null
     /// when the path is not a registry route (API, fallback, static).
-    /// Matches like ASP.NET routing: case-insensitive, trailing slashes
-    /// ignored.
+    /// Requests are matched liberally against a strict file: the path is
+    /// normalized and compared case-insensitively, so a request URL the browser
+    /// spelled differently still reaches the declared route.
     /// </summary>
     public RouteDefinition? Find(string path)
     {
-        var normalized = path.TrimEnd('/');
-        if (normalized.Length == 0)
-        {
-            normalized = "/";
-        }
-
-        return _routes.FirstOrDefault(
-            r => r.Path.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        return _routesByPath.GetValueOrDefault(RouteIdentity.NormalizeRequestPath(path));
     }
 
     public RouteDefinition? FindForRequest(

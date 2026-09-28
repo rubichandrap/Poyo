@@ -32,7 +32,11 @@
 			"react": "src/pages/Protected/index.page.tsx",
 			"view": "Views/Dashboard/Index.cshtml"
 		},
-		"access": "protected"
+		"access": "protected",
+		"seo": {
+			"description": "A protected page",
+			"title": "Protected Page Title"
+		}
 	},
 	{
 		"path": "/Custom",

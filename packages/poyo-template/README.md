@@ -79,6 +79,21 @@ On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it 
 
 The server resolves it from `Routes:JsonPath` when the host names a location (a relative value resolves against the content root), and otherwise from `routes.json` beside the application assembly. `Poyo.Server.csproj` copies the project-root registry there on build and publish, so `dotnet publish` output is self-contained and serves the same routes from any working directory — the working directory is never consulted. Keep editing the single project-root `routes.json`; the copy in the build output is not the source of truth. Development launches name the project-root registry (and the optional `.env`) in `Poyo.Server/Properties/launchSettings.json`, so `pnpm run dev` works on a fresh clone with no `.env` present.
 
+### Route identity
+
+A route's identity is one thing, defined once, and the registry is held to it: **strict on disk, liberal at runtime.** The file is authored, so it is canonical; a request URL is owned by the browser, so it is resolved rather than rejected.
+
+The server **refuses to start** — naming the route and the value — when a route declares:
+
+- a `path` that does not begin with `/`, or that ends with one (`/` is the only exception);
+- a `name` that is missing, blank, or begins or ends with `/`;
+- a `path` or a `name` that another route already claims, ignoring case — `/Dashboard` and `/dashboard/` are one route, as are `Settings` and `settings`;
+- a `controller` without an `action`, or an `action` without a `controller` (declare both or neither; neither is the default page controller, and neither may be blank).
+
+`poyo` enforces the same rules whenever it reads or writes the registry, so an invalid registry is rejected when you author it rather than when you deploy it. Nothing normalizes a non-canonical path for you, which is deliberate: the registry is read by the server, by the route manager, and by the client runtime, and a canonical file means none of the three needs its own normalizer.
+
+In the browser it stays forgiving. A request is normalized (trailing slashes trimmed, the root path preserved) and matched case-insensitively, so `/login`, `/Login` and `/Login/` all serve the declared `/Login` — with the same status, page name, and privacy headers.
+
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 
 ```bash

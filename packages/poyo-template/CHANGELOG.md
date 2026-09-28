@@ -15,6 +15,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- A route's identity is one thing, defined once, and the declared registry is held to it at boot (ADR 0015): a `path` must begin with `/` and carry no trailing slash except for the root, a `name` must be present and carry no leading or trailing slash, both must be unique across the registry ignoring case, and a `controller` and an `action` are declared together or not at all, neither blank. Every violation is a startup failure naming the offending route and the value — never a warning. A hand-written `routes.json` that broke one of these rules used to boot and be served in an order nobody chose; it now fails at startup, and the `poyo` route manager refuses it when you author it.
+- Requests stay liberal against that strict file: an incoming path is normalized (trailing slashes trimmed, the root preserved) and matched case-insensitively, so `/login`, `/Login` and `/Login/` all serve the declared `/Login` with the same status, page name and privacy headers. A request URL is owned by the browser; a declaration is not.
 - `Program.cs` wires the server core with `AddPoyo(builder.Configuration, contentRootPath: builder.Environment.ContentRootPath)`: the registry resolves from `Routes:JsonPath` (a relative value against the content root) or from `routes.json` beside the application, never from the process working directory. Deployments that stored the registry path in a hand-edited environment file keep working through `Routes:JsonPath`; deployments that relied on the file sitting in the working directory must ship it with the application.
 
 ### Fixed

@@ -28,8 +28,12 @@ _Avoid_: page, endpoint, page definition
 The part of the framework package's CLI that mutates the routes registry and scaffolds the page, view, and controller files for a route.
 _Avoid_: route generator, route script
 
+**Route identity**:
+What makes a route referable: a canonical declared path (rooted, no trailing slash except for the root, unique ignoring case), a canonical name (present, slash-free, unique ignoring case), and a controller and action declared together or not at all. Enforced in two disciplines with one definition — the authored registry is strict and fails the boot, the incoming request is normalized and resolved. A request URL is owned by the browser; a declaration is not.
+_Avoid_: route validation, canonical routes, path cleanup
+
 **Route policy**:
-The server's translation of a Route into an ASP.NET route mapping — which controller action serves it, which access rules apply, and how its SEO is applied. The single place the server interprets the Routes registry; it fails startup loudly when the registry violates the route schema.
+The server's translation of a Route into an ASP.NET route mapping — which controller action serves it, which access rules apply, and how its SEO is applied. The single place the server interprets the Routes registry; it fails startup loudly when the registry violates the route schema or a route's identity is not canonical.
 _Avoid_: route mapper, route interpreter, dynamic routing
 
 **Generated project**:
