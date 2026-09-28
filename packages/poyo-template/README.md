@@ -79,6 +79,18 @@ On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it 
 
 The server resolves it from `Routes:JsonPath` when the host names a location (a relative value resolves against the content root), and otherwise from `routes.json` beside the application assembly. `Poyo.Server.csproj` copies the project-root registry there on build and publish, so `dotnet publish` output is self-contained and serves the same routes from any working directory — the working directory is never consulted. Keep editing the single project-root `routes.json`; the copy in the build output is not the source of truth. Development launches name the project-root registry (and the optional `.env`) in `Poyo.Server/Properties/launchSettings.json`, so `pnpm run dev` works on a fresh clone with no `.env` present.
 
+### The process environment, and `.env`
+
+The **process environment is authoritative**: the deploy host owns the server's production values, and the build host owns the client's. `.env` is a development convenience, and a deployment never reads it.
+
+The hosting environment comes from the process, and the server reads it *before* it looks at `.env` — so the file can never decide the environment it is conditional on, and `ASPNETCORE_ENVIRONMENT` in `.env` is ignored. `dotnet run` gets `Development` from the launch profile, which is why `.env.example` does not set it. An unset hosting environment is **production**, the framework's own default and the safe direction. The development-only Vite variables are required only in development, and a missing one fails loudly and names the variable.
+
+When the file is read, it **fills gaps without ever overriding** a value the process has already set, so a value in your shell wins over the same value in `.env`. A `.env` left in a production deployment is inert: it cannot enable developer exception pages, the Vite development integration, or the absence of HTTPS redirection. Nothing environment-bearing is copied into publish output.
+
+Set production values through your host — a service manager `EnvironmentFile=`, `docker run --env-file`, IIS `web.config` `environmentVariables`, or an `appsettings.Production.json`.
+
+> **Upgrading?** If your production `.env` has values in it that `.env.example` does not, move them to your host. They are authoritative today only because the loader overrode the process, so they revert as soon as the host is configured correctly — and a green boot is not evidence the migration is complete.
+
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 
 ```bash

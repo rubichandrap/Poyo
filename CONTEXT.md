@@ -67,3 +67,11 @@ _Avoid_: server runtime, NuGet package, shared module
 **Project identity**:
 The facts the package's CLI derives from a generated project rather than assuming from the template — the server namespace and the client/server directory names. Scaffolding renames the project, so tooling that hardcodes the template's names breaks in generated projects.
 _Avoid_: project name, namespace config
+
+**Hosting environment**:
+The environment name the application booted as, owned by the process: the deploy host owns it in a deployment, and development tooling owns it for a run-from-source launch. A host names it with `DOTNET_ENVIRONMENT` or `ASPNETCORE_ENVIRONMENT` — the first in preference to the second, the order the framework itself uses — and the server reads it before anything else loads, so the environment file cannot decide it. An unset hosting environment is production: the framework's own default and the safe direction.
+_Avoid_: deployment environment, mode
+
+**Environment file**:
+A development convenience (`.env`) the launch profile names, holding the values a developer's machine owns for both the client and the server. Read only when the process says development or says nothing, and only ever fills a gap: a value the process already set is never overridden, and the file never contributes the hosting environment. Never read in a deployment, and never copied into publish output.
+_Avoid_: configuration, settings file, env config
