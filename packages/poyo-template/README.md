@@ -120,10 +120,14 @@ Do this **before** you upgrade, not after. The values in a hand-edited productio
 
 ```bash
 # On the deployment host. Lists the keys to move; values stay out of your terminal.
-comm -23 \
-  <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env | sort -u) \
-  <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' .env.example | sort -u) \
-  | cut -d= -f1
+# Assignments are normalized first: a dotenv file may indent a line, prefix it with
+# `export`, or space it around `=`, and none of those may make a key invisible.
+assignments() {
+  sed -E -e 's/^[[:space:]]+//' -e 's/^export[[:space:]]+//' \
+         -e 's/^([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*/\1=/' "$1" \
+    | grep -E '^[A-Za-z_][A-Za-z0-9_]*=' | sort -u
+}
+comm -23 <(assignments .env) <(assignments .env.example) | cut -d= -f1
 ```
 
 Expect your connection strings, any logging overrides, the allowed-hosts value if you narrowed it, and the registry path override. Move each one to your host.
