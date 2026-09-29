@@ -112,13 +112,16 @@ A manifest file (`_ReactAssets.cshtml`) is automatically generated during the bu
 | `dotnet watch` | Starts the server with hot reload. |
 | `pnpm run build` | Builds the client and server for production (run from root). |
 
-### Configuration (`.env`)
+### Configuration
 
-The server reads environment variables from the root `.env` file.
+The **process environment** is authoritative. The server reads the hosting environment from the process (`DOTNET_ENVIRONMENT`, else `ASPNETCORE_ENVIRONMENT`) before it looks at anything else, and the root `.env` file is only a development convenience: `Properties/launchSettings.json` names it via `EnvFile`, it is read only when the process says `Development` or says nothing, and it fills gaps without ever overriding a value the process already has set. An unset hosting environment is **Production**.
 
-**Required Variables:**
-- `ASPNETCORE_ENVIRONMENT`: `Development` or `Production`
-- `Vite__Server__DevServerUrl`: URL of the running Vite server (Dev only)
+**Nothing is required in production.** `appsettings.json` ships the allowed-hosts value and is included in the publish output. Set production values on your host — a service manager `EnvironmentFile=`, `docker run --env-file`, IIS `web.config` `environmentVariables`, or an `appsettings.Production.json`. A `.env` left in a deployment is not read once the host names the environment, and it can never contribute the environment itself; note that an *unset* environment is production and does still read the file, so set it. Nothing environment-bearing is copied into publish output.
+
+**Required in development only** — supplied by the launch profile, so `dotnet run` works on a fresh clone:
+- `Vite__Server__AutoRun`, `Vite__Server__Port`, `Vite__Server__DevServerUrl`
+
+A missing one fails startup immediately and names the variable. `Routes:JsonPath` is optional everywhere: it overrides where the Routes registry is resolved from, which otherwise is `routes.json` beside the application assembly.
 
 ---
 

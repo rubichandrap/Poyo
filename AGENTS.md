@@ -152,6 +152,7 @@ The framework-owned server code — `RoutePolicy`, `RouteDefinition`, `RouteIden
 - An `Exists` guard fails the build with "run `pnpm install`" when the package is missing — the one failure mode of the in-place design is an instruction, not a mystery.
 - `Program.cs` wires the core with `builder.Services.AddPoyo(builder.Configuration, contentRootPath: builder.Environment.ContentRootPath)` (loads and validates the registry eagerly, installs both filters) and `app.MapPoyoRoutes()` after `app.MapControllers()`. Keep that wiring; the project's own server code is controllers, services, models, views, and `GlobalExceptionHandler`.
 - The registry is a required deployment artifact (ADR 0014): it resolves from an explicit value (`Routes:JsonPath`, a relative one against the content root), then `routes.json` beside the application assembly, then a hard startup failure. The process working directory is never consulted, and a registry that is missing, empty, unreadable or unparseable fails the boot with a message naming which of the four it was. The server csproj copies the project-root registry beside the assembly (`Content Include="../routes.json"`), and `Properties/launchSettings.json` names the project-root registry plus the development environment file, so a run-from-source launch needs no `.env`.
+- The process environment owns the hosting environment (ADR 0017). `Program.cs` reads it from the process *before* anything else loads — `DOTNET_ENVIRONMENT` in preference to `ASPNETCORE_ENVIRONMENT`, the order the framework itself uses — then reads the `EnvFile` the launch profile names, only when the process says development or says nothing, and only with `LoadOptions.NoClobber()`, so the file fills gaps and never overrides. It then puts back the absence of any environment variable the process did not use, so the file cannot contribute the environment by either name. Keep that order: the file must not be able to decide the environment it is conditional on. An unset hosting environment is production; there is no custom failure for a missing one. The Vite variable requirements and the port-integrality gate live behind `IsDevelopment()`, and `AllowedHosts` is not required because `appsettings.json` ships it. Keep production requiring nothing the template owns.
 - Upgrade path: `pnpm update @rubichandrap/poyo` — server-side framework fixes arrive with the CLI and runtime, no scaffold or copy step. Never edit the installed files; they are read-only teaching material.
 
 ---
@@ -326,6 +327,8 @@ One navigation path: descriptor fetch (`X-Poyo-Navigation: 1`, `credentials: "sa
 
 The registry is also a deployment artifact, not just a content file: the access model, the SEO policy and the private no-store guarantee are all gated on it answering for the request, so a deployment without it fails to start rather than serving unprotected pages (ADR 0014, §2.6).
 
+The `.env` in a generated project is a development convenience that never travels with the artifact. It does not set the hosting environment, so `.env.example` must not carry `ASPNETCORE_ENVIRONMENT` (ADR 0017, §2.6) — `Properties/launchSettings.json` supplies it for `dotnet run`, and a deployment sets it on the host.
+
 The client consumes the registry through the runtime route table: `src/routes/route-loader.ts` imports `routes.json` directly, while `poyo generate` emits `<client>/routes.generated.ts` (ambient type augmentation — `RouteName`/`RoutePath` unions, see §3.7), gitignored and kept fresh by every route command, so `routes.json` stays the only edited source of truth.
 
 ### 4.2. Adding Routes
@@ -453,9 +456,13 @@ dotnet publish -c Release
 
 ### 8.2. Environment Variables
 
-**Required:**
-- `ASPNETCORE_ENVIRONMENT`
-- `Vite__Server__DevServerUrl` (dev only)
+**Required (production):** nothing the template owns. The allowed-hosts value ships in `appsettings.json` and an unset hosting environment is production (ADR 0017, §2.6).
+
+**Set on the host:**
+- `ASPNETCORE_ENVIRONMENT=Production` — set it explicitly; the default is production either way
+- `Routes:JsonPath` (only to point at a registry outside the application directory)
+
+**Required (development only):** the Vite variables (`Vite__Server__AutoRun`, `Vite__Server__Port`, `Vite__Server__DevServerUrl`) — `Properties/launchSettings.json` supplies them and the hosting environment for `dotnet run`. A missing one fails startup and names the variable.
 
 **Optional:**
 - `ConnectionStrings__DB` (if using database)

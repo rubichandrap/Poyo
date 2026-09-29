@@ -14,6 +14,11 @@ internal sealed class PublishedServer : IDisposable
 {
     private const string AssemblyFileName = "Poyo.Server.dll";
 
+    /// <summary>How long a boot gets to answer or exit before it is undecided.</summary>
+    private static readonly TimeSpan BootDeadline = TimeSpan.FromSeconds(60);
+
+    private static readonly IReadOnlyDictionary<string, string?> NoVariables = new Dictionary<string, string?>();
+
     private static readonly Lazy<string> PublishOutput = new(Publish, LazyThreadSafetyMode.ExecutionAndPublication);
 
     private readonly Process _process;
@@ -35,11 +40,77 @@ internal sealed class PublishedServer : IDisposable
     /// environment names no registry location: the published artifact is
     /// expected to carry it.
     /// </summary>
-    public static async Task<PublishedServer> Start(string workingDirectory)
+    /// <param name="environment">
+    /// The variables this particular deployment sets, layered over the
+    /// baseline deployment environment. A null value removes a variable, which
+    /// is how a test says "this host does not set it".
+    /// </param>
+    public static async Task<PublishedServer> Start(
+        string workingDirectory,
+        IReadOnlyDictionary<string, string?>? environment = null)
     {
-        var port = FreePort();
-        var origin = new Uri($"http://127.0.0.1:{port}");
+        var origin = new Uri($"http://127.0.0.1:{FreePort()}");
+        var server = Launch(workingDirectory, origin, environment);
 
+        using (var deadline = new CancellationTokenSource(BootDeadline))
+        {
+            switch (await server.WaitForBootAsync(deadline.Token))
+            {
+                case BootOutcome.Serving:
+                    return server;
+                case BootOutcome.Failed:
+                    throw new InvalidOperationException(
+                        $"The published application exited with code {server.ExitCode} " +
+                        $"before serving. Output:\n{server.CapturedOutput()}");
+                default:
+                    throw new InvalidOperationException(
+                        $"The published application never served. Output:\n{server.CapturedOutput()}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Starts the published application on the variables the deployment sets
+    /// and waits for it to fail to start, returning how it failed. A boot that
+    /// has to fail loudly is a contract, and the message it fails with is part
+    /// of that contract — so the assertion needs the output, not just a
+    /// non-zero exit code.
+    /// </summary>
+    public static async Task<BootFailure> StartExpectingBootFailure(
+        IReadOnlyDictionary<string, string?> environment)
+    {
+        var origin = new Uri($"http://127.0.0.1:{FreePort()}");
+        using var server = Launch(PublishDirectory, origin, environment);
+
+        using var deadline = new CancellationTokenSource(BootDeadline);
+        switch (await server.WaitForBootAsync(deadline.Token))
+        {
+            case BootOutcome.Failed:
+                return new BootFailure(server.ExitCode, server.CapturedOutput());
+            case BootOutcome.Serving:
+                // A boot that is required to fail must fail quickly, and a boot
+                // that serves instead is a failure of the thing under test
+                // rather than a wait worth sitting through.
+                throw new InvalidOperationException(
+                    "The published application served instead of failing to start. Output:\n" +
+                    server.CapturedOutput());
+            default:
+                throw new InvalidOperationException(
+                    "The published application neither served nor failed within the deadline. Output:\n" +
+                    server.CapturedOutput());
+        }
+    }
+
+    /// <summary>
+    /// How a boot that was required to fail actually failed.
+    /// </summary>
+    public sealed record BootFailure(int ExitCode, string Output);
+
+    private static PublishedServer Launch(
+        string workingDirectory,
+        Uri origin,
+        IReadOnlyDictionary<string, string?>? environment)
+    {
         var process = new Process
         {
             StartInfo = new ProcessStartInfo("dotnet")
@@ -59,34 +130,47 @@ internal sealed class PublishedServer : IDisposable
             process.StartInfo.Environment[name] = value;
         }
 
+        foreach (var (name, value) in environment ?? NoVariables)
+        {
+            process.StartInfo.Environment[name] = value;
+        }
+
         var server = new PublishedServer(process, origin);
-        process.OutputDataReceived += server.Capture;
-        process.ErrorDataReceived += server.Capture;
+        process.OutputDataReceived += (_, e) => server.Capture(e);
+        process.ErrorDataReceived += (_, e) => server.Capture(e);
         process.Start();
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
-
-        await server.WaitUntilServingAsync();
         return server;
     }
 
     /// <summary>
-    /// The environment a deployment sets, and nothing a developer sets. The
-    /// registry location is explicitly cleared: the in-process hosts in this
-    /// test run set it for themselves, and that must not become the answer for
-    /// the published process, which is expected to carry its own registry.
+    /// The environment a deployment sets, and nothing a developer sets. Both
+    /// names of the hosting environment are owned here: the server reads
+    /// `DOTNET_ENVIRONMENT` in preference to `ASPNETCORE_ENVIRONMENT`, so a
+    /// `DOTNET_ENVIRONMENT` exported on the machine running these tests would
+    /// otherwise become the answer for the published process. The registry
+    /// location is explicitly cleared for the same reason — the in-process
+    /// hosts in this test run set it for themselves, and that must not become
+    /// the answer for the published process, which is expected to carry its
+    /// own registry. `EnvFile` is cleared with them: it is the one variable a
+    /// developer's shell most often carries, and a stray path here would make
+    /// the published process read a file it was never meant to see, which is
+    /// the very precedence the tests above are about.
     /// </summary>
     private static Dictionary<string, string?> DeploymentEnvironment() => new()
     {
         ["ASPNETCORE_ENVIRONMENT"] = "Production",
+        ["DOTNET_ENVIRONMENT"] = null,
         ["ASPNETCORE_URLS"] = null,
         ["AllowedHosts"] = "*",
+        ["EnvFile"] = null,
         ["Routes__JsonPath"] = null,
         ["Vite__Server__AutoRun"] = "false",
         ["Vite__Server__Port"] = "5173",
     };
 
-    private void Capture(object sender, DataReceivedEventArgs e)
+    private void Capture(DataReceivedEventArgs e)
     {
         lock (_logs)
         {
@@ -102,27 +186,35 @@ internal sealed class PublishedServer : IDisposable
         }
     }
 
-    private async Task WaitUntilServingAsync()
+    /// <summary>
+    /// One poll loop for both callers. Waiting for a server to serve and
+    /// waiting for it to fail are the same question with opposite verdicts, so
+    /// they share a loop: the only thing that differs is how each caller reads
+    /// the outcome, and keeping that in the callers is what lets the two tests
+    /// assert opposite things about one mechanism.
+    ///
+    /// Any HTTP answer counts as serving. A host that names its own allowed
+    /// hosts rejects the loopback host these tests connect by, so "answered"
+    /// and "served a page" are different questions and only the caller's
+    /// assertions can tell the second one.
+    /// </summary>
+    private async Task<BootOutcome> WaitForBootAsync(CancellationToken deadline)
     {
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         using var client = CreateClient();
 
-        while (!deadline.IsCancellationRequested)
+        while (true)
         {
             if (_process.HasExited)
             {
-                throw new InvalidOperationException(
-                    $"The published application exited with code {_process.ExitCode} " +
-                    $"before serving. Output:\n{CapturedOutput()}");
+                return BootOutcome.Failed;
             }
 
             try
             {
-                using var response = await client.GetAsync("/Login", deadline.Token);
-                if (response.IsSuccessStatusCode)
-                {
-                    return;
-                }
+                using var response = await client.GetAsync("/Login", deadline);
+                return response is not null
+                    ? BootOutcome.Serving
+                    : BootOutcome.Undecided;
             }
             catch (HttpRequestException)
             {
@@ -130,14 +222,23 @@ internal sealed class PublishedServer : IDisposable
             }
             catch (TaskCanceledException) when (deadline.IsCancellationRequested)
             {
-                break;
+                return BootOutcome.Undecided;
             }
 
-            await Task.Delay(200, deadline.Token);
+            await Task.Delay(200, deadline);
         }
+    }
 
-        throw new InvalidOperationException(
-            $"The published application never served. Output:\n{CapturedOutput()}");
+    private enum BootOutcome
+    {
+        /// <summary>It answered HTTP, one way or another.</summary>
+        Serving,
+
+        /// <summary>The process exited, so it cannot be serving now.</summary>
+        Failed,
+
+        /// <summary>Neither, before the deadline ran out.</summary>
+        Undecided,
     }
 
     /// <summary>
@@ -153,6 +254,14 @@ internal sealed class PublishedServer : IDisposable
     {
         BaseAddress = Origin,
     };
+
+    /// <summary>
+    /// Whether the process has finished, whether it succeeded or not.
+    /// </summary>
+    public bool HasExited => _process.HasExited;
+
+    public int ExitCode => _process.ExitCode;
+
 
     public void Dispose()
     {

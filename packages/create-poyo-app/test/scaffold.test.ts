@@ -169,6 +169,23 @@ describe("create-poyo-app", () => {
 		expect(env).toContain("VITE_APP_NAME=MyApp");
 	});
 
+	it("does not let the bootstrapped .env set the hosting environment", () => {
+		const cwd = makeTempDir();
+		runCli(["MyApp", "--skip-install"], { cwd });
+
+		// The process owns the hosting environment. A generated project whose
+		// own .env sets it would be a project that looks like it decides its
+		// own environment and does not — a value that is ignored reads as one
+		// that is honoured until the day it is not.
+		for (const file of [".env", ".env.example"]) {
+			const contents = readFile(cwd, `MyApp/${file}`);
+			expect(contents).not.toMatch(/^ASPNETCORE_ENVIRONMENT=/m);
+			expect(contents).not.toMatch(/^DOTNET_ENVIRONMENT=/m);
+			// ... and it says where the hosting environment comes from.
+			expect(contents).toContain("ASPNETCORE_ENVIRONMENT");
+		}
+	});
+
 	it("ships a workspace manifest listing the renamed client and server", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });
