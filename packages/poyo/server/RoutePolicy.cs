@@ -54,6 +54,18 @@ public sealed class RoutePolicy
     {
         if (!File.Exists(routesJsonPath))
         {
+            // File.Exists answers false for any stat failure, not only for an
+            // absent file, so a registry this process cannot reach would
+            // otherwise be reported as missing — the one diagnosis that sends
+            // the operator looking for a file that is already there.
+            if (IsUnreachable(routesJsonPath))
+            {
+                throw new RoutePolicyException(
+                    $"Cannot read routes registry '{routesJsonPath}': the path cannot be reached. " +
+                    "The registry is a required deployment artifact, so this fails the boot rather " +
+                    "than leaving the application with no policy at all.");
+            }
+
             throw new RoutePolicyException(
                 $"Routes registry '{routesJsonPath}' was not found. The registry is a required " +
                 "deployment artifact: set 'Routes:JsonPath', or ship routes.json beside the application.");
@@ -80,6 +92,35 @@ public sealed class RoutePolicy
         return json;
     }
 
+    /// <summary>
+    /// Whether the registry's path is out of reach rather than simply absent.
+    /// A directory that is not there is the ordinary "not found" case and keeps
+    /// that message; only a path that exists and cannot be entered is a
+    /// permission problem, and the two deserve different advice.
+    /// </summary>
+    private static bool IsUnreachable(string routesJsonPath)
+    {
+        var directory = Path.GetDirectoryName(Path.GetFullPath(routesJsonPath));
+
+        if (string.IsNullOrEmpty(directory))
+        {
+            return false;
+        }
+
+        try
+        {
+            return Directory.EnumerateFileSystemEntries(directory).GetEnumerator().MoveNext();
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return false;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            return true;
+        }
+    }
+
     private static List<RouteDefinition> DeserializeRoutes(string json, string routesJsonPath)
     {
         List<RouteDefinition>? routes;
@@ -91,8 +132,12 @@ public sealed class RoutePolicy
         }
         catch (JsonException ex)
         {
+            // One message for two failures the deserializer cannot tell us
+            // apart: text that is not JSON at all, and JSON that does not fit
+            // the schema (an unknown field, a wrong type). The exception names
+            // the offending member, so the label only has to be true of both.
             throw new RoutePolicyException(
-                $"Routes registry '{routesJsonPath}' is not valid JSON: {ex.Message}", ex);
+                $"Routes registry '{routesJsonPath}' is not a valid routes registry: {ex.Message}", ex);
         }
 
         if (routes is null || routes.Count == 0)

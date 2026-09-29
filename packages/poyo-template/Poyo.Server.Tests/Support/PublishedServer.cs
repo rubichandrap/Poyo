@@ -286,7 +286,12 @@ internal sealed class PublishedServer : IDisposable
     {
         var projectFile = Path.GetFullPath(
             Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Poyo.Server", "Poyo.Server.csproj"));
-        var outputDirectory = Path.Combine(AppContext.BaseDirectory, "publish");
+
+        // Outside the project's own $(OutDir) on purpose: a build, a clean or a
+        // second `dotnet test` deletes that directory, and it would do so under
+        // servers these tests have already booted.
+        var outputDirectory = Path.Combine(
+            Path.GetTempPath(), $"poyo-published-{Guid.NewGuid():N}");
 
         if (Directory.Exists(outputDirectory))
         {

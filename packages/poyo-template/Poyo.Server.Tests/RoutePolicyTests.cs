@@ -200,7 +200,7 @@ public class RoutePolicyTests
             ("was not found", CaptureFailure(TestEnvironment.MissingRegistryPath())),
             ("is empty", CaptureFailure(TestEnvironment.FixturePath("routes.empty.json"))),
             ("cannot read", CaptureFailure(unreadable.RegistryPath)),
-            ("is not valid JSON", CaptureFailure(TestEnvironment.FixturePath("routes.malformed.json"))),
+            ("is not a valid routes registry", CaptureFailure(TestEnvironment.FixturePath("routes.malformed.json"))),
         };
 
         foreach (var (marker, message) in states)
@@ -211,6 +211,52 @@ public class RoutePolicyTests
             {
                 Assert.DoesNotContain(otherMarker, message, StringComparison.OrdinalIgnoreCase);
             }
+        }
+    }
+
+    /// <summary>
+    /// A registry this process cannot reach is not a missing registry.
+    /// <c>File.Exists</c> answers false for any stat failure, not only for an
+    /// absent file, so a registry sitting in a directory without execute
+    /// permission is exactly the case where "was not found" is the wrong
+    /// diagnosis — it sends the operator to look for a file that is already
+    /// there, in a directory that is already there.
+    /// </summary>
+    [Fact]
+    public void An_unreachable_registry_is_reported_as_unreadable_not_missing()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var directory = Path.Combine(Path.GetTempPath(), $"poyo-unreachable-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var registryPath = Path.Combine(directory, "routes.json");
+        File.WriteAllText(registryPath, "[]");
+
+        try
+        {
+            // Unix mode bits are the seam. A root-run job bypasses them, so the
+            // test declines to assert anything it cannot actually reach.
+            File.SetUnixFileMode(directory, UnixFileMode.None);
+
+            if (File.Exists(registryPath))
+            {
+                return;
+            }
+
+            var message = CaptureFailure(registryPath);
+
+            Assert.Contains("cannot read", message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("was not found", message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                directory,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Directory.Delete(directory, recursive: true);
         }
     }
 

@@ -32,7 +32,7 @@ public class StartupFailureTests
     [InlineData(TestEnvironment.MissingRegistry, "was not found")]
     [InlineData("routes.blank.json", "is empty")]
     [InlineData("routes.empty.json", "is empty")]
-    [InlineData("routes.malformed.json", "is not valid JSON")]
+    [InlineData("routes.malformed.json", "is not a valid routes registry")]
     public void A_registry_the_server_cannot_load_fails_startup_loudly(
         string fixture,
         string messagePart)

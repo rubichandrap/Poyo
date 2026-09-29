@@ -289,6 +289,14 @@ public class HostingEnvironmentTests
         profile["EnvFile"] = Path.Combine(
             Path.GetTempPath(), $"poyo-fresh-clone-{Guid.NewGuid():N}", ".env");
 
+        // The profile names the registry as a path relative to the *project*
+        // directory, which is right for a run-from-source launch and wrong for
+        // a published one. This case is about the environment the profile
+        // supplies, not where the registry lives, so the published application
+        // resolves its own — the copy the csproj ships beside the assembly,
+        // which is the deployment contract from ADR 0014.
+        profile["Routes__JsonPath"] = null;
+
         await AssertBootedAs(profile, isDevelopment: true);
     }
 

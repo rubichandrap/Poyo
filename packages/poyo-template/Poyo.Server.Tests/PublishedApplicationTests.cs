@@ -95,6 +95,9 @@ public class PublishedApplicationTests
     private static HttpStatusCode ExpectedStatus(string access, bool authenticated) =>
         (access, authenticated) switch
         {
+            // An access challenge and a landing redirect are different
+            // decisions that happen to share a status, so the arms stay
+            // separate — a reader who merges them loses the distinction.
             ("protected", false) => HttpStatusCode.Redirect,
             ("guest", true) => HttpStatusCode.Found,
             _ => HttpStatusCode.OK,

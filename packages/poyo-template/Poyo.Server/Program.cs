@@ -89,8 +89,8 @@ if (builder.Environment.IsDevelopment())
 // inside @rubichandrap/poyo and compiles in place — ADR 0008). The registry
 // is a required deployment artifact: it travels beside the application, and
 // Routes:JsonPath overrides its location for hosted runs. The content root
-// resolves a relative Routes:JsonPath, and the working directory is never
-// consulted.
+// resolves a relative Routes:JsonPath — which inherits the working directory
+// when the host does not set a content root, so prefer an absolute one.
 builder.Services.AddPoyo(
     builder.Configuration,
     contentRootPath: builder.Environment.ContentRootPath);
