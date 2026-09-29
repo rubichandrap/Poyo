@@ -35,8 +35,9 @@ public class RoutePolicyTests
     [Fact]
     public void Load_throws_on_registry_declaring_no_routes()
     {
+        using var directory = TemporaryDirectory.Create("route-policy");
         var ex = Assert.Throws<RoutePolicyException>(
-            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.empty.json")));
+            () => RoutePolicy.Load(RegistryCorpus.WriteTo(directory, "empty-registry")));
 
         Assert.Contains("is empty", ex.Message);
         Assert.Contains("no routes", ex.Message);
@@ -65,10 +66,12 @@ public class RoutePolicyTests
     [Fact]
     public void Load_throws_on_malformed_json()
     {
-        var ex = Assert.Throws<RoutePolicyException>(
-            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.malformed.json")));
+        using var directory = TemporaryDirectory.Create("route-policy");
+        var registryPath = RegistryCorpus.WriteTo(directory, "malformed-text");
 
-        Assert.Contains("routes.malformed.json", ex.Message);
+        var ex = Assert.Throws<RoutePolicyException>(() => RoutePolicy.Load(registryPath));
+
+        Assert.Contains(registryPath, ex.Message);
         Assert.IsAssignableFrom<System.Text.Json.JsonException>(ex.InnerException);
     }
 
@@ -132,19 +135,24 @@ public class RoutePolicyTests
     /// <summary>
     /// An operator reading a startup failure should not have to guess from a
     /// stack trace which of the four states the registry arrived in, so each
-    /// message carries its own state and no other one's.
+    /// message carries its own state and no other one's. The four arrive from
+    /// three places, because that is where each of them can honestly come from:
+    /// a path that was never there, the no-content file state, a fixture held
+    /// open by this process, and the corpus case for text that is not JSON.
     /// </summary>
     [Fact]
     public void The_four_unusable_registry_states_are_told_apart()
     {
         using var unreadable = TestEnvironment.LockRegistry("routes.valid.json");
+        using var directory = TemporaryDirectory.Create("route-policy");
 
         var states = new (string Marker, string Message)[]
         {
             ("was not found", CaptureFailure(TestEnvironment.MissingRegistryPath())),
-            ("is empty", CaptureFailure(TestEnvironment.FixturePath("routes.empty.json"))),
+            ("is empty", CaptureFailure(TestEnvironment.FixturePath("routes.blank.json"))),
             ("cannot read", CaptureFailure(unreadable.RegistryPath)),
-            ("is not a valid routes registry", CaptureFailure(TestEnvironment.FixturePath("routes.malformed.json"))),
+            ("is not a valid routes registry",
+                CaptureFailure(RegistryCorpus.WriteTo(directory, "malformed-text"))),
         };
 
         foreach (var (marker, message) in states)

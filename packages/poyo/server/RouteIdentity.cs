@@ -90,7 +90,7 @@ public static class RouteIdentity
                 if (byPath.TryGetValue(key, out var samePath))
                 {
                     throw new RoutePolicyException(
-                        $"{Registry(routesJsonPath)}: {Describe(route)} is the same route as " +
+                        $"{RegistryLabel(routesJsonPath)}: {Describe(route)} is the same route as " +
                         $"{Describe(samePath)} once case and a trailing slash are ignored. A route " +
                         "path is unique across the registry.");
                 }
@@ -101,7 +101,7 @@ public static class RouteIdentity
             if (!string.IsNullOrWhiteSpace(route.Name) && !byName.TryAdd(route.Name, route))
             {
                 throw new RoutePolicyException(
-                    $"{Registry(routesJsonPath)}: {Describe(route)} duplicates the name of " +
+                    $"{RegistryLabel(routesJsonPath)}: {Describe(route)} duplicates the name of " +
                     $"{Describe(byName[route.Name])}. A route name is unique across the registry, " +
                     "ignoring case.");
             }
@@ -115,14 +115,14 @@ public static class RouteIdentity
         if (string.IsNullOrWhiteSpace(path) || !path.StartsWith('/'))
         {
             throw new RoutePolicyException(
-                $"{Registry(routesJsonPath)}: {Describe(route)} must begin with \"/\" — declare " +
+                $"{RegistryLabel(routesJsonPath)}: {Describe(route)} must begin with \"/\" — declare " +
                 $"'{CanonicalPath(path)}' instead.");
         }
 
         if (path.Length > 1 && path.EndsWith('/'))
         {
             throw new RoutePolicyException(
-                $"{Registry(routesJsonPath)}: {Describe(route)} declares a trailing slash — " +
+                $"{RegistryLabel(routesJsonPath)}: {Describe(route)} declares a trailing slash — " +
                 $"declare '{CanonicalPath(path)}' instead. A declared path is the URL the client " +
                 "links to and the server matches, so it is stored exactly as written.");
         }
@@ -135,14 +135,14 @@ public static class RouteIdentity
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new RoutePolicyException(
-                $"{Registry(routesJsonPath)}: {Describe(route)} has a missing or blank name. A " +
+                $"{RegistryLabel(routesJsonPath)}: {Describe(route)} has a missing or blank name. A " +
                 "route's name is its identity on the server and in the client's route table.");
         }
 
         if (name.StartsWith('/') || name.EndsWith('/'))
         {
             throw new RoutePolicyException(
-                $"{Registry(routesJsonPath)}: {Describe(route)} declares the name '{name}'. A name " +
+                $"{RegistryLabel(routesJsonPath)}: {Describe(route)} declares the name '{name}'. A name " +
                 "must not begin or end with \"/\": it is an identifier, not a path.");
         }
     }
@@ -158,7 +158,7 @@ public static class RouteIdentity
         if (hasController != hasAction)
         {
             throw new RoutePolicyException(
-                $"{Registry(routesJsonPath)}: {Describe(route)} declares " +
+                $"{RegistryLabel(routesJsonPath)}: {Describe(route)} declares " +
                 $"{(hasController ? "a controller" : "an action")} without the other. Declare both " +
                 "or neither: a route names the action that serves it.");
         }
@@ -167,7 +167,7 @@ public static class RouteIdentity
             && (string.IsNullOrWhiteSpace(route.Controller) || string.IsNullOrWhiteSpace(route.Action)))
         {
             throw new RoutePolicyException(
-                $"{Registry(routesJsonPath)}: {Describe(route)} declares a blank controller or " +
+                $"{RegistryLabel(routesJsonPath)}: {Describe(route)} declares a blank controller or " +
                 "action. Both are non-empty values, or neither is declared.");
         }
     }
@@ -177,7 +177,7 @@ public static class RouteIdentity
     /// schema check so a violation of the shape and a violation of the identity
     /// are read as one contract.
     /// </summary>
-    internal static string Registry(string routesJsonPath) => $"Routes registry '{routesJsonPath}'";
+    internal static string RegistryLabel(string routesJsonPath) => $"Routes registry '{routesJsonPath}'";
 
     private static string CanonicalPath(string? path)
     {

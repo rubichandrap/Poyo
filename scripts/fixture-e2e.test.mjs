@@ -27,7 +27,7 @@
  *   8b. The published output carries the registry: the registry is a required
  *       deployment artifact, and a publish that dropped it would deploy an
  *       application with no access model.
- *   8c. The published output carries no environment file: the environment is a
+ *   8c. The published output carries no dotenv file: the environment is a
  *       development convenience and never travels with the artifact.
  *   9. Server boot exports OpenAPI snapshot in-process without network requests.
  *  10. Served page renders HTML with data-page-name and data-base-path.
@@ -758,13 +758,16 @@ test(
 				`the published output must contain the registry (${publishedRegistry})`,
 			);
 
-			// 8c. The published output carries no environment file. The
+			// 8c. The published output carries no dotenv file. The
 			//     environment is a development convenience, and what you ship
 			//     should be what you reviewed: a publish that dropped an
 			//     operator's .env into the output would put their values in
 			//     the artifact, readable by anyone who can read the deploy.
 			//     The whole tree is walked, because a copy item that reached a
-			//     subdirectory would be just as much of a leak.
+			//     subdirectory would be just as much of a leak. The filter is
+			//     the dotenv family, which is what the loader reads and what a
+			//     hand-edited production file is called; `appsettings.json` and
+			//     its development sibling ship by the SDK's own design.
 			const publishRoot = path.join(fixture, SERVER_DIR, "publish");
 			const publishedEnvironmentFiles = [];
 			const walk = (directory) => {
@@ -783,7 +786,7 @@ test(
 			assert.deepEqual(
 				publishedEnvironmentFiles,
 				[],
-				"the published output must contain no environment file",
+				"the published output must contain no dotenv file",
 			);
 
 			// 9. In-process OpenAPI snapshot generation on server boot:

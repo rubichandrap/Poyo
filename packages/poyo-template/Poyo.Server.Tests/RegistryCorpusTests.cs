@@ -30,18 +30,17 @@ public class RegistryCorpusTests
     }
 
     /// <summary>
-    /// The registry reader is the seam under test rather than a booted host:
-    /// `RoutePolicy.Load` is what the boot calls, and it is where every
-    /// registry failure is decided. <see cref="StartupFailureTests"/> proves the
-    /// same failures reach a host as boot failures, so this suite does not
-    /// repeat a host start for each of the corpus's cases.
-    /// </summary>
-    /// <summary>
     /// The server's half of the corpus: every case earns the verdict the corpus
-    /// records, and every case both runtimes refuse names the same facts in its
-    /// message. The route manager's half is the same corpus read from
+    /// records, and every case the server refuses names the facts the corpus
+    /// says it names. The route manager's half is the same corpus read from
     /// `packages/poyo`, and the two suites are what make the agreement a fact
     /// rather than a claim.
+    ///
+    /// The reader is the seam under test rather than a booted host:
+    /// `RoutePolicy.Load` is what the boot calls, and it is where every registry
+    /// failure is decided. <see cref="StartupFailureTests"/> proves the same
+    /// failures reach a host as boot failures, so this suite does not repeat a
+    /// host start for each of the corpus's cases.
     /// </summary>
     [Theory]
     [MemberData(nameof(Cases))]
@@ -49,12 +48,12 @@ public class RegistryCorpusTests
     {
         var corpusCase = RegistryCorpus.Require(id);
         using var directory = TemporaryDirectory.Create("registry-corpus");
-        var registryPath = directory.WriteFile("routes.json", corpusCase.RegistryText);
+        var registryPath = RegistryCorpus.WriteTo(directory, id);
 
         var thrown = Record.Exception(() => RoutePolicy.Load(registryPath));
         var failure = thrown as RoutePolicyException;
 
-        if (corpusCase.ServerRejects)
+        if (corpusCase.ServerVerdict.Rejects)
         {
             Assert.True(
                 thrown is not null,
@@ -68,9 +67,9 @@ public class RegistryCorpusTests
             Assert.Null(thrown);
         }
 
-        // A pinned difference asserts its fragments of the side that refuses
-        // it; there is no message on the side that accepts.
-        if (corpusCase.ServerRejects)
+        // A case pinned to one side asserts its fragments of the side that
+        // refuses it; there is no message on the side that accepts.
+        if (corpusCase.ServerVerdict.Rejects)
         {
             foreach (var fragment in corpusCase.Message)
             {
@@ -109,9 +108,8 @@ public class RegistryCorpusTests
     [Fact]
     public void A_misspelled_dynamic_field_reports_the_dynamic_field_naming_the_route()
     {
-        var corpusCase = RegistryCorpus.Require("case-wrong-dynamic-value");
         using var directory = TemporaryDirectory.Create("registry-corpus");
-        var registryPath = directory.WriteFile("routes.json", corpusCase.RegistryText);
+        var registryPath = RegistryCorpus.WriteTo(directory, "case-wrong-dynamic-value");
 
         var failure = Assert.Throws<RoutePolicyException>(() => RoutePolicy.Load(registryPath));
 

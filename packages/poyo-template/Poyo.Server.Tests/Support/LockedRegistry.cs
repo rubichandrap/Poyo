@@ -9,36 +9,36 @@ namespace Poyo.Server.Tests.Support;
 /// </summary>
 internal sealed class LockedRegistry : IDisposable
 {
+    private readonly TemporaryDirectory _directory;
     private readonly FileStream _hold;
-    private readonly string _directory;
+
+    private LockedRegistry(TemporaryDirectory directory, string registryPath, FileStream hold)
+    {
+        _directory = directory;
+        RegistryPath = registryPath;
+        _hold = hold;
+    }
 
     public string RegistryPath { get; }
 
-    private LockedRegistry(string registryPath, FileStream hold, string directory)
-    {
-        RegistryPath = registryPath;
-        _hold = hold;
-        _directory = directory;
-    }
-
     public static LockedRegistry CreateFrom(string fixturePath)
     {
-        var directory = System.IO.Path.Combine(
-            System.IO.Path.GetTempPath(), $"poyo-locked-registry-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(directory);
-
-        var registryPath = System.IO.Path.Combine(directory, "routes.json");
-        File.Copy(fixturePath, registryPath);
+        var directory = TemporaryDirectory.Create("locked-registry");
+        var registryPath = directory.WriteFile("routes.json", File.ReadAllText(fixturePath));
 
         return new LockedRegistry(
+            directory,
             registryPath,
-            File.Open(registryPath, FileMode.Open, FileAccess.Read, FileShare.None),
-            directory);
+            File.Open(registryPath, FileMode.Open, FileAccess.Read, FileShare.None));
     }
 
+    /// <summary>
+    /// The handle goes first: the copy cannot be deleted while this process
+    /// still holds it open.
+    /// </summary>
     public void Dispose()
     {
         _hold.Dispose();
-        Directory.Delete(_directory, recursive: true);
+        _directory.Dispose();
     }
 }

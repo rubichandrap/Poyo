@@ -29,10 +29,23 @@ const CORPUS_DIR = path.resolve(
 
 type Verdict = "accept" | "reject";
 
+/** A case as it sits on disk: what the two runtimes are held to, and why. */
+interface CorpusFile {
+	/** The verdict both runtimes are expected to earn. */
+	verdict?: unknown;
+	/** Verdicts that differ, one per runtime. */
+	verdicts?: { server?: unknown; manager?: unknown };
+	message?: string[];
+	note?: string;
+	registry?: unknown;
+	/** Raw registry text when the case overrides the JSON, else the `registry` value. */
+	text?: string;
+}
+
+/** A case as a test reads it: every member the loader has checked. */
 interface CorpusCase {
 	id: string;
-	/** The verdict both runtimes are expected to earn, or `null` when pinned. */
-	verdict: Verdict | null;
+	/** The verdict each runtime is expected to earn, which need not agree. */
 	verdicts: { server: Verdict; manager: Verdict };
 	message: string[];
 	note: string;
@@ -53,7 +66,7 @@ function loadCorpus(): CorpusCase[] {
 		.map((entry) => {
 			const body = JSON.parse(
 				fs.readFileSync(path.join(CORPUS_DIR, entry), "utf-8"),
-			) as Partial<CorpusCase>;
+			) as CorpusFile;
 
 			// The file name is the case id, so a case cannot be renamed without
 			// the test names following it and a duplicated id cannot exist.
@@ -77,7 +90,6 @@ function loadCorpus(): CorpusCase[] {
 
 			return {
 				id: entry.replace(/\.json$/, ""),
-				verdict: shared ?? null,
 				verdicts: { server, manager },
 				message: body.message ?? [],
 				note: body.note ?? "",

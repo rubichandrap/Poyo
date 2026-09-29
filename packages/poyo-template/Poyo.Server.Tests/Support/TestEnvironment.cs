@@ -18,15 +18,20 @@ internal static class TestEnvironment
 
     /// <summary>
     /// A registry from this project's own fixtures. These are the registries a
-    /// test serves pages from, and the file states a registry can arrive in.
-    /// The registries the contract refuses are not here: they are the shared
-    /// corpus at the repository root, which the route manager's suite reads too
-    /// — see <see cref="RegistryCorpus"/>.
+    /// test boots a host from, and the file states a registry can arrive in
+    /// that no case declares. The registries the contract refuses are not here:
+    /// they are the shared corpus at the repository root, which the route
+    /// manager's suite reads too — see <see cref="RegistryCorpus"/>.
     /// </summary>
     public static string FixturePath(string fileName) =>
         fileName == MissingRegistry
             ? MissingRegistryPath()
-            : Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Fixtures", fileName);
+            : Path.Combine(FixtureDirectory(), fileName);
+
+    /// <summary>
+    /// This test project's own fixture directory, in the source tree.
+    /// </summary>
+    public static string FixtureDirectory() => SourceDirectory.Nearest("Fixtures");
 
     /// <summary>
     /// A registry path that does not exist. The registry is a required
@@ -55,8 +60,21 @@ internal static class TestEnvironment
         return ExceptionChain.Unwrap(thrown).OfType<RoutePolicyException>().FirstOrDefault();
     }
 
-    public static string TemplateRoutesPath() =>
-        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "routes.json");
+    /// <summary>
+    /// The template root: the directory that holds this test project, and with
+    /// it the registry the published artifact carries a copy of. It is found by
+    /// walking up from the fixtures — this project's own directory, then the one
+    /// above it — rather than by counting the levels back to the root, so a
+    /// build that lays its output out differently still finds it.
+    /// </summary>
+    public static string TemplateRoot()
+    {
+        var testProject = Directory.GetParent(FixtureDirectory())!.FullName;
+
+        return Directory.GetParent(testProject)!.FullName;
+    }
+
+    public static string TemplateRoutesPath() => Path.Combine(TemplateRoot(), "routes.json");
 
     /// <summary>
     /// Program.cs runs top-level environment checks and reads the registry

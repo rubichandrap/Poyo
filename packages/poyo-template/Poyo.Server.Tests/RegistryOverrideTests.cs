@@ -22,18 +22,16 @@ public class RegistryOverrideTests
     [Fact]
     public async Task A_deployment_serves_the_registry_its_host_names()
     {
-        using var hostRegistry = HostRegistry.Open();
-        using var server = await PublishedServer.Start(
-            PublishedServer.PublishDirectory,
-            HostNamesRegistryAt(hostRegistry.RegistryPath));
-
-        using var dashboard = await server.CreateClient().GetAsync("/Dashboard");
+        using var directory = TemporaryDirectory.Create("host-registry");
+        var hostRegistry = HostNamesDashboardPublic(directory);
 
         // The host's registry calls /Dashboard public, so an anonymous caller
         // is served it rather than challenged. The registry beside the
         // application calls it protected, so a 200 is only reachable through
         // the file the host named.
-        Assert.Equal(HttpStatusCode.OK, dashboard.StatusCode);
+        var dashboard = await DashboardServedBy(hostRegistry);
+
+        Assert.Equal(HttpStatusCode.OK, dashboard.Status);
     }
 
     /// <summary>
@@ -49,24 +47,37 @@ public class RegistryOverrideTests
     [Fact]
     public async Task Losing_the_registry_name_silently_serves_the_registry_beside_the_application()
     {
-        using var hostRegistry = HostRegistry.Open();
+        using var directory = TemporaryDirectory.Create("host-registry");
 
-        using var named = await PublishedServer.Start(
-            PublishedServer.PublishDirectory,
-            HostNamesRegistryAt(hostRegistry.RegistryPath));
-        using var namedDashboard = await named.CreateClient().GetAsync("/Dashboard");
-        Assert.Equal(HttpStatusCode.OK, namedDashboard.StatusCode);
+        // The control, and the only difference the second half relies on.
+        var named = await DashboardServedBy(HostNamesDashboardPublic(directory));
+        Assert.Equal(HttpStatusCode.OK, named.Status);
 
-        using var lost = await PublishedServer.Start(
-            PublishedServer.PublishDirectory,
-            HostNamesRegistryAt(null));
-        using var lostDashboard = await lost.CreateClient().GetAsync("/Dashboard");
+        var lost = await DashboardServedBy(null);
 
         // Serving, and enforcing, from the registry beside the application —
         // where the same route is protected, so the anonymous caller is
         // challenged rather than served. The access model changed, silently.
-        Assert.Equal(HttpStatusCode.Redirect, lostDashboard.StatusCode);
-        Assert.Equal("/Login", lostDashboard.Headers.Location?.AbsolutePath);
+        Assert.Equal(HttpStatusCode.Redirect, lost.Status);
+        Assert.Equal("/Login", lost.Location);
+    }
+
+    /// <summary>
+    /// Starts a published application whose host names the registry at
+    /// <paramref name="hostRegistryPath"/> — or names none at all, when that is
+    /// null — and asks it for <c>/Dashboard</c>. The status and the redirect
+    /// target are the whole of what these tests read: whether the route was
+    /// served, challenged, or landed somewhere else.
+    /// </summary>
+    private static async Task<(HttpStatusCode Status, string? Location)> DashboardServedBy(
+        string? hostRegistryPath)
+    {
+        using var server = await PublishedServer.Start(
+            PublishedServer.PublishDirectory,
+            HostNamesRegistryAt(hostRegistryPath));
+        using var dashboard = await server.CreateClient().GetAsync("/Dashboard");
+
+        return (dashboard.StatusCode, dashboard.Headers.Location?.AbsolutePath);
     }
 
     /// <summary>
@@ -81,57 +92,38 @@ public class RegistryOverrideTests
     };
 
     /// <summary>
-    /// A registry at a location only the host names, calling one route public
-    /// that the registry beside the application calls protected. It is derived
-    /// from the template's own registry so the two files agree about everything
-    /// else and differ on exactly the access model the assertions read.
+    /// Writes a registry into the temporary directory at a location only the
+    /// host names, calling one route public that the registry beside the
+    /// application calls protected. It is derived from the template's own
+    /// registry so the two files agree about everything else and differ on
+    /// exactly the access model the assertions read.
     /// </summary>
-    private sealed class HostRegistry : IDisposable
+    private static string HostNamesDashboardPublic(TemporaryDirectory directory) =>
+        directory.WriteFile(
+            "routes.json",
+            DeclaringDashboardPublic(File.ReadAllText(TestEnvironment.TemplateRoutesPath())));
+
+    /// <summary>
+    /// The template's registry with one route's access changed. Editing the
+    /// parsed value rather than the text keeps the rest of the file exactly as
+    /// the template wrote it, so the only difference between the two registries
+    /// is the access model under test.
+    /// </summary>
+    private static string DeclaringDashboardPublic(string registryJson)
     {
-        private readonly TemporaryDirectory _directory;
-
-        private HostRegistry(TemporaryDirectory directory, string registryPath)
+        using var document = JsonDocument.Parse(registryJson);
+        var routes = document.RootElement.EnumerateArray().Select(route =>
         {
-            _directory = directory;
-            RegistryPath = registryPath;
-        }
-
-        public string RegistryPath { get; }
-
-        public static HostRegistry Open()
-        {
-            var directory = TemporaryDirectory.Create("host-registry");
-            var registryPath = directory.WriteFile(
-                "routes.json",
-                DeclaringDashboardPublic(File.ReadAllText(TestEnvironment.TemplateRoutesPath())));
-
-            return new HostRegistry(directory, registryPath);
-        }
-
-        public void Dispose() => _directory.Dispose();
-
-        /// <summary>
-        /// The template's registry with one route's access changed. Editing
-        /// the parsed value rather than the text keeps the rest of the file
-        /// exactly as the template wrote it, so the only difference between the
-        /// two registries is the access model under test.
-        /// </summary>
-        private static string DeclaringDashboardPublic(string registryJson)
-        {
-            using var document = JsonDocument.Parse(registryJson);
-            var routes = document.RootElement.EnumerateArray().Select(route =>
+            var entry = JsonNode.Parse(route.GetRawText())!.AsObject();
+            if (entry["path"]!.GetValue<string>() == "/Dashboard")
             {
-                var entry = JsonNode.Parse(route.GetRawText())!.AsObject();
-                if (entry["path"]!.GetValue<string>() == "/Dashboard")
-                {
-                    entry["access"] = "public";
-                }
+                entry["access"] = "public";
+            }
 
-                return entry;
-            });
+            return entry;
+        });
 
-            return new JsonArray(routes.Select(route => (JsonNode)route).ToArray())
-                .ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-        }
+        return new JsonArray(routes.Select(route => (JsonNode)route).ToArray())
+            .ToJsonString(new JsonSerializerOptions { WriteIndented = true });
     }
 }

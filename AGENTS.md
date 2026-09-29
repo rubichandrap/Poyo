@@ -465,7 +465,7 @@ The **process environment owns the hosting environment**; an environment file is
 - `ASPNETCORE_ENVIRONMENT=Production` — set it explicitly; the default is production either way
 - `Routes:JsonPath` (only to point at a registry outside the application directory)
 
-Supported host mechanisms, by name: a service manager `EnvironmentFile=`, a container `docker run --env-file`, the IIS configuration's `environmentVariables` in `web.config`, or a production `appsettings.Production.json`.
+The host mechanisms by name are listed with the operator procedure in `packages/poyo-template/README.md` ("Upgrading an existing deployment"), which ships as the README of every generated project; that section is the one place they are written down.
 
 **Required (development only):** the Vite variables (`Vite__Server__AutoRun`, `Vite__Server__Port`, `Vite__Server__DevServerUrl`) — `Properties/launchSettings.json` supplies them and the hosting environment for `dotnet run`. A missing one fails startup and names the variable.
 
@@ -473,7 +473,7 @@ Supported host mechanisms, by name: a service manager `EnvironmentFile=`, a cont
 - `ConnectionStrings__DB` (if using database)
 - Add your own as needed
 
-**Upgrading an existing deployment:** a value an operator added to a hand-edited production `.env` is authoritative today *only because* the loader overrode the process, so the moment the file stops being read outside development it reverts — at exactly the moment they set the environment variable correctly and believe the deployment is tightened. **A green boot is not evidence the migration is complete.** The procedure — inventory the production `.env`, diff it against `.env.example`, move every key the example does not have to the host, in the same change that sets the environment — is written out for operators in `packages/poyo-template/README.md` ("Upgrading an existing deployment"), which ships as the README of every generated project. `Routes:JsonPath` is the value to check twice: its loss is a **security regression**, and the loss is *silent* — the published artifact carries its own copy of the registry beside the application, so the deployment still boots and still enforces, the access model of a different file.
+**Upgrading an existing deployment:** a value an operator added to a hand-edited production `.env` is authoritative today *only because* the loader overrode the process, so the moment the file stops being read outside development it reverts — at exactly the moment they set the environment variable correctly and believe the deployment is tightened, and silently, because the published artifact carries its own copy of the registry and still boots on it. The procedure — inventory the production `.env`, diff it against `.env.example`, move every key the example does not have to the host, in the same change that sets the environment, then verify each value rather than the boot — is in `packages/poyo-template/README.md` ("Upgrading an existing deployment"). It is written once, there, and pointed at from here rather than restated: a paragraph copied into every document is a paragraph that drifts, and this one names a file an operator has to edit.
 
 ### 8.3. Publishing the Three Packages (lockstep)
 
