@@ -82,8 +82,11 @@ public static class PoyoExtensions
 
     /// <summary>
     /// Maps every registry route from the registered route policy. Call after
-    /// MapControllers so registry pages and API controllers coexist; the
-    /// conventional fallback route stays the app's choice.
+    /// MapControllers so registry pages and API controllers coexist. The
+    /// registry is the single source of truth for route existence: a host that
+    /// also maps a conventional controller/action route publishes a second URL
+    /// for every controller the registry names, and that URL reaches a page
+    /// action with no registry route behind it.
     /// </summary>
     public static IEndpointRouteBuilder MapPoyoRoutes(this IEndpointRouteBuilder endpoints)
     {

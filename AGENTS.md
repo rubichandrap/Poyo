@@ -79,6 +79,12 @@ Poyo is intentionally minimal. It provides:
 - `guest` + authenticated → redirect to the configured landing page (`Routes:LandingPath`, default `/Dashboard`)
 - `public` → open to everyone
 - Applies to custom-controller routes exactly like default ones.
+- One lookup, by request path, answers "which route serves this request" at every seam — the access filter, the SEO filter, the page controller, and `ControllerExtensions.PoyoPage` (ADR 0016). A URL the registry does not own resolves to no route, so no access decision and no page policy apply to it.
+
+**One URL per route (ADR 0016):**
+- There is no conventional `controller/action` route. `Program.cs` maps the registry and nothing else, so a page route is served only at its declared path and every other path is answered by routing with a clean 404, before any framework filter runs.
+- A conventional URL is therefore not a weaker path to a page: it is not a path. Do not re-add a `MapControllerRoute("{controller}/{action}")` fallback — it republishes a second URL for every controller the registry names, on a page action no registry route authorizes, with no access model, no SEO, no descriptor and no `private, no-store` policy behind it.
+- Need a second URL? Declare a second route in `routes.json` pointing at the same controller action.
 
 **Attributes:**
 - Page data has no attribute path; controller actions return `this.PoyoPage(data)`.
@@ -140,7 +146,7 @@ public class AuthService : IAuthService
 
 ### 2.6. Server Core (framework package)
 
-The framework-owned server code — `RoutePolicy`, `RouteDefinition`, the access/SEO filters, `PageResult`, `PageController`, the controller extension, the `@Html.PoyoPageData()` helper, and the `AddPoyo()`/`MapPoyoRoutes()` registration extensions — ships as readable source inside the framework package (`node_modules/@rubichandrap/poyo/server/`, namespace `Poyo.Framework`) and is never copied into a project tree (ADR 0008).
+The framework-owned server code — `RoutePolicy`, `RouteDefinition`, `RouteIdentity` (the canonical declared path/name, their uniqueness, and the request-path normalization, in one place), the access/SEO filters, `PageResult`, `PageController`, the controller extension, the `@Html.PoyoPageData()` helper, and the `AddPoyo()`/`MapPoyoRoutes()` registration extensions — ships as readable source inside the framework package (`node_modules/@rubichandrap/poyo/server/`, namespace `Poyo.Framework`) and is never copied into a project tree (ADR 0008).
 
 - The server csproj compiles it in place: `Compile Include="../node_modules/@rubichandrap/poyo/server/**/*.cs" LinkBase="Framework"`, plus the defensive `Compile Remove="node_modules/**/*.cs"`. The files open in the IDE under a `Framework` link. Rename-safety is by construction for everything under `node_modules` — the scaffolder's rename pass never rewrites the installed package; the framework identifiers the template's own files call (`Poyo.Framework`, `AddPoyo`, `MapPoyoRoutes`, `PoyoPage`, the `X-Poyo-Navigation` literal) survive the rename through the scaffolder's sentinel protection.
 - An `Exists` guard fails the build with "run `pnpm install`" when the package is missing — the one failure mode of the in-place design is an instruction, not a mystery.
@@ -313,6 +319,9 @@ One navigation path: descriptor fetch (`X-Poyo-Navigation: 1`, `credentials: "sa
 ```
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). Legacy `isPublic`/`isGuestOnly` flags are rejected as unknown fields — there is no migration shim.
+
+**Route identity is one thing, defined once: strict on disk, liberal at runtime.** The registry is authored, so the boot refuses it (naming the route and the value) when a `path` does not begin with `/`, ends with a trailing slash (except `/`), duplicates another path ignoring case, when a `name` is missing, blank, carries a leading or trailing slash, or duplicates another name ignoring case, and when a `controller` is declared without an `action` or an `action` without a `controller`, neither of them blank. `RouteIdentity` owns those rules, the uniqueness, and the request-path normalization; `RoutePolicy` keeps its ordered `Routes` list (declaration order drives error messages and endpoint registration) beside a normalized-path index used by `Find`. A request is normalized — trailing slashes trimmed, the root preserved — and matched case-insensitively, so `/login`, `/Login`, and `/Login/` all serve the declared `/Login`. The framework package's route manager enforces the same declared-path, name, and controller/action rules on every read and write, and refuses rather than normalizes, so a non-canonical path can never reach the typed `RoutePath` union or rendered link markup. See ADR 0015.
+
 
 `dynamic` is an optional boolean (default `true`). Setting `"dynamic": false` opts the route out of dynamic navigation: the server answers the document even when a request carries the navigation header, and the client never swaps it in (§3.7). There is no CLI flag for it — edit the registry by hand; the CLI validates the field on every read (`junk` values fail with the route named) and round-trips it untouched. Boot validation rejects malformed values the same way.
 

@@ -226,4 +226,31 @@ describe("poyo generate", () => {
 		expect(manifest).toContain("paths: never;");
 		expect(manifest).not.toContain("export const routeManifest");
 	});
+
+	/**
+	 * A declared path is canonical, so the typed path union can never hold a
+	 * trailing-slash URL that would then reach rendered link markup. The
+	 * manifest does not normalize — it refuses, leaving the registry the only
+	 * place a path is written.
+	 */
+	it("refuses to emit a manifest for a registry with a non-canonical path", () => {
+		const fixture = fixtureWithSnapshot(minimalOpenApi, [
+			{
+				path: "/Dashboard/",
+				name: "Dashboard",
+				files: {
+					react: "src/pages/Dashboard/index.page.tsx",
+					view: "Views/Dashboard/Index.cshtml",
+				},
+				access: "protected",
+			},
+		]);
+		const result = execInFixture(fixture, ["generate"]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("trailing slash");
+		expect(existsFixtureFile(fixture, "poyo.client/routes.generated.ts")).toBe(
+			false,
+		);
+	});
 });

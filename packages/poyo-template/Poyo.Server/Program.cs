@@ -202,12 +202,12 @@ app.UseAuthorization();
 // API routes
 app.MapControllers();
 
-// Dynamic Routing from routes.json
+// Dynamic Routing from routes.json — the registry is the single source of
+// truth for route existence. There is deliberately no conventional
+// controller/action fallback: a URL the registry does not own matches no
+// endpoint and is answered by routing with a clean 404, so a page has exactly
+// one URL and every URL that reaches a page carries the same access, SEO and
+// private no-store policy.
 app.MapPoyoRoutes();
-
-// MPA routes (Fallback for unmatched URLs, clean 404)
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller}/{action}/{id?}");
 
 app.Run();

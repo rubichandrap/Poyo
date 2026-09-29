@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace Poyo.Framework;
@@ -28,11 +27,7 @@ public sealed class RouteAccessFilter : IAsyncResourceFilter
         ResourceExecutingContext context,
         ResourceExecutionDelegate next)
     {
-        var action = context.ActionDescriptor as ControllerActionDescriptor;
-        var route = _policy.FindForRequest(
-            context.HttpContext.Request.Path.Value ?? string.Empty,
-            action?.ControllerName,
-            action?.ActionName);
+        var route = _policy.Find(context.HttpContext.Request.Path.Value ?? string.Empty);
 
         if (route is not null)
         {

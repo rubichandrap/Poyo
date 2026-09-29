@@ -1,0 +1,10 @@
+[
+	{
+		"path": "/Blank",
+		"name": "",
+		"files": {
+			"react": "src/pages/Blank/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		}
+	}
+]
