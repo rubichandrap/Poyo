@@ -1,0 +1,18 @@
+{
+	"verdict": "accept",
+	"note": "The seo payload is the server model's concern alone: the route manager treats it as opaque, and the server accepts a member however it is cased because the deserializer's property matching is how the .NET model is spelled. Both accept, and the corpus says so rather than leaving the boundary unpinned.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"seo": {
+				"Title": "Home",
+				"Description": "The home page"
+			}
+		}
+	]
+}

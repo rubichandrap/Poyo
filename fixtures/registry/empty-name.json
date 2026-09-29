@@ -1,0 +1,18 @@
+{
+	"verdict": "reject",
+	"note": "An empty name is a blank name.",
+	"message": [
+		"missing or blank",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

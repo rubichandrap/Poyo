@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "A controller names a type; a number names nothing.",
+	"message": [
+		"controller"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"controller": 123,
+			"action": "Index"
+		}
+	]
+}

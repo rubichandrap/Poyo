@@ -1,0 +1,7 @@
+{
+	"verdict": "reject",
+	"note": "The registry is an array of routes, not an object.",
+	"registry": {
+		"path": "/Home"
+	}
+}

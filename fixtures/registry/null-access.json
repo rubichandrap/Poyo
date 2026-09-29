@@ -1,0 +1,18 @@
+{
+	"verdict": "reject",
+	"note": "An access the route manager defaults cannot be written as null: null is not one of the three values, and the server's enum converter refuses it too.",
+	"message": [
+		"access"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"access": null
+		}
+	]
+}

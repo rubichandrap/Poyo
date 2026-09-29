@@ -32,9 +32,17 @@ _Avoid_: route generator, route script
 What makes a route referable: a canonical declared path (rooted, no trailing slash except for the root, unique ignoring case), a canonical name (present, with no leading or trailing slash, unique ignoring case), and a controller and action declared together or not at all. Enforced in two disciplines with one definition — the authored registry is strict and fails the boot, the incoming request is normalized and resolved. A request URL is owned by the browser; a declaration is not.
 _Avoid_: route validation, canonical routes, path cleanup
 
+**Registry corpus**:
+The set of registries at `fixtures/registry/`, one file per registry rule with the verdict it earns, read by both the server's and the route manager's suites. Makes the two runtimes' agreement falsifiable: a rule added to one and not the other fails a test. A case declaring one verdict for the two also pins the message fragments both carry; a case declaring a verdict per runtime pins a deliberate difference. Lives at the repository root because it belongs to neither package.
+_Avoid_: registry fixtures, shared fixtures, contract tests
+
 **Route policy**:
 The server's translation of a Route into an ASP.NET route mapping — which controller action serves it, which access rules apply, and how its SEO is applied. The single place the server interprets the Routes registry; it fails startup loudly when the registry violates the route schema or a route's identity is not canonical.
 _Avoid_: route mapper, route interpreter, dynamic routing
+
+**Route schema**:
+The server's half of the registry's shape, checked on the raw JSON before deserialization: the one accepted spelling of every field name, the members a route must carry, and the two values whose type is part of the contract (`access`, `dynamic`). Each is a failure the deserializer either cannot report usefully or does not fail at all, and each is reported here where the offending route can be named.
+_Avoid_: registry schema, deserialization options, JSON validation
 
 **Request resolution**:
 How a request finds its Route: one lookup, by normalized request path, answering "which route serves this request" for the access filter, the SEO filter, the page controller and the controller extension alike. A path the registry does not own resolves to no route, and routing answers it with a clean 404. A page therefore has exactly one URL — the path its registry entry declares.
@@ -69,7 +77,7 @@ The programmatic navigation API: `useRouter` (push, replace, back, forward, and 
 _Avoid_: client router library, SPA router
 
 **Server core**:
-The framework-owned server-side code — route policy, access and SEO enforcement, the page result that answers navigation requests — shipped as readable source inside the framework package and compiled into the server project in place. Never copied into the project tree and never published as a separate package; upgraded by updating the framework package, not by editing the files.
+The framework-owned server-side code — route policy, route schema, route identity, access and SEO enforcement, the page result that answers navigation requests — shipped as readable source inside the framework package and compiled into the server project in place. Never copied into the project tree and never published as a separate package; upgraded by updating the framework package, not by editing the files.
 _Avoid_: server runtime, NuGet package, shared module
 
 **Project identity**:

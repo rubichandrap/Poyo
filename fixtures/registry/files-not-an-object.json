@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A string is not the files object, and neither runtime can serve a route without it.",
+	"message": [
+		"files",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": "Views/Home/Index.cshtml"
+		}
+	]
+}

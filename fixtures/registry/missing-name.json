@@ -1,0 +1,17 @@
+{
+	"verdict": "reject",
+	"note": "A name is a route's identity on the server and in the client's route table.",
+	"message": [
+		"missing or blank",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

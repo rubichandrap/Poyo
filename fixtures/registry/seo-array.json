@@ -1,0 +1,18 @@
+{
+	"verdict": "reject",
+	"note": "An array is not an object, however loosely the word is read.",
+	"message": [
+		"seo"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"seo": []
+		}
+	]
+}

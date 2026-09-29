@@ -1,0 +1,20 @@
+{
+	"verdict": "reject",
+	"note": "dynamic is an opt-out, so only a boolean opts out.",
+	"message": [
+		"dynamic",
+		"/Home",
+		"boolean"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"dynamic": "junk"
+		}
+	]
+}

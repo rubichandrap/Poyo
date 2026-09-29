@@ -1,0 +1,25 @@
+{
+	"verdict": "accept",
+	"note": "The full SEO payload, in the spelling the server's model accepts.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"seo": {
+				"title": "Home",
+				"description": "The home page",
+				"meta": {
+					"og:title": "Home",
+					"keywords": "poyo"
+				},
+				"jsonld": {
+					"@context": "https://schema.org"
+				}
+			}
+		}
+	]
+}

@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "A dynamic field that is both mis-spelled and wrongly valued is refused by both, and the server names what is wrong with the value — reporting the dynamic field rather than falling through to the generic parse failure — while the route manager names the mis-spelled member. Each quotes the spelling it was written in.",
+	"message": [
+		"Dynamic",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"Dynamic": "junk"
+		}
+	]
+}

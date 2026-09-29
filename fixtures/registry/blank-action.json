@@ -1,0 +1,20 @@
+{
+	"verdict": "reject",
+	"note": "A whitespace-only action is blank, not merely empty.",
+	"message": [
+		"action",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"controller": "Custom",
+			"action": "   "
+		}
+	]
+}

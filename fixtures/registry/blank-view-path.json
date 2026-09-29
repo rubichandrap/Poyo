@@ -1,0 +1,17 @@
+{
+	"verdicts": {
+		"server": "accept",
+		"manager": "reject"
+	},
+	"note": "The same split on the one member the server does read: it requires `files.view` to be present and a string, and judges no file path's value, so a blank one boots and fails when the route is requested. The route manager refuses it when the registry is authored.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": ""
+			}
+		}
+	]
+}

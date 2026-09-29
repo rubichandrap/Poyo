@@ -72,52 +72,6 @@ public class RoutePolicyTests
         Assert.IsAssignableFrom<System.Text.Json.JsonException>(ex.InnerException);
     }
 
-    [Fact]
-    public void Load_throws_on_unknown_field()
-    {
-        var ex = Assert.Throws<RoutePolicyException>(
-            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.unknown-field.json")));
-
-        Assert.Contains("bogusField", ex.Message);
-    }
-
-    [Fact]
-    public void Load_throws_on_legacy_access_flags()
-    {
-        var ex = Assert.Throws<RoutePolicyException>(
-            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.legacy.json")));
-
-        Assert.Contains("isPublic", ex.Message);
-    }
-
-    [Fact]
-    public void Load_throws_on_wrong_type()
-    {
-        var ex = Assert.Throws<RoutePolicyException>(
-            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.wrong-type.json")));
-
-        Assert.Contains("access", ex.Message);
-    }
-
-    [Fact]
-    public void Load_throws_on_invalid_access_value()
-    {
-        var ex = Assert.Throws<RoutePolicyException>(
-            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.invalid-access.json")));
-
-        Assert.Contains("access", ex.Message);
-    }
-
-    [Fact]
-    public void Load_throws_on_duplicate_path()
-    {
-        var ex = Assert.Throws<RoutePolicyException>(
-            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.duplicate.json")));
-
-        Assert.Contains("duplicate", ex.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("/dashboard", ex.Message);
-    }
-
     /// <summary>
     /// The truth table of the one function that makes a request liberal: a
     /// request URL is owned by the browser, so a trailing slash is trimmed and
@@ -161,16 +115,6 @@ public class RoutePolicyTests
         Assert.Equal(
             new[] { "/", "/Dashboard", "/Login", "/Register" },
             policy.Routes.Select(route => route.Path));
-    }
-
-    [Fact]
-    public void Load_throws_on_malformed_dynamic_value_naming_the_route()
-    {
-        var ex = Assert.Throws<RoutePolicyException>(
-            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.malformed-dynamic.json")));
-
-        Assert.Contains("dynamic", ex.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("/dashboard", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

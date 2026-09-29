@@ -1,0 +1,20 @@
+{
+	"verdict": "reject",
+	"note": "A number is not a boolean, and is not coerced into one.",
+	"message": [
+		"dynamic",
+		"/Home",
+		"boolean"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"dynamic": 1
+		}
+	]
+}

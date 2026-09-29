@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "A boolean is not one of the three access values either.",
+	"message": [
+		"access",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"access": true
+		}
+	]
+}

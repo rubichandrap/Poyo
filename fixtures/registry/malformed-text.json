@@ -1,0 +1,5 @@
+{
+	"verdict": "reject",
+	"note": "Text that is not JSON at all.",
+	"text": "[ { \"path\": "
+}

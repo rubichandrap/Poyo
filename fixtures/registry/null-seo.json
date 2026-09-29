@@ -1,0 +1,15 @@
+{
+	"verdict": "accept",
+	"note": "JSON null means undeclared for an SEO payload too, by the reading ADR 0015 pinned for `controller`: the server's `SeoModel?` is null for it, and an authored null declares \"no SEO\" rather than one nothing can act on.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"seo": null
+		}
+	]
+}

@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "The access enum is refused in integer form rather than coerced.",
+	"message": [
+		"access",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"access": 5
+		}
+	]
+}
