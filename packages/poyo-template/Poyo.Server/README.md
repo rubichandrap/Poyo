@@ -123,6 +123,8 @@ The **process environment** is authoritative. The server reads the hosting envir
 
 A missing one fails startup immediately and names the variable. `Routes:JsonPath` is optional everywhere: it overrides where the Routes registry is resolved from, which otherwise is `routes.json` beside the application assembly.
 
+> **Upgrading an existing deployment?** A value an operator added to a hand-edited production `.env` reverts the moment the file stops being read outside development — at exactly the moment they set the environment variable correctly. Inventory the production `.env`, diff it against `.env.example`, and move every key the example does not have to your host, in the same change that sets the environment. `Routes:JsonPath` is the one to check twice: losing it is **silent**, and it is a security regression — the artifact carries its own registry beside the application, so the deployment still boots and still enforces, the access model of a different file. **A green boot is not evidence the migration is complete.** The full procedure is in the project README's "Upgrading an existing deployment".
+
 ---
 
 ## ⚠️ Important Rules

@@ -110,11 +110,48 @@ The **process environment is authoritative**: the deploy host owns the server's 
 
 The hosting environment comes from the process, and the server reads it *before* it looks at `.env` — so the file can never decide the environment it is conditional on, and `ASPNETCORE_ENVIRONMENT` in `.env` is ignored. `dotnet run` gets `Development` from the launch profile, which is why `.env.example` does not set it. An unset hosting environment is **production**, the framework's own default and the safe direction. The development-only Vite variables are required only in development, and a missing one fails loudly and names the variable.
 
-When the file is read, it **fills gaps without ever overriding** a value the process has already set, so a value in your shell wins over the same value in `.env`. A `.env` left in a production deployment cannot enable developer exception pages, the Vite development integration, or the absence of HTTPS redirection, because it can never contribute the hosting environment. It *is* read when the environment is unset — and an unset environment is production — so a deployment that forgets to set it still applies the file's other values. Nothing environment-bearing is copied into publish output.
+When the file is read, it **fills gaps without ever overriding** a value the process has already set, so a value in your shell wins over the same value in `.env`. A `.env` left in a production deployment cannot enable developer exception pages, the Vite development integration, or the absence of HTTPS redirection, because it can never contribute the hosting environment. It *is* read when the environment is unset — and an unset environment is production — so a deployment that forgets to set it still applies the file's other values. Nothing environment-bearing is copied into publish output: what you ship is what you reviewed, and the file does not travel with the artifact.
 
 Set production values through your host — a service manager `EnvironmentFile=`, `docker run --env-file`, IIS `web.config` `environmentVariables`, or an `appsettings.Production.json`.
 
-> **Upgrading?** If your production `.env` has values in it that `.env.example` does not, move them to your host. They are authoritative today only because the loader overrode the process, so they revert as soon as the host is configured correctly — and a green boot is not evidence the migration is complete.
+### Upgrading an existing deployment
+
+Do this **before** you upgrade, not after. The values in a hand-edited production `.env` are authoritative today *precisely because* the loader overrode the process — so the moment the file stops being read, every one of them reverts, and it reverts at exactly the moment you set your environment variable correctly and believe the deployment is tightened. Nothing announces it.
+
+**1. Inventory the file, and diff it against the example.** Every key that is not in `.env.example` belongs on your host. Comparing the *assignments* rather than the key names is what catches a value you overrode rather than added:
+
+```bash
+# On the deployment host. Lists the keys to move; values stay out of your terminal.
+# Assignments are normalized first: a dotenv file may indent a line, prefix it with
+# `export`, or space it around `=`, and none of those may make a key invisible.
+assignments() {
+  sed -E -e 's/^[[:space:]]+//' -e 's/^export[[:space:]]+//' \
+         -e 's/^([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*/\1=/' "$1" \
+    | grep -E '^[A-Za-z_][A-Za-z0-9_]*=' | sort -u
+}
+comm -23 <(assignments .env) <(assignments .env.example) | cut -d= -f1
+```
+
+Expect your connection strings, any logging overrides, the allowed-hosts value if you narrowed it, and the registry path override. Move each one to your host.
+
+**2. `Routes:JsonPath` is the one to check twice.** It is the value most likely to be sitting in that file by hand, and the one whose loss is a **security regression**. Losing it is *silent*, not loud: the published artifact carries its own copy of the registry beside the application, so a deployment that loses the name still boots, still enforces an access model, and still answers every request — the model of a *different* file. Nothing in the logs says so. If the registry your host named and the one beside the application disagree about any route's `access`, your deployment is now serving the wrong one. Re-point it explicitly:
+
+```bash
+# systemd, for example. Move every value from step 1 here, in the same edit.
+Environment=Routes__JsonPath=/srv/myapp/routes.json
+Environment=ConnectionStrings__DB=Server=prod;Database=MyApp;…
+```
+
+**3. Move the rest in the same change that sets the environment.** Do not split these across two deploys. Setting `ASPNETCORE_ENVIRONMENT=Production` is what withdraws the file, so a deploy that sets the environment and moves the values afterwards spends the interval with neither:
+
+```bash
+# systemd
+Environment=ASPNETCORE_ENVIRONMENT=Production
+```
+
+Supported host mechanisms, by name: a **service manager** `EnvironmentFile=`, a **container** `docker run --env-file`, the **IIS configuration's** `environmentVariables` in `web.config`, or a **production appsettings file** (`appsettings.Production.json`, beside the application, using the `Section__Key` form for the same names).
+
+**4. A green boot is not evidence the migration is complete.** The application starting, serving pages, and enforcing access is the *same outcome* whether the values are on your host or were never read at all. Verify each moved value directly — check the host's own environment, and request a route whose `access` differs between the registry your host named and the copy beside the application. If you cannot tell the two registries apart, the deploy is not verified.
 
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 

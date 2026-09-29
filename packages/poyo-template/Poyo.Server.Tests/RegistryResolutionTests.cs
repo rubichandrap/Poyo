@@ -7,10 +7,13 @@ namespace Poyo.Server.Tests;
 
 /// <summary>
 /// Where the registry comes from: an explicit value, then "Routes:JsonPath"
-/// resolved against the content root, then the file beside the application. The
-/// process working directory is never consulted — in ASP.NET it is also the
-/// default content root, so anchoring there would make a deployment's access
-/// model depend on the directory its host happened to start it in.
+/// resolved against the content root, then the file beside the application.
+/// The fallback never consults the process working directory — in ASP.NET it is
+/// also the default content root, so anchoring there would make a deployment's
+/// access model depend on the directory its host happened to start it in. A
+/// relative "Routes:JsonPath" does inherit the working directory, because it is
+/// resolved against the content root; the host chooses the content root, so
+/// that is the operator's instruction rather than the framework's default.
 /// </summary>
 public class RegistryResolutionTests
 {
