@@ -1,0 +1,11 @@
+[
+	{
+		"path": "/Custom",
+		"name": "Custom",
+		"files": {
+			"react": "src/pages/Custom/index.page.tsx",
+			"view": "Views/Home/Index.cshtml"
+		},
+		"controller": "Custom"
+	}
+]

@@ -5,7 +5,18 @@
 			"commandName": "Project",
 			"launchBrowser": true,
 			"dotnetRunMessages": true,
-			"applicationUrl": "https://localhost:7058;http://localhost:5104"
+			"applicationUrl": "https://localhost:7058;http://localhost:5104",
+			"environmentVariables": {
+				"ASPNETCORE_ENVIRONMENT": "Development",
+				"EnvFile": "../.env",
+				"Routes__JsonPath": "../routes.json",
+				"AllowedHosts": "*",
+				"Vite__Server__AutoRun": "true",
+				"Vite__Server__Port": "5173",
+				"Vite__Server__Https": "false",
+				"Vite__Server__PackageDirectory": "../",
+				"Vite__Server__DevServerUrl": "http://localhost:5173"
+			}
 		},
 		"IIS Express": {
 			"commandName": "IISExpress",

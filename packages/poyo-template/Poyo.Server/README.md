@@ -49,7 +49,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 ### 1. Registry Routing (`routes.json`)
 
-Poyo uses a registry-driven routing system. Routes are defined in `routes.json` (at the template root, the parent of this folder). `RoutePolicy` — the single place the server interprets the registry — validates it at startup (failing loudly on malformed entries) and maps each route to a controller action.
+Poyo uses a registry-driven routing system. Routes are defined in `routes.json` (at the template root, the parent of this folder), which is the source of truth — the csproj copies it beside the assembly so a published output carries it, and the server resolves it from there rather than from the process working directory. `RoutePolicy` — the single place the server interprets the registry — validates it at startup (failing loudly on malformed entries) and maps each route to a controller action. A registry that is missing, empty, unreadable, or unparseable fails startup by design: the access model, the SEO policy, and the no-store guarantee are all gated on it, so there is no safe way to boot without one. Set `Routes:JsonPath` to point at a different location.
 
 - **Default routes**: Most pages are served by `PageController` with a single `Index` action; the view path comes from the registry.
 - **Custom controller routes**: `controller`/`action` in the registry point a route at your own controller. Return `this.PoyoPage(data)` to join the framework's page result.
@@ -112,13 +112,16 @@ A manifest file (`_ReactAssets.cshtml`) is automatically generated during the bu
 | `dotnet watch` | Starts the server with hot reload. |
 | `pnpm run build` | Builds the client and server for production (run from root). |
 
-### Configuration (`.env`)
+### Configuration
 
-The server reads environment variables from the root `.env` file.
+The **process environment** is authoritative. The server reads the hosting environment from the process (`DOTNET_ENVIRONMENT`, else `ASPNETCORE_ENVIRONMENT`) before it looks at anything else, and the root `.env` file is only a development convenience: `Properties/launchSettings.json` names it via `EnvFile`, it is read only when the process says `Development` or says nothing, and it fills gaps without ever overriding a value the process already has set. An unset hosting environment is **Production**.
 
-**Required Variables:**
-- `ASPNETCORE_ENVIRONMENT`: `Development` or `Production`
-- `Vite__Server__DevServerUrl`: URL of the running Vite server (Dev only)
+**Nothing is required in production.** `appsettings.json` ships the allowed-hosts value and is included in the publish output. Set production values on your host — a service manager `EnvironmentFile=`, `docker run --env-file`, IIS `web.config` `environmentVariables`, or an `appsettings.Production.json`. A `.env` left in a deployment is not read once the host names the environment, and it can never contribute the environment itself; note that an *unset* environment is production and does still read the file, so set it. Nothing environment-bearing is copied into publish output.
+
+**Required in development only** — supplied by the launch profile, so `dotnet run` works on a fresh clone:
+- `Vite__Server__AutoRun`, `Vite__Server__Port`, `Vite__Server__DevServerUrl`
+
+A missing one fails startup immediately and names the variable. `Routes:JsonPath` is optional everywhere: it overrides where the Routes registry is resolved from, which otherwise is `routes.json` beside the application assembly.
 
 ---
 

@@ -28,9 +28,17 @@ _Avoid_: page, endpoint, page definition
 The part of the framework package's CLI that mutates the routes registry and scaffolds the page, view, and controller files for a route.
 _Avoid_: route generator, route script
 
+**Route identity**:
+What makes a route referable: a canonical declared path (rooted, no trailing slash except for the root, unique ignoring case), a canonical name (present, with no leading or trailing slash, unique ignoring case), and a controller and action declared together or not at all. Enforced in two disciplines with one definition — the authored registry is strict and fails the boot, the incoming request is normalized and resolved. A request URL is owned by the browser; a declaration is not.
+_Avoid_: route validation, canonical routes, path cleanup
+
 **Route policy**:
-The server's translation of a Route into an ASP.NET route mapping — which controller action serves it, which access rules apply, and how its SEO is applied. The single place the server interprets the Routes registry; it fails startup loudly when the registry violates the route schema.
+The server's translation of a Route into an ASP.NET route mapping — which controller action serves it, which access rules apply, and how its SEO is applied. The single place the server interprets the Routes registry; it fails startup loudly when the registry violates the route schema or a route's identity is not canonical.
 _Avoid_: route mapper, route interpreter, dynamic routing
+
+**Request resolution**:
+How a request finds its Route: one lookup, by normalized request path, answering "which route serves this request" for the access filter, the SEO filter, the page controller and the controller extension alike. A path the registry does not own resolves to no route, and routing answers it with a clean 404. A page therefore has exactly one URL — the path its registry entry declares.
+_Avoid_: route resolution, route matching, controller/action resolution
 
 **Generated project**:
 A standalone project produced by the scaffolder: the template plus the framework package as a dev dependency.
@@ -41,7 +49,7 @@ The optional JSON object a controller supplies for a React route, embedded in th
 _Avoid_: server state, props injection, hydration data
 
 **Routes registry**:
-The `routes.json` file that maps URL paths to their React page and server view files. The single source of truth for route existence.
+The `routes.json` file that maps URL paths to their React page and server view files. The single source of truth for route existence, and a required deployment artifact: it ships beside the application, the access model and the SEO policy are gated on it, and a deployment without one fails to start rather than serving unprotected pages.
 _Avoid_: route map, route config
 
 **Route table**:
@@ -67,3 +75,11 @@ _Avoid_: server runtime, NuGet package, shared module
 **Project identity**:
 The facts the package's CLI derives from a generated project rather than assuming from the template — the server namespace and the client/server directory names. Scaffolding renames the project, so tooling that hardcodes the template's names breaks in generated projects.
 _Avoid_: project name, namespace config
+
+**Hosting environment**:
+The environment name the application booted as, owned by the process: the deploy host owns it in a deployment, and development tooling owns it for a run-from-source launch. A host names it with `DOTNET_ENVIRONMENT` or `ASPNETCORE_ENVIRONMENT` — the first in preference to the second, the order the framework itself uses — and the server reads it before anything else loads, so the environment file cannot decide it. An unset hosting environment is production: the framework's own default and the safe direction.
+_Avoid_: deployment environment, mode
+
+**Environment file**:
+A development convenience (`.env`) the launch profile names, holding the values a developer's machine owns for both the client and the server. Read only when the process says development or says nothing, and only ever fills a gap: a value the process already set is never overridden, and the file never contributes the hosting environment. Not read at all once the process names the environment — but an unset environment is production *and still reads the file*, so a deployment that forgets to set it applies the file's other values. Never copied into publish output.
+_Avoid_: configuration, settings file, env config

@@ -18,6 +18,17 @@
     <Compile Include="../node_modules/@rubichandrap/poyo/server/**/*.cs" LinkBase="Framework" />
   </ItemGroup>
 
+  <!-- The Routes registry is a required deployment artifact, and the source of
+       truth stays the single routes.json at the project root. Copying it beside
+       the assembly is what lets a published application resolve it from the
+       installation directory instead of from the host's working directory. -->
+  <ItemGroup>
+    <Content Include="../routes.json" Link="routes.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
   <Target Name="PoyoServerCoreGuard" BeforeTargets="CoreCompile;FindRazorFiles">
     <Error Condition="!Exists('../node_modules/@rubichandrap/poyo/server/RoutePolicy.cs')"
            Text="Poyo server core not found at ../node_modules/@rubichandrap/poyo/server. Run 'pnpm install' in the repository root, then build again." />

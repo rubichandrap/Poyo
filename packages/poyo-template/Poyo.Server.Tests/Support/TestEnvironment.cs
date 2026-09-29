@@ -1,15 +1,52 @@
 using Microsoft.AspNetCore.Mvc.Testing;
+using Poyo.Framework;
 
 namespace Poyo.Server.Tests.Support;
 
 internal static class TestEnvironment
 {
+    /// <summary>
+    /// The fixture name that stands for a registry that is not there. The
+    /// registry is a required deployment artifact, so its absence is a case the
+    /// boot-failure table asserts, and it has no fixture file by definition.
+    /// </summary>
+    public const string MissingRegistry = "routes.absent.json";
+
     private static bool _configured;
 
     private static readonly object Gate = new();
 
     public static string FixturePath(string fileName) =>
-        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Fixtures", fileName);
+        fileName == MissingRegistry
+            ? MissingRegistryPath()
+            : Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "Fixtures", fileName);
+
+    /// <summary>
+    /// A registry path that does not exist. The registry is a required
+    /// deployment artifact, so a deployment that lost it must fail to start.
+    /// </summary>
+    public static string MissingRegistryPath() =>
+        Path.Combine(Path.GetTempPath(), "poyo-registry-absent", "routes.json");
+
+    /// <summary>
+    /// A readable copy of a registry fixture that cannot be read while the
+    /// returned lock is alive.
+    /// </summary>
+    public static LockedRegistry LockRegistry(string fixtureFileName) =>
+        LockedRegistry.CreateFrom(FixturePath(fixtureFileName));
+
+    /// <summary>
+    /// Boots with a registry at the given path and returns the route policy
+    /// failure the host reported, or null when the host reported something
+    /// else. A boot failure reaches the test wrapped in whatever the host adds
+    /// on its way out, so the exception under test is somewhere in the chain.
+    /// </summary>
+    public static RoutePolicyException? BootFailureFor(string registryPath)
+    {
+        var thrown = Record.Exception(() => CreateServerAndStart(registryPath));
+        Assert.NotNull(thrown);
+        return ExceptionChain.Unwrap(thrown).OfType<RoutePolicyException>().FirstOrDefault();
+    }
 
     public static string TemplateRoutesPath() =>
         Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "routes.json");

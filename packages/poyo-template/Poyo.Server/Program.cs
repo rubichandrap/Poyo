@@ -3,10 +3,48 @@ using Microsoft.OpenApi;
 using Poyo.Framework;
 using Vite.AspNetCore;
 
-string? root = Directory.GetParent(Directory.GetCurrentDirectory())!.FullName;
-string? envPath = Path.Combine(root, ".env");
+// The process environment owns the hosting environment (ADR 0017), read
+// before anything else loads so the environment file can never decide the
+// environment it is conditional on. A host may name it with either variable
+// and the framework gives DOTNET_ENVIRONMENT precedence, so read them the way
+// the framework reads them — otherwise a host using the general name would
+// still be at the file's mercy.
+string? dotnetEnvironment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
+string? aspnetEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+string? hostingEnvironment = dotnetEnvironment ?? aspnetEnvironment;
 
-Env.Load(envPath);
+// The environment file is a development convenience, never a deployment
+// requirement. The loader defaults to overriding, so filling gaps is stated
+// here rather than inherited: a real deployment variable always wins.
+string? envFile = Environment.GetEnvironmentVariable("EnvFile");
+
+if (IsUnsetOrDevelopment(hostingEnvironment)
+    && !string.IsNullOrWhiteSpace(envFile)
+    && File.Exists(envFile))
+{
+    Env.Load(envFile, LoadOptions.NoClobber());
+
+    // Filling gaps would otherwise cover the hosting environment when the
+    // process left it out, which is the one value this file must never supply
+    // however it spells its absence.
+    if (dotnetEnvironment is null)
+    {
+        Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", null);
+    }
+
+    if (aspnetEnvironment is null)
+    {
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", null);
+    }
+}
+
+// Unset counts as development because an unset environment is production, and
+// a deployment that forgot to name its environment still gets this file's
+// other values. The environment itself stays out of the file's reach either
+// way; the operator-facing fix is to set it on the host.
+static bool IsUnsetOrDevelopment(string? hostingEnvironment) =>
+    string.IsNullOrWhiteSpace(hostingEnvironment)
+    || string.Equals(hostingEnvironment, Environments.Development, StringComparison.OrdinalIgnoreCase);
 
 static void RequireEnv(params string[] keys)
 {
@@ -24,34 +62,38 @@ static void RequireEnv(params string[] keys)
     }
 }
 
-if (!int.TryParse(
-        Environment.GetEnvironmentVariable("Vite__Server__Port"),
-        out _))
-{
-    throw new InvalidOperationException(
-        "Vite__Server__Port must be a valid integer");
-}
-
 WebApplicationBuilder? builder = WebApplication.CreateBuilder(args);
 
-RequireEnv(
-    "ASPNETCORE_ENVIRONMENT",
-    "AllowedHosts",
-    "Vite__Server__AutoRun",
-    "Vite__Server__Port"
-);
-
+// The Vite integration is a development tool, so its requirements are
+// development requirements. Outside development a host owns no client dev
+// server, and the allowed-hosts value ships in appsettings.json, so a
+// production host needs nothing this template owns. Loud failure stays where no
+// safe default exists, which is the development variables.
 if (builder.Environment.IsDevelopment())
 {
-    RequireEnv("Vite__Server__DevServerUrl");
+    RequireEnv(
+        "Vite__Server__AutoRun",
+        "Vite__Server__Port",
+        "Vite__Server__DevServerUrl");
+
+    if (!int.TryParse(
+            Environment.GetEnvironmentVariable("Vite__Server__Port"),
+            out _))
+    {
+        throw new InvalidOperationException(
+            "Vite__Server__Port must be a valid integer");
+    }
 }
 
 // Route policy + universal access/SEO enforcement (the server core ships
 // inside @rubichandrap/poyo and compiles in place — ADR 0008). The registry
-// lives at the project root; Routes:JsonPath overrides it for hosted runs.
-string? routesJsonPath = builder.Configuration["Routes:JsonPath"]
-    ?? Path.Combine(root, "routes.json");
-builder.Services.AddPoyo(builder.Configuration, routesJsonPath);
+// is a required deployment artifact: it travels beside the application, and
+// Routes:JsonPath overrides its location for hosted runs. The content root
+// resolves a relative Routes:JsonPath — which inherits the working directory
+// when the host does not set a content root, so prefer an absolute one.
+builder.Services.AddPoyo(
+    builder.Configuration,
+    contentRootPath: builder.Environment.ContentRootPath);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -160,12 +202,12 @@ app.UseAuthorization();
 // API routes
 app.MapControllers();
 
-// Dynamic Routing from routes.json
+// Dynamic Routing from routes.json — the registry is the single source of
+// truth for route existence. There is deliberately no conventional
+// controller/action fallback: a URL the registry does not own matches no
+// endpoint and is answered by routing with a clean 404, so a page has exactly
+// one URL and every URL that reaches a page carries the same access, SEO and
+// private no-store policy.
 app.MapPoyoRoutes();
-
-// MPA routes (Fallback for unmatched URLs, clean 404)
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller}/{action}/{id?}");
 
 app.Run();

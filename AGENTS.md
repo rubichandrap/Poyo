@@ -79,6 +79,12 @@ Poyo is intentionally minimal. It provides:
 - `guest` + authenticated → redirect to the configured landing page (`Routes:LandingPath`, default `/Dashboard`)
 - `public` → open to everyone
 - Applies to custom-controller routes exactly like default ones.
+- One lookup, by request path, answers "which route serves this request" at every seam — the access filter, the SEO filter, the page controller, and `ControllerExtensions.PoyoPage` (ADR 0016). A URL the registry does not own resolves to no route, so no access decision and no page policy apply to it.
+
+**One URL per route (ADR 0016):**
+- There is no conventional `controller/action` route. `Program.cs` maps the registry and nothing else, so a page route is served only at its declared path and every other path is answered by routing with a clean 404, before any framework filter runs.
+- A conventional URL is therefore not a weaker path to a page: it is not a path. Do not re-add a `MapControllerRoute("{controller}/{action}")` fallback — it republishes a second URL for every controller the registry names, on a page action no registry route authorizes, with no access model, no SEO, no descriptor and no `private, no-store` policy behind it.
+- Need a second URL? Declare a second route in `routes.json` pointing at the same controller action.
 
 **Attributes:**
 - Page data has no attribute path; controller actions return `this.PoyoPage(data)`.
@@ -140,11 +146,13 @@ public class AuthService : IAuthService
 
 ### 2.6. Server Core (framework package)
 
-The framework-owned server code — `RoutePolicy`, `RouteDefinition`, the access/SEO filters, `PageResult`, `PageController`, the controller extension, the `@Html.PoyoPageData()` helper, and the `AddPoyo()`/`MapPoyoRoutes()` registration extensions — ships as readable source inside the framework package (`node_modules/@rubichandrap/poyo/server/`, namespace `Poyo.Framework`) and is never copied into a project tree (ADR 0008).
+The framework-owned server code — `RoutePolicy`, `RouteDefinition`, `RouteIdentity` (the canonical declared path/name, their uniqueness, and the request-path normalization, in one place), the access/SEO filters, `PageResult`, `PageController`, the controller extension, the `@Html.PoyoPageData()` helper, and the `AddPoyo()`/`MapPoyoRoutes()` registration extensions — ships as readable source inside the framework package (`node_modules/@rubichandrap/poyo/server/`, namespace `Poyo.Framework`) and is never copied into a project tree (ADR 0008).
 
 - The server csproj compiles it in place: `Compile Include="../node_modules/@rubichandrap/poyo/server/**/*.cs" LinkBase="Framework"`, plus the defensive `Compile Remove="node_modules/**/*.cs"`. The files open in the IDE under a `Framework` link. Rename-safety is by construction for everything under `node_modules` — the scaffolder's rename pass never rewrites the installed package; the framework identifiers the template's own files call (`Poyo.Framework`, `AddPoyo`, `MapPoyoRoutes`, `PoyoPage`, the `X-Poyo-Navigation` literal) survive the rename through the scaffolder's sentinel protection.
 - An `Exists` guard fails the build with "run `pnpm install`" when the package is missing — the one failure mode of the in-place design is an instruction, not a mystery.
-- `Program.cs` wires the core with `builder.Services.AddPoyo(builder.Configuration, routesJsonPath)` (loads and validates the registry eagerly, installs both filters) and `app.MapPoyoRoutes()` after `app.MapControllers()`. Keep that wiring; the project's own server code is controllers, services, models, views, and `GlobalExceptionHandler`.
+- `Program.cs` wires the core with `builder.Services.AddPoyo(builder.Configuration, contentRootPath: builder.Environment.ContentRootPath)` (loads and validates the registry eagerly, installs both filters) and `app.MapPoyoRoutes()` after `app.MapControllers()`. Keep that wiring; the project's own server code is controllers, services, models, views, and `GlobalExceptionHandler`.
+- The registry is a required deployment artifact (ADR 0014): it resolves from an explicit value (`Routes:JsonPath`, a relative one against the content root), then `routes.json` beside the application assembly, then a hard startup failure. The default never consults the process working directory — an explicitly configured relative path is resolved against the content root, which the host chooses — and a registry that is missing, empty, unreadable or unparseable fails the boot with a message naming which of the four it was. The server csproj copies the project-root registry beside the assembly (`Content Include="../routes.json"`), and `Properties/launchSettings.json` names the project-root registry plus the development environment file, so a run-from-source launch needs no `.env`.
+- The process environment owns the hosting environment (ADR 0017). `Program.cs` reads it from the process *before* anything else loads — `DOTNET_ENVIRONMENT` in preference to `ASPNETCORE_ENVIRONMENT`, the order the framework itself uses — then reads the `EnvFile` the launch profile names, only when the process says development or says nothing, and only with `LoadOptions.NoClobber()`, so the file fills gaps and never overrides. It then puts back the absence of any environment variable the process did not use, so the file cannot contribute the environment by either name. Keep that order: the file must not be able to decide the environment it is conditional on. An unset hosting environment is production; there is no custom failure for a missing one. The Vite variable requirements and the port-integrality gate live behind `IsDevelopment()`, and `AllowedHosts` is not required because `appsettings.json` ships it. Keep production requiring nothing the template owns.
 - Upgrade path: `pnpm update @rubichandrap/poyo` — server-side framework fixes arrive with the CLI and runtime, no scaffold or copy step. Never edit the installed files; they are read-only teaching material.
 
 ---
@@ -312,7 +320,14 @@ One navigation path: descriptor fetch (`X-Poyo-Navigation: 1`, `credentials: "sa
 
 `access` is one of `public` | `guest` | `protected` (default `protected`). Legacy `isPublic`/`isGuestOnly` flags are rejected as unknown fields — there is no migration shim.
 
+**Route identity is one thing, defined once: strict on disk, liberal at runtime.** The registry is authored, so the boot refuses it (naming the route and the value) when a `path` does not begin with `/`, ends with a trailing slash (except `/`), duplicates another path ignoring case, when a `name` is missing, blank, carries a leading or trailing slash, or duplicates another name ignoring case, and when a `controller` is declared without an `action` or an `action` without a `controller`, neither of them blank. `RouteIdentity` owns those rules, the uniqueness, and the request-path normalization; `RoutePolicy` keeps its ordered `Routes` list (declaration order drives error messages and endpoint registration) beside a normalized-path index used by `Find`. A request is normalized — trailing slashes trimmed, the root preserved — and matched case-insensitively, so `/login`, `/Login`, and `/Login/` all serve the declared `/Login`. The framework package's route manager enforces the same declared-path, name, and controller/action rules on every read and write, and refuses rather than normalizes, so a non-canonical path can never reach the typed `RoutePath` union or rendered link markup. See ADR 0015.
+
+
 `dynamic` is an optional boolean (default `true`). Setting `"dynamic": false` opts the route out of dynamic navigation: the server answers the document even when a request carries the navigation header, and the client never swaps it in (§3.7). There is no CLI flag for it — edit the registry by hand; the CLI validates the field on every read (`junk` values fail with the route named) and round-trips it untouched. Boot validation rejects malformed values the same way.
+
+The registry is also a deployment artifact, not just a content file: the access model, the SEO policy and the private no-store guarantee are all gated on it answering for the request, so a deployment without it fails to start rather than serving unprotected pages (ADR 0014, §2.6).
+
+The `.env` in a generated project is a development convenience that never travels with the artifact. It does not set the hosting environment, so `.env.example` must not carry `ASPNETCORE_ENVIRONMENT` (ADR 0017, §2.6) — `Properties/launchSettings.json` supplies it for `dotnet run`, and a deployment sets it on the host.
 
 The client consumes the registry through the runtime route table: `src/routes/route-loader.ts` imports `routes.json` directly, while `poyo generate` emits `<client>/routes.generated.ts` (ambient type augmentation — `RouteName`/`RoutePath` unions, see §3.7), gitignored and kept fresh by every route command, so `routes.json` stays the only edited source of truth.
 
@@ -441,9 +456,13 @@ dotnet publish -c Release
 
 ### 8.2. Environment Variables
 
-**Required:**
-- `ASPNETCORE_ENVIRONMENT`
-- `Vite__Server__DevServerUrl` (dev only)
+**Required (production):** nothing the template owns. The allowed-hosts value ships in `appsettings.json` and an unset hosting environment is production (ADR 0017, §2.6).
+
+**Set on the host:**
+- `ASPNETCORE_ENVIRONMENT=Production` — set it explicitly; the default is production either way
+- `Routes:JsonPath` (only to point at a registry outside the application directory)
+
+**Required (development only):** the Vite variables (`Vite__Server__AutoRun`, `Vite__Server__Port`, `Vite__Server__DevServerUrl`) — `Properties/launchSettings.json` supplies them and the hosting environment for `dotnet run`. A missing one fails startup and names the variable.
 
 **Optional:**
 - `ConnectionStrings__DB` (if using database)

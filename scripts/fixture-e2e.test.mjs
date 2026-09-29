@@ -24,6 +24,11 @@
  *      attribute, the `routePath` init guard).
  *   8. Server build compiles the C# server core straight from the installed
  *      package (no in-tree framework copies).
+ *   8b. The published output carries the registry: the registry is a required
+ *       deployment artifact, and a publish that dropped it would deploy an
+ *       application with no access model.
+ *   8c. The published output carries no environment file: the environment is a
+ *       development convenience and never travels with the artifact.
  *   9. Server boot exports OpenAPI snapshot in-process without network requests.
  *  10. Served page renders HTML with data-page-name and data-base-path.
  *  11. The dynamic-navigation wire contract (ADR 0009): a descriptor request
@@ -724,6 +729,63 @@ test(
 				`server build failed:\n${serverBuild.output}`,
 			);
 
+			// 8b. The published output carries the registry. It resolves from
+			//     the application installation directory, so a publish that
+			//     left it behind would deploy an application whose access
+			//     model, SEO policy and no-store guarantee are all off. The
+			//     deploy command is `dotnet publish` (the package script wraps
+			//     it, and pnpm refuses to run a script named `publish` in a
+			//     dirty tree).
+			const serverPublish = run(
+				"dotnet",
+				["publish", "--configuration", "Release", "--output", "publish"],
+				path.join(fixture, SERVER_DIR),
+				300_000,
+			);
+			assert.equal(
+				serverPublish.status,
+				0,
+				`server publish failed:\n${serverPublish.output}`,
+			);
+			const publishedRegistry = path.join(
+				fixture,
+				SERVER_DIR,
+				"publish",
+				"routes.json",
+			);
+			assert.ok(
+				fs.existsSync(publishedRegistry),
+				`the published output must contain the registry (${publishedRegistry})`,
+			);
+
+			// 8c. The published output carries no environment file. The
+			//     environment is a development convenience, and what you ship
+			//     should be what you reviewed: a publish that dropped an
+			//     operator's .env into the output would put their values in
+			//     the artifact, readable by anyone who can read the deploy.
+			//     The whole tree is walked, because a copy item that reached a
+			//     subdirectory would be just as much of a leak.
+			const publishRoot = path.join(fixture, SERVER_DIR, "publish");
+			const publishedEnvironmentFiles = [];
+			const walk = (directory) => {
+				for (const entry of fs.readdirSync(directory, {
+					withFileTypes: true,
+				})) {
+					const full = path.join(directory, entry.name);
+					if (entry.isDirectory()) {
+						walk(full);
+					} else if (entry.name === ".env" || entry.name.startsWith(".env.")) {
+						publishedEnvironmentFiles.push(path.relative(publishRoot, full));
+					}
+				}
+			};
+			walk(publishRoot);
+			assert.deepEqual(
+				publishedEnvironmentFiles,
+				[],
+				"the published output must contain no environment file",
+			);
+
 			// 9. In-process OpenAPI snapshot generation on server boot:
 			// Delete snapshot, boot server, and assert server writes fresh snapshot.
 			const snapshotFile = path.join(
@@ -750,10 +812,16 @@ test(
 				[serverDll, "--urls", `http://127.0.0.1:${serverPort}`],
 				{
 					cwd: path.join(fixture, SERVER_DIR),
+					// The fixture names its own environment: the scaffolded
+					// .env is a development convenience the launcher points
+					// at, and a launch that names its own values must not
+					// depend on one being loaded.
 					env: {
 						...process.env,
 						ASPNETCORE_ENVIRONMENT: "Development",
+						AllowedHosts: "*",
 						Vite__Server__AutoRun: "false",
+						Vite__Server__Port: "5173",
 						Vite__Server__DevServerUrl: "http://localhost:5173",
 						ASPNETCORE_URLS: `http://127.0.0.1:${serverPort}`,
 					},

@@ -73,6 +73,47 @@ The server carries no routing code of its own: `Poyo.Server.csproj` compiles the
 
 On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it globs the page files, resolves the server-injected base path (`data-base-path` on the mount root or `<body>`; `VITE_BASE_URL` is the standalone-dev fallback), and calls `createRouteTable` from `@rubichandrap/poyo/runtime` with `routes.json` — route resolution ships from the framework package, not from this project. The typed manifest `routes.generated.ts` is gitignored at the client package root and kept fresh by every route command and `poyo generate` — use `routePath("Login")` (imported from `@rubichandrap/poyo/runtime`) for static links so a renamed route breaks the build instead of 404ing.
 
+### Deploying the registry
+
+`routes.json` is a required deployment artifact, not a content file: the access model, the SEO policy, and the private no-store guarantee are all gated on the server reading it, so an application whose registry is missing, empty, unreadable, or unparseable **refuses to start** and says which of the four it was. A deployment is therefore a failed deploy rather than a site with no access control.
+
+The server resolves it from `Routes:JsonPath` when the host names a location (a relative value resolves against the content root), and otherwise from `routes.json` beside the application assembly. `Poyo.Server.csproj` copies the project-root registry there on build and publish, so `dotnet publish` output is self-contained and serves the same routes from any working directory. The default never consults the working directory; a `Routes:JsonPath` you set yourself is resolved against the content root, so keep it absolute if the host may not set the content root. Keep editing the single project-root `routes.json`; the copy in the build output is not the source of truth. Development launches name the project-root registry (and the optional `.env`) in `Poyo.Server/Properties/launchSettings.json`, so `pnpm run dev` works on a fresh clone with no `.env` present.
+
+### Route identity
+
+A route's identity is one thing, defined once, and the registry is held to it: **strict on disk, liberal at runtime.** The file is authored, so it is canonical; a request URL is owned by the browser, so it is resolved rather than rejected.
+
+The server **refuses to start** — naming the route and the value — when a route declares:
+
+- a `path` that does not begin with `/`, or that ends with one (`/` is the only exception);
+- a `name` that is missing, blank, or begins or ends with `/`;
+- a `path` or a `name` that another route already claims, ignoring case — `/Dashboard` and `/dashboard/` are one route, as are `Settings` and `settings`;
+- a `controller` without an `action`, or an `action` without a `controller` (declare both or neither; neither is the default page controller, and neither may be blank).
+
+`poyo` enforces the same rules whenever it reads or writes the registry, so an invalid registry is rejected when you author it rather than when you deploy it. Nothing normalizes a non-canonical path for you, which is deliberate: the registry is read by the server, by the route manager, and by the client runtime, and a canonical file means none of the three needs its own normalizer.
+
+In the browser it stays forgiving. A request is normalized (trailing slashes trimmed, the root path preserved) and matched case-insensitively, so `/login`, `/Login` and `/Login/` all serve the declared `/Login` — with the same status, page name, and privacy headers.
+
+### One URL per route
+
+`routes.json` is the single source of truth for route existence, so a page is served at exactly one URL: the path its registry entry declares. `Program.cs` maps the registry and nothing else — there is no conventional `{controller}/{action}` route — so any other path is answered by routing with a clean 404, before the access filter, the SEO filter, or the page itself runs. Every URL that reaches a page therefore carries the same access model, the same registry SEO, the navigation descriptor, and `Cache-Control: private, no-store`. There is no weaker path to a page.
+
+That is why a custom controller does not give you a second URL for free. `/Dashboard` maps to `DashboardController.Index`; `/Dashboard/Index` is not a page, and asking for it 404s whether you are signed in or not.
+
+> **Upgrading?** A link to a page route by its conventional URL now returns 404. Point it at the declared path (`/Dashboard`, not `/Dashboard/Index`) — or, better, use `routePath("Dashboard")` so a renamed route breaks the build instead of 404ing. If you genuinely need two URLs for one action, declare a second route in `routes.json` pointing at the same controller: two declared routes are two URLs the registry authorizes, which is not what a conventional alias was.
+
+### The process environment, and `.env`
+
+The **process environment is authoritative**: the deploy host owns the server's production values, and the build host owns the client's. `.env` is a development convenience, and a deployment that names its environment never reads it.
+
+The hosting environment comes from the process, and the server reads it *before* it looks at `.env` — so the file can never decide the environment it is conditional on, and `ASPNETCORE_ENVIRONMENT` in `.env` is ignored. `dotnet run` gets `Development` from the launch profile, which is why `.env.example` does not set it. An unset hosting environment is **production**, the framework's own default and the safe direction. The development-only Vite variables are required only in development, and a missing one fails loudly and names the variable.
+
+When the file is read, it **fills gaps without ever overriding** a value the process has already set, so a value in your shell wins over the same value in `.env`. A `.env` left in a production deployment cannot enable developer exception pages, the Vite development integration, or the absence of HTTPS redirection, because it can never contribute the hosting environment. It *is* read when the environment is unset — and an unset environment is production — so a deployment that forgets to set it still applies the file's other values. Nothing environment-bearing is copied into publish output.
+
+Set production values through your host — a service manager `EnvironmentFile=`, `docker run --env-file`, IIS `web.config` `environmentVariables`, or an `appsettings.Production.json`.
+
+> **Upgrading?** If your production `.env` has values in it that `.env.example` does not, move them to your host. They are authoritative today only because the loader overrode the process, so they revert as soon as the host is configured correctly — and a green boot is not evidence the migration is complete.
+
 Manage routes with the `poyo` CLI (a dev dependency of this project):
 
 ```bash

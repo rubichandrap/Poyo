@@ -33,21 +33,33 @@ public class RoutePolicyTests
     }
 
     [Fact]
-    public void Load_accepts_empty_registry()
+    public void Load_throws_on_registry_declaring_no_routes()
     {
-        var policy = RoutePolicy.Load(TestEnvironment.FixturePath("routes.empty.json"));
+        var ex = Assert.Throws<RoutePolicyException>(
+            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.empty.json")));
 
-        Assert.Empty(policy.Routes);
+        Assert.Contains("is empty", ex.Message);
+        Assert.Contains("no routes", ex.Message);
     }
 
     [Fact]
-    public void Load_returns_empty_policy_when_registry_missing()
+    public void Load_throws_on_registry_file_with_no_content()
     {
-        var missing = Path.Combine(Path.GetTempPath(), "does-not-exist-routes.json");
+        var ex = Assert.Throws<RoutePolicyException>(
+            () => RoutePolicy.Load(TestEnvironment.FixturePath("routes.blank.json")));
 
-        var policy = RoutePolicy.Load(missing);
+        Assert.Contains("is empty", ex.Message);
+        Assert.Contains("no content", ex.Message);
+    }
 
-        Assert.Empty(policy.Routes);
+    [Fact]
+    public void Load_throws_when_registry_missing()
+    {
+        var ex = Assert.Throws<RoutePolicyException>(
+            () => RoutePolicy.Load(TestEnvironment.MissingRegistryPath()));
+
+        Assert.Contains("was not found", ex.Message);
+        Assert.Contains(TestEnvironment.MissingRegistryPath(), ex.Message);
     }
 
     [Fact]
@@ -106,6 +118,51 @@ public class RoutePolicyTests
         Assert.Contains("/dashboard", ex.Message);
     }
 
+    /// <summary>
+    /// The truth table of the one function that makes a request liberal: a
+    /// request URL is owned by the browser, so a trailing slash is trimmed and
+    /// the root path survives the trim.
+    /// </summary>
+    [Theory]
+    [InlineData(null, "/")]
+    [InlineData("", "/")]
+    [InlineData("/", "/")]
+    [InlineData("//", "/")]
+    [InlineData("/Dashboard", "/Dashboard")]
+    [InlineData("/Dashboard/", "/Dashboard")]
+    [InlineData("/Dashboard///", "/Dashboard")]
+    [InlineData("/reports/monthly/", "/reports/monthly")]
+    [InlineData("Dashboard", "Dashboard")]
+    public void A_request_path_is_normalized_without_touching_its_case(string? requestPath, string expected)
+    {
+        Assert.Equal(expected, RouteIdentity.NormalizeRequestPath(requestPath));
+    }
+
+    [Fact]
+    public void Find_resolves_a_normalized_path_through_the_index()
+    {
+        var policy = RoutePolicy.Load(TestEnvironment.FixturePath("routes.valid.json"));
+
+        Assert.Equal("Dashboard", policy.Find("/DASHBOARD")?.Name);
+        Assert.Equal("Dashboard", policy.Find("/Dashboard///")?.Name);
+        Assert.Null(policy.Find("/Dashboard/Extra"));
+    }
+
+    /// <summary>
+    /// The ordered list and the lookup index are two views of one registry:
+    /// declaration order still answers error messages and endpoint
+    /// registration, and the index is an acceleration over normalized paths.
+    /// </summary>
+    [Fact]
+    public void The_ordered_list_is_retained_alongside_the_index()
+    {
+        var policy = RoutePolicy.Load(TestEnvironment.FixturePath("routes.valid.json"));
+
+        Assert.Equal(
+            new[] { "/", "/Dashboard", "/Login", "/Register" },
+            policy.Routes.Select(route => route.Path));
+    }
+
     [Fact]
     public void Load_throws_on_malformed_dynamic_value_naming_the_route()
     {
@@ -127,4 +184,82 @@ public class RoutePolicyTests
         Assert.Null(policy.Find("/NotARoute"));
         Assert.Null(policy.Find("/api/auth/login"));
     }
+
+    /// <summary>
+    /// An operator reading a startup failure should not have to guess from a
+    /// stack trace which of the four states the registry arrived in, so each
+    /// message carries its own state and no other one's.
+    /// </summary>
+    [Fact]
+    public void The_four_unusable_registry_states_are_told_apart()
+    {
+        using var unreadable = TestEnvironment.LockRegistry("routes.valid.json");
+
+        var states = new (string Marker, string Message)[]
+        {
+            ("was not found", CaptureFailure(TestEnvironment.MissingRegistryPath())),
+            ("is empty", CaptureFailure(TestEnvironment.FixturePath("routes.empty.json"))),
+            ("cannot read", CaptureFailure(unreadable.RegistryPath)),
+            ("is not a valid routes registry", CaptureFailure(TestEnvironment.FixturePath("routes.malformed.json"))),
+        };
+
+        foreach (var (marker, message) in states)
+        {
+            Assert.Contains(marker, message, StringComparison.OrdinalIgnoreCase);
+
+            foreach (var (otherMarker, _) in states.Where(s => s.Marker != marker))
+            {
+                Assert.DoesNotContain(otherMarker, message, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A registry this process cannot reach is not a missing registry.
+    /// <c>File.Exists</c> answers false for any stat failure, not only for an
+    /// absent file, so a registry sitting in a directory without execute
+    /// permission is exactly the case where "was not found" is the wrong
+    /// diagnosis — it sends the operator to look for a file that is already
+    /// there, in a directory that is already there.
+    /// </summary>
+    [Fact]
+    public void An_unreachable_registry_is_reported_as_unreadable_not_missing()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        var directory = Path.Combine(Path.GetTempPath(), $"poyo-unreachable-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var registryPath = Path.Combine(directory, "routes.json");
+        File.WriteAllText(registryPath, "[]");
+
+        try
+        {
+            // Unix mode bits are the seam. A root-run job bypasses them, so the
+            // test declines to assert anything it cannot actually reach.
+            File.SetUnixFileMode(directory, UnixFileMode.None);
+
+            if (File.Exists(registryPath))
+            {
+                return;
+            }
+
+            var message = CaptureFailure(registryPath);
+
+            Assert.Contains("cannot read", message, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("was not found", message, StringComparison.OrdinalIgnoreCase);
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                directory,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    private static string CaptureFailure(string registryPath) =>
+        Assert.Throws<RoutePolicyException>(() => RoutePolicy.Load(registryPath)).Message;
 }
