@@ -1,0 +1,18 @@
+{
+	"verdict": "reject",
+	"note": "A field has exactly one spelling across all three runtimes, so a mis-cased member is an unknown member rather than a second way to say path. The route is named by the one half of its identity still readable, which here is its name.",
+	"message": [
+		"Path",
+		"not a supported route field"
+	],
+	"registry": [
+		{
+			"Path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

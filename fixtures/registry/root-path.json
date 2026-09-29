@@ -1,0 +1,14 @@
+{
+	"verdict": "accept",
+	"note": "The root is the one path allowed to end in a slash.",
+	"registry": [
+		{
+			"path": "/",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

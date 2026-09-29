@@ -1,9 +1,0 @@
-[
-	{
-		"path": "/Missing",
-		"files": {
-			"react": "src/pages/Missing/index.page.tsx",
-			"view": "Views/Dashboard/Index.cshtml"
-		}
-	}
-]

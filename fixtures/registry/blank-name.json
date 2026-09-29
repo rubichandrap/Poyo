@@ -1,0 +1,18 @@
+{
+	"verdict": "reject",
+	"note": "Blank means blank, not merely empty: a name of \"   \" is a declaration the server cannot act on.",
+	"message": [
+		"missing or blank",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "   ",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

@@ -16,6 +16,13 @@ internal static class TestEnvironment
 
     private static readonly object Gate = new();
 
+    /// <summary>
+    /// A registry from this project's own fixtures. These are the registries a
+    /// test serves pages from, and the file states a registry can arrive in.
+    /// The registries the contract refuses are not here: they are the shared
+    /// corpus at the repository root, which the route manager's suite reads too
+    /// — see <see cref="RegistryCorpus"/>.
+    /// </summary>
     public static string FixturePath(string fileName) =>
         fileName == MissingRegistry
             ? MissingRegistryPath()

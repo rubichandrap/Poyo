@@ -1,0 +1,16 @@
+{
+	"verdicts": {
+		"server": "accept",
+		"manager": "reject"
+	},
+	"note": "A file path is not part of a route's identity, and the server judges no file path's value — it checks that the members it reads are present and typed, and nothing more. The route manager is the runtime that resolves the React page, so it requires it, and a route with no `react` is refused there and served here. ADR 0015 pinned the split; this case is where it is visible.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

@@ -1,0 +1,18 @@
+{
+	"verdict": "reject",
+	"note": "seo is an object of the server's SEO model, not a string.",
+	"message": [
+		"seo"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"seo": "title only"
+		}
+	]
+}

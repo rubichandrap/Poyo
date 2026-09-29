@@ -25,14 +25,11 @@ const KNOWN_FILE_FIELDS = new Set(["react", "view"]);
  */
 function expectNonEmptyString(
 	label: string,
-	pathLabel: string,
 	field: string,
 	value: unknown,
 ): void {
 	if (typeof value !== "string" || value.trim().length === 0) {
-		throw new CliError(
-			`${label} ("${pathLabel}"): "${field}" must be a non-empty string`,
-		);
+		throw new CliError(`${label}: "${field}" must be a non-empty string`);
 	}
 }
 
@@ -42,17 +39,30 @@ function expectNonEmptyString(
  * the route manager's own earlier guard, so it stays as it was rather than
  * borrowing the identity rule's notion of blank.
  */
-function expectFileString(
-	label: string,
-	pathLabel: string,
-	field: string,
-	value: unknown,
-): void {
+function expectFileString(label: string, field: string, value: unknown): void {
 	if (typeof value !== "string" || value.length === 0) {
-		throw new CliError(
-			`${label} ("${pathLabel}"): "files.${field}" must be a non-empty string`,
-		);
+		throw new CliError(`${label}: "files.${field}" must be a non-empty string`);
 	}
+}
+
+/**
+ * Names a route in a failure message by whichever half of its identity is
+ * still readable, so a message is useful even when the other half is what is
+ * wrong — a mis-cased `path`, a blank `name`. The server's `RouteIdentity`
+ * describes a route the same way, and the registry corpus asserts that both
+ * name the route a case is about.
+ */
+function routeLabel(index: number, entry: Record<string, unknown>): string {
+	const path = typeof entry.path === "string" ? entry.path.trim() : "";
+	if (path.length > 0) {
+		return `routes[${index}] ("${entry.path}")`;
+	}
+
+	const name = typeof entry.name === "string" ? entry.name.trim() : "";
+
+	return name.length > 0
+		? `routes[${index}] (name "${entry.name}")`
+		: `routes[${index}]`;
 }
 
 /**
@@ -60,9 +70,15 @@ function expectFileString(
  * it is held to a canonical form, and the server enforces the same rules at
  * boot. This module is the route manager's half of that contract — it exists
  * so an invalid registry is rejected when it is authored rather than when it
- * is deployed, not so the two runtimes can disagree. Each refuses the same
- * registries; each picks the offending route in its own pass order, so the
- * wording here deliberately mirrors the server's rather than repeating it.
+ * is deployed, not so the two runtimes can disagree.
+ *
+ * Both runtimes read the same corpus of registries at `fixtures/registry/`
+ * and are held to the same verdicts, so "both refuse the same registries" is
+ * enforced rather than asserted: a rule added here and not to the server, or
+ * the other way round, turns that corpus red. Each side still picks the
+ * offending route in its own pass order, so the wording here mirrors the
+ * server's rather than repeating it, and the corpus pins the fragments the
+ * two messages must share.
  */
 export function validateRoutes(routes: unknown): asserts routes is Route[] {
 	if (!Array.isArray(routes)) {
@@ -74,12 +90,12 @@ export function validateRoutes(routes: unknown): asserts routes is Route[] {
 }
 
 function validateRouteIdentity(route: unknown, index: number): void {
-	const label = `routes[${index}]`;
 	if (typeof route !== "object" || route === null) {
-		throw new CliError(`${label} must be an object`);
+		throw new CliError(`routes[${index}] must be an object`);
 	}
 
 	const entry = route as Record<string, unknown>;
+	const label = routeLabel(index, entry);
 	for (const key of Object.keys(entry)) {
 		if (!KNOWN_FIELDS.has(key)) {
 			throw new CliError(
@@ -91,55 +107,57 @@ function validateRouteIdentity(route: unknown, index: number): void {
 	const routePath = entry.path;
 	if (
 		typeof routePath !== "string" ||
-		routePath.length === 0 ||
+		routePath.trim().length === 0 ||
 		!routePath.startsWith("/")
 	) {
 		throw new CliError(
-			`${label}: "path" must be a non-empty string starting with "/"`,
+			`${label}: "path" must begin with "/" — declare "${canonicalPath(routePath)}" instead`,
 		);
 	}
 
 	if (routePath.length > 1 && routePath.endsWith("/")) {
 		throw new CliError(
-			`${label} ("${routePath}"): "path" declares a trailing slash — declare ` +
+			`${label}: "path" declares a trailing slash — declare ` +
 				`"${canonicalPath(routePath)}" instead (a declared path is the URL the client links ` +
 				"to and the server matches, so it is stored exactly as written)",
 		);
 	}
 
-	expectNonEmptyString(label, routePath, "name", entry.name);
-	if (
-		typeof entry.name === "string" &&
-		(entry.name.startsWith("/") || entry.name.endsWith("/"))
-	) {
+	if (typeof entry.name === "string" && entry.name.trim().length > 0) {
+		if (entry.name.startsWith("/") || entry.name.endsWith("/")) {
+			throw new CliError(
+				`${label}: declares the name "${entry.name}". A name must not begin ` +
+					`or end with "/": it is an identifier, not a path.`,
+			);
+		}
+	} else {
 		throw new CliError(
-			`${label} ("${routePath}"): "name" must not start or end with "/"`,
+			`${label}: "name" is missing or blank. A route's name is its identity on ` +
+				"the server and in the client's route table.",
 		);
 	}
 
 	const files = entry.files;
-	if (typeof files !== "object" || files === null) {
+	if (typeof files !== "object" || files === null || Array.isArray(files)) {
 		throw new CliError(
-			`${label} ("${routePath}"): "files" must be an object with "react" and "view" paths`,
+			`${label}: "files" must be an object with "react" and "view" paths`,
 		);
 	}
 	const fileEntries = files as Record<string, unknown>;
 	for (const key of Object.keys(fileEntries)) {
 		if (!KNOWN_FILE_FIELDS.has(key)) {
-			throw new CliError(
-				`${label} ("${routePath}"): unknown field "files.${key}"`,
-			);
+			throw new CliError(`${label}: unknown field "files.${key}"`);
 		}
 	}
-	expectFileString(label, routePath, "react", fileEntries.react);
-	expectFileString(label, routePath, "view", fileEntries.view);
+	expectFileString(label, "react", fileEntries.react);
+	expectFileString(label, "view", fileEntries.view);
 
 	// `access` is optional and defaults to protected, which is the server's own
 	// default for an absent field. Refusing an absent one would make this side
 	// reject a registry the server serves.
 	if (entry.access !== undefined && !isRouteAccess(entry.access)) {
 		throw new CliError(
-			`${label} ("${routePath}"): "access" must be one of: public, guest, protected`,
+			`${label}: "access" must be one of: public, guest, protected`,
 		);
 	}
 
@@ -149,34 +167,32 @@ function validateRouteIdentity(route: unknown, index: number): void {
 	const hasAction = entry.action != null;
 	if (hasController && !hasAction) {
 		throw new CliError(
-			`${label} ("${routePath}"): "controller" is specified without "action" — declare ` +
+			`${label}: "controller" is specified without "action" — declare ` +
 				"both or neither: a route names the action that serves it",
 		);
 	}
 	if (hasAction && !hasController) {
 		throw new CliError(
-			`${label} ("${routePath}"): "action" is specified without "controller" — declare ` +
+			`${label}: "action" is specified without "controller" — declare ` +
 				"both or neither: a route names the action that serves it",
 		);
 	}
 	if (hasController) {
-		expectNonEmptyString(label, routePath, "controller", entry.controller);
+		expectNonEmptyString(label, "controller", entry.controller);
 	}
 	if (hasAction) {
-		expectNonEmptyString(label, routePath, "action", entry.action);
+		expectNonEmptyString(label, "action", entry.action);
 	}
 
-	if (
-		entry.seo !== undefined &&
-		(typeof entry.seo !== "object" || entry.seo === null)
-	) {
-		throw new CliError(`${label} ("${routePath}"): "seo" must be an object`);
+	// JSON null means undeclared here too, by the reading ADR 0015 pinned for
+	// `controller`: the server's `SeoModel?` is null for it, and an authored
+	// null declares "no SEO" rather than one nothing can act on.
+	if (entry.seo != null && (typeof entry.seo !== "object" || Array.isArray(entry.seo))) {
+		throw new CliError(`${label}: "seo" must be an object`);
 	}
 
 	if (entry.dynamic !== undefined && typeof entry.dynamic !== "boolean") {
-		throw new CliError(
-			`${label} ("${routePath}"): "dynamic" must be a boolean`,
-		);
+		throw new CliError(`${label}: "dynamic" must be a boolean`);
 	}
 }
 
@@ -216,13 +232,16 @@ function assertUniqueIdentities(routes: Route[]): void {
 }
 
 /**
- * A declared path is stored exactly as the client links to it and the server
- * matches it, so the canonical form of one that ends in a slash is that path
- * without it. Reached only after the path is known to be rooted and non-empty,
- * so trimming the trailing run is the whole job.
+ * The canonical form of a declared path: stored exactly as the client links to
+ * it and the server matches it, so the form of one that ends in a slash is that
+ * path without it. A value that is not a rooted string is rooted first, which is
+ * what makes the message for an unrooted path name the form to declare instead.
  */
-function canonicalPath(routePath: string): string {
-	return routePath.replace(/\/+$/, "") || "/";
+function canonicalPath(routePath: unknown): string {
+	const declared = typeof routePath === "string" ? routePath.trim() : "";
+	const rooted = declared === "" ? "" : `/${declared.replace(/^\/+/, "")}`;
+
+	return rooted.replace(/\/+$/, "") || "/";
 }
 
 export function readRoutes(paths: ProjectPaths): Route[] {

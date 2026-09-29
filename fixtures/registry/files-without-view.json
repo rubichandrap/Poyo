@@ -1,0 +1,17 @@
+{
+	"verdict": "reject",
+	"note": "The view is the one member the server reads, so its absence is refused at boot rather than becoming a request-time failure.",
+	"message": [
+		"view",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx"
+			}
+		}
+	]
+}

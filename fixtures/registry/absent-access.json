@@ -1,0 +1,14 @@
+{
+	"verdict": "accept",
+	"note": "An absent access is the documented protected default, not a refusal.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

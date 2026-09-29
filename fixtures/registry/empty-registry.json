@@ -1,0 +1,11 @@
+{
+	"verdicts": {
+		"server": "reject",
+		"manager": "accept"
+	},
+	"note": "The route manager reads and writes a registry that may legitimately be empty — it is what `poyo route add` creates before the first route — while the server refuses to boot on one, because a registry that declares no routes switches off the access model, the SEO policy and the private no-store guarantee (ADR 0014). The two answers are right about their own job, so the difference is pinned here rather than closed.",
+	"message": [
+		"is empty"
+	],
+	"registry": []
+}

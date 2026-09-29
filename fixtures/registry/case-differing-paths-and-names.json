@@ -1,0 +1,22 @@
+{
+	"verdict": "accept",
+	"note": "Uniqueness ignores case, so these two routes are distinct: neither their paths nor their names collide once case is ignored.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		},
+		{
+			"path": "/About",
+			"name": "ABOUT",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

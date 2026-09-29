@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "The legacy flag has no migration shim: it is an unknown member now.",
+	"message": [
+		"isPublic",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"isPublic": true
+		}
+	]
+}

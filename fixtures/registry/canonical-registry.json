@@ -1,0 +1,15 @@
+{
+	"verdict": "accept",
+	"note": "The ordinary declaration, with nothing to fix: both runtimes serve it.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"access": "protected"
+		}
+	]
+}

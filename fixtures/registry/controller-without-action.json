@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "A route names the action that serves it, so the pair is declared together or not at all.",
+	"message": [
+		"controller",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"controller": "Custom"
+		}
+	]
+}

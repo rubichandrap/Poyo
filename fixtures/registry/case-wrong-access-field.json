@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "Every field name is lower camel case, and the check extends to a declaration the reader would not act on either.",
+	"message": [
+		"Access",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"Access": "public"
+		}
+	]
+}

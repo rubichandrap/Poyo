@@ -1,0 +1,17 @@
+{
+	"verdict": "reject",
+	"note": "A path is a URL, and a number is not one however it is spelled.",
+	"message": [
+		"path"
+	],
+	"registry": [
+		{
+			"path": 5,
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

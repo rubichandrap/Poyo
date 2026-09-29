@@ -1,0 +1,18 @@
+{
+	"verdict": "reject",
+	"note": "Either edge slash disqualifies a name.",
+	"message": [
+		"must not begin or end with \"/\"",
+		"Home/"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home/",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

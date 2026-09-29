@@ -172,7 +172,12 @@ public static class RouteIdentity
         }
     }
 
-    private static string Registry(string routesJsonPath) => $"Routes registry '{routesJsonPath}'";
+    /// <summary>
+    /// The one phrase naming the registry in a failure message, shared with the
+    /// schema check so a violation of the shape and a violation of the identity
+    /// are read as one contract.
+    /// </summary>
+    internal static string Registry(string routesJsonPath) => $"Routes registry '{routesJsonPath}'";
 
     private static string CanonicalPath(string? path)
     {
@@ -186,17 +191,16 @@ public static class RouteIdentity
 
     /// <summary>
     /// Identifies a route in a failure message, using whichever half of its
-    /// identity is still readable.
+    /// identity is still readable: a path that is missing or blank cannot be
+    /// quoted back, so the name stands in for it.
     /// </summary>
-    private static string Describe(RouteDefinition route)
+    internal static string Describe(string? path, string? name)
     {
-        var path = string.IsNullOrWhiteSpace(route.Path)
-            ? "a route with no path"
-            : $"route '{route.Path}'";
-        var name = string.IsNullOrWhiteSpace(route.Name)
-            ? string.Empty
-            : $" (name '{route.Name}')";
+        var route = string.IsNullOrWhiteSpace(path) ? "a route with no path" : $"route '{path}'";
+        var named = string.IsNullOrWhiteSpace(name) ? string.Empty : $" (name '{name}')";
 
-        return $"{path}{name}";
+        return $"{route}{named}";
     }
+
+    private static string Describe(RouteDefinition route) => Describe(route.Path, route.Name);
 }

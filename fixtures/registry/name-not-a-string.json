@@ -1,0 +1,17 @@
+{
+	"verdict": "reject",
+	"note": "A name is an identifier, and a boolean is not one.",
+	"message": [
+		"name"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": true,
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

@@ -1,0 +1,24 @@
+{
+	"verdict": "accept",
+	"note": "dynamic is an opt-out, so both booleans are ordinary declarations.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"dynamic": true
+		},
+		{
+			"path": "/About",
+			"name": "About",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"dynamic": false
+		}
+	]
+}
