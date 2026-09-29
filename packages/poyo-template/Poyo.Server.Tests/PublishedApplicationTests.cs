@@ -29,6 +29,27 @@ public class PublishedApplicationTests
             $"The published application must carry the registry beside the application ({registry}).");
     }
 
+    /// <summary>
+    /// The environment file is a development convenience, and what you ship is
+    /// what you reviewed: nothing environment-bearing travels with the
+    /// artifact. A copy item that put an operator's production values into
+    /// their own publish output would be the one way the file could reach a
+    /// deployment, so the claim is checked against the output rather than
+    /// against the project file that would have carried it.
+    /// </summary>
+    [Fact]
+    public void The_publish_output_contains_no_environment_file()
+    {
+        var carried = Directory
+            .EnumerateFiles(PublishedServer.PublishDirectory, "*", SearchOption.AllDirectories)
+            .Where(file =>
+                file.EndsWith(".env", StringComparison.Ordinal)
+                || Path.GetFileName(file).StartsWith(".env.", StringComparison.Ordinal))
+            .ToList();
+
+        Assert.Empty(carried);
+    }
+
     [Fact]
     public Task Every_registry_route_serves_from_the_publish_directory() =>
         AssertEveryRegistryRouteServesFrom(PublishedServer.PublishDirectory);
