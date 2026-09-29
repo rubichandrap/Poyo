@@ -1,6 +1,6 @@
 # A route's identity is one thing, defined once
 
-**Status**: Accepted
+**Status**: Accepted. The agreement this ADR asserts between the two runtimes is enforced, not merely asserted, by [ADR 0018](0018-registry-corpus-and-one-field-spelling.md), which also decides the property-name case question this ADR left open and extends the server's reading of a route's `files` from values to members.
 
 A route's identity — the path and name that make it referable — is defined once and expressed in two places with two disciplines. The declared registry is **strict**: a path is rooted and carries no trailing slash except for the root, a name is present and carries no leading or trailing slash, both are unique across the registry ignoring case, and a controller and an action are declared together or not at all, neither of them blank. The incoming request is **liberal**: its path is normalized — trailing slashes trimmed, the root preserved — and matched case-insensitively, so `/login`, `/Login` and `/Login/` all serve the declared `/Login`. The asymmetry is deliberate: the file is authored, the request is not.
 

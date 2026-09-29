@@ -1,0 +1,18 @@
+{
+	"verdict": "reject",
+	"note": "A declared path is stored exactly as written, so the canonical form is named instead.",
+	"message": [
+		"trailing slash",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home/",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

@@ -16,6 +16,14 @@ namespace Poyo.Framework;
 /// </summary>
 public sealed class RoutePolicy
 {
+    /// <summary>
+    /// Maps a lower camel case registry onto the PascalCase model. Property
+    /// matching stays case-insensitive because that is how the .NET model is
+    /// spelled, not a statement about the registry: a field has exactly one
+    /// accepted spelling, and <see cref="RouteSchema"/> is what says so, so a
+    /// mis-cased member is refused with the route beside it rather than mapped
+    /// to the member it happens to resemble.
+    /// </summary>
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
@@ -127,15 +135,16 @@ public sealed class RoutePolicy
 
         try
         {
-            ValidateDynamicField(json, routesJsonPath);
+            ValidateDeclaredShape(json, routesJsonPath);
             routes = JsonSerializer.Deserialize<List<RouteDefinition>>(json, JsonOptions);
         }
         catch (JsonException ex)
         {
             // One message for two failures the deserializer cannot tell us
             // apart: text that is not JSON at all, and JSON that does not fit
-            // the schema (an unknown field, a wrong type). The exception names
-            // the offending member, so the label only has to be true of both.
+            // the schema (a wrong type, an SEO payload that is not the model).
+            // The exception names the offending member, so the label only has
+            // to be true of both.
             throw new RoutePolicyException(
                 $"Routes registry '{routesJsonPath}' is not a valid routes registry: {ex.Message}", ex);
         }
@@ -149,6 +158,20 @@ public sealed class RoutePolicy
         }
 
         return routes;
+    }
+
+    /// <summary>
+    /// Checks the declared shape on the raw JSON — the one spelling of every
+    /// field name, the members a route must carry, and the two values whose
+    /// type is part of the contract — before the deserializer sees the file.
+    /// Each of those is a failure the deserializer either cannot report
+    /// usefully or does not fail at all, and each is reported here where the
+    /// offending route can be named.
+    /// </summary>
+    private static void ValidateDeclaredShape(string json, string routesJsonPath)
+    {
+        using var document = JsonDocument.Parse(json);
+        RouteSchema.Validate(document.RootElement, routesJsonPath);
     }
 
     /// <summary>
@@ -188,36 +211,6 @@ public sealed class RoutePolicy
                     action = actionName,
                     viewPath = route.Files.View,
                 });
-        }
-    }
-
-    private static void ValidateDynamicField(string json, string routesJsonPath)
-    {
-        using var document = JsonDocument.Parse(json);
-        if (document.RootElement.ValueKind != JsonValueKind.Array)
-        {
-            return;
-        }
-
-        foreach (var element in document.RootElement.EnumerateArray())
-        {
-            if (element.ValueKind != JsonValueKind.Object)
-            {
-                continue;
-            }
-
-            if (element.TryGetProperty("dynamic", out var dynamicProp))
-            {
-                if (dynamicProp.ValueKind != JsonValueKind.True && dynamicProp.ValueKind != JsonValueKind.False)
-                {
-                    var routePath = element.TryGetProperty("path", out var pathProp) && pathProp.ValueKind == JsonValueKind.String
-                        ? pathProp.GetString()
-                        : "unknown";
-
-                    throw new RoutePolicyException(
-                        $"Routes registry '{routesJsonPath}' route '{routePath}' has an invalid dynamic field: expected boolean, got {dynamicProp.ValueKind}.");
-                }
-            }
         }
     }
 }

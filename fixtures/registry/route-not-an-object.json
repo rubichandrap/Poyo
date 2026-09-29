@@ -1,0 +1,7 @@
+{
+	"verdict": "reject",
+	"note": "Every element of the array is a route object.",
+	"registry": [
+		"/Home"
+	]
+}

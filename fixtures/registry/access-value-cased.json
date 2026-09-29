@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "One spelling per field covers the value as well as the name: the three access values are written in lower case, so \"Public\" is a value the registry does not contain rather than another way to say public.",
+	"message": [
+		"access",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"access": "Public"
+		}
+	]
+}

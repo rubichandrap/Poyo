@@ -1,0 +1,18 @@
+{
+	"verdict": "reject",
+	"note": "The same one-spelling rule for a field the declaration would otherwise have carried correctly.",
+	"message": [
+		"Name",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"Name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

@@ -1,0 +1,14 @@
+{
+	"verdict": "accept",
+	"note": "The same half of the split on the member the server does read: it requires `files.view` to be present and a string, and judges no file path's value, so a whitespace-only view boots. The route manager checks the field for presence too, so both accept.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "   "
+			}
+		}
+	]
+}

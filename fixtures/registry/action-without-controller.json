@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "Either half alone is the same mistake read the other way round.",
+	"message": [
+		"action",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"action": "Index"
+		}
+	]
+}

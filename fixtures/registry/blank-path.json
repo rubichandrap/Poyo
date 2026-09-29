@@ -1,0 +1,17 @@
+{
+	"verdict": "reject",
+	"note": "A whitespace-only path is blank, not rooted.",
+	"message": [
+		"must begin with \"/\""
+	],
+	"registry": [
+		{
+			"path": "   ",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

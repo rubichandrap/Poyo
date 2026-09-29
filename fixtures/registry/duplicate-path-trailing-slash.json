@@ -1,0 +1,25 @@
+{
+	"verdict": "reject",
+	"note": "The collision the raw-string check misses, because the request lookup normalizes.",
+	"message": [
+		"/Home/"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		},
+		{
+			"path": "/Home/",
+			"name": "HomeCopy",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

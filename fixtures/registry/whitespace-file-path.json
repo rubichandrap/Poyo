@@ -1,0 +1,14 @@
+{
+	"verdict": "accept",
+	"note": "A file path is not a route's identity, so the server judges no file path's value, and the route manager checks a file field for presence rather than importing the identity notion of blank into it. A whitespace-only React page is a path neither runtime resolves, and neither refuses it here.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "   ",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

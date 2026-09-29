@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "An array is not an object, however loosely the word is read.",
+	"message": [
+		"files",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": []
+		}
+	]
+}

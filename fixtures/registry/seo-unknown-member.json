@@ -1,0 +1,20 @@
+{
+	"verdicts": {
+		"server": "reject",
+		"manager": "accept"
+	},
+	"note": "The route manager treats the seo payload as opaque, so the server is the only runtime that polices its members — a member the SEO model does not know is refused at the boot rather than when the registry is authored. A member spelled any other way is accepted by both, because the deserializer's property matching is how the .NET model is spelled; see `seo-member-spelled-any-way`. The route manager writing seo values it would otherwise have to model twice is the trade, and the difference is pinned here rather than closed.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"seo": {
+				"titlee": "Home"
+			}
+		}
+	]
+}

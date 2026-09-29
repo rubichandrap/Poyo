@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "The files object is held to its own two members.",
+	"message": [
+		"files.bogus",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml",
+				"bogus": 1
+			}
+		}
+	]
+}

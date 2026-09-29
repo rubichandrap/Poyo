@@ -1,0 +1,14 @@
+{
+	"verdict": "reject",
+	"note": "A route names the React page and the view that serve it; neither runtime can act without them.",
+	"message": [
+		"files",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home"
+		}
+	]
+}

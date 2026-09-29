@@ -1,0 +1,19 @@
+{
+	"verdict": "reject",
+	"note": "access is one of three values, and an unknown one is not a default.",
+	"message": [
+		"access",
+		"/Home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"access": "maybe"
+		}
+	]
+}

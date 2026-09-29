@@ -1,0 +1,16 @@
+{
+	"verdict": "accept",
+	"note": "JSON null means undeclared: `route.Controller is not null` is false for it.",
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			},
+			"controller": null,
+			"action": null
+		}
+	]
+}

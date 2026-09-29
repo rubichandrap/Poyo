@@ -1,0 +1,25 @@
+{
+	"verdict": "reject",
+	"note": "Two paths that differ only by case are one route served in declaration order; uniqueness ignores case.",
+	"message": [
+		"/home"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		},
+		{
+			"path": "/home",
+			"name": "HomeLower",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}
