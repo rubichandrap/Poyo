@@ -20,8 +20,8 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.json",
 		"dev": "tsx src/index.ts",
-		"type-check": "tsc -p tsconfig.json --noEmit",
-		"test": "pnpm run build && vitest run",
+		"type-check": "tsc -p tsconfig.test.json",
+		"test": "pnpm run type-check && pnpm run build && vitest run",
 		"test:watch": "vitest",
 		"lint": "biome lint src test",
 		"lint:fix": "biome lint src test --write",
