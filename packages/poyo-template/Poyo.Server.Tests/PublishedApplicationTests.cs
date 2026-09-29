@@ -10,7 +10,9 @@ namespace Poyo.Server.Tests;
 /// application. It carries the registry beside the application assembly and
 /// serves every registry route whichever directory the host starts it from —
 /// including the filesystem root, and including a directory that has nothing to
-/// do with the project.
+/// do with the project. It carries nothing environment-bearing, because the
+/// environment file is a development convenience and what you ship is what you
+/// reviewed.
 /// </summary>
 public class PublishedApplicationTests
 {

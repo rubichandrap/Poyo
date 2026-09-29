@@ -30,10 +30,14 @@ public static class PoyoExtensions
     /// <remarks>
     /// The registry path resolves in a fixed chain: the explicit argument, then
     /// "Routes:JsonPath" configuration, then "routes.json" beside the
-    /// application assembly. The process working directory is never consulted
-    /// — in ASP.NET it is also the default content root, so anchoring there
-    /// would make a deployment's access model depend on the directory its host
-    /// happened to start it in.
+    /// application assembly. The fallback never consults the process working
+    /// directory — in ASP.NET it is also the default content root, so anchoring
+    /// there would make a deployment's access model depend on the directory its
+    /// host happened to start it in. A *relative* configured path does inherit
+    /// the working directory, because it is resolved against the content root
+    /// and the content root is the working directory unless the host says
+    /// otherwise. That is the operator's own instruction rather than the
+    /// framework's default, which is the distinction this chain exists to make.
     /// </remarks>
     public static IServiceCollection AddPoyo(
         this IServiceCollection services,

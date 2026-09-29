@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Poyo.Server.Tests.Support;
 
 namespace Poyo.Server.Tests;
@@ -18,31 +19,28 @@ namespace Poyo.Server.Tests;
 /// </summary>
 public class RegistryOverrideTests
 {
-    /// <summary>
-    /// A route the host's registry declares and the registry beside the
-    /// application does not. Its presence is the difference between the two
-    /// files, so it is what identifies which one served a request.
-    /// </summary>
-    private const string HostOnlyRoute = "/HostOnly";
-
     [Fact]
     public async Task A_deployment_serves_the_registry_its_host_names()
     {
-        using var hostRegistry = HostRegistry.Declaring(HostOnlyRoute);
+        using var hostRegistry = HostRegistry.Open();
         using var server = await PublishedServer.Start(
             PublishedServer.PublishDirectory,
-            HostNames(hostRegistry.RegistryPath));
+            HostNamesRegistryAt(hostRegistry.RegistryPath));
 
-        using var response = await server.CreateClient().GetAsync(HostOnlyRoute);
+        using var dashboard = await server.CreateClient().GetAsync("/Dashboard");
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        // The host's registry calls /Dashboard public, so an anonymous caller
+        // is served it rather than challenged. The registry beside the
+        // application calls it protected, so a 200 is only reachable through
+        // the file the host named.
+        Assert.Equal(HttpStatusCode.OK, dashboard.StatusCode);
     }
 
     /// <summary>
-    /// Losing the name does not fail the boot — it silently serves a
-    /// different file. The deployment still starts, still enforces an access
-    /// model, and still answers every request; the model is simply the one
-    /// beside the application rather than the one the host named.
+    /// Losing the name does not fail the boot — it silently serves a different
+    /// file. The deployment still starts, still enforces an access model, and
+    /// still answers every request; the model is simply the one beside the
+    /// application rather than the one the host named.
     ///
     /// This is why a green boot is not evidence that the migration is
     /// complete. A loud failure would announce itself; this does not, so the
@@ -51,96 +49,89 @@ public class RegistryOverrideTests
     [Fact]
     public async Task Losing_the_registry_name_silently_serves_the_registry_beside_the_application()
     {
-        using var hostRegistry = HostRegistry.Declaring(HostOnlyRoute);
+        using var hostRegistry = HostRegistry.Open();
 
         using var named = await PublishedServer.Start(
             PublishedServer.PublishDirectory,
-            HostNames(hostRegistry.RegistryPath));
-        using var namedResponse = await named.CreateClient().GetAsync(HostOnlyRoute);
-        Assert.Equal(HttpStatusCode.OK, namedResponse.StatusCode);
+            HostNamesRegistryAt(hostRegistry.RegistryPath));
+        using var namedDashboard = await named.CreateClient().GetAsync("/Dashboard");
+        Assert.Equal(HttpStatusCode.OK, namedDashboard.StatusCode);
 
         using var lost = await PublishedServer.Start(
             PublishedServer.PublishDirectory,
-            HostNames(null));
-        using var lostResponse = await lost.CreateClient().GetAsync(HostOnlyRoute);
+            HostNamesRegistryAt(null));
+        using var lostDashboard = await lost.CreateClient().GetAsync("/Dashboard");
 
-        Assert.Equal(HttpStatusCode.NotFound, lostResponse.StatusCode);
-
-        // Serving, and enforcing, from the registry beside the application.
-        using var login = await lost.CreateClient().GetAsync("/Login");
-        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        // Serving, and enforcing, from the registry beside the application —
+        // where the same route is protected, so the anonymous caller is
+        // challenged rather than served. The access model changed, silently.
+        Assert.Equal(HttpStatusCode.Redirect, lostDashboard.StatusCode);
+        Assert.Equal("/Login", lostDashboard.Headers.Location?.AbsolutePath);
     }
 
     /// <summary>
     /// The variables one deployment sets, over the baseline a published
-    /// application boots with. A null value removes a variable, which is how a
-    /// test says "this host does not set it" — the state the operator is in
-    /// after the value reverts with the environment file.
+    /// application boots with. A null registry path removes the variable,
+    /// which is how a test says "this host does not set it" — the state the
+    /// operator is in after the value reverts with the environment file.
     /// </summary>
-    private static Dictionary<string, string?> HostNames(string? registryPath) => new()
+    private static Dictionary<string, string?> HostNamesRegistryAt(string? registryPath) => new()
     {
         ["Routes__JsonPath"] = registryPath,
     };
 
     /// <summary>
-    /// A registry at a location only the host names, carrying one route the
-    /// registry beside the application does not declare. It is the template's
-    /// own registry plus that route, so the two files agree about everything
-    /// else and differ on exactly the thing the assertion reads — and it
-    /// reuses a view that exists, so the difference is which registry answered
-    /// rather than whether a page could be rendered.
+    /// A registry at a location only the host names, calling one route public
+    /// that the registry beside the application calls protected. It is derived
+    /// from the template's own registry so the two files agree about everything
+    /// else and differ on exactly the access model the assertions read.
     /// </summary>
     private sealed class HostRegistry : IDisposable
     {
-        private readonly string _directory;
+        private readonly TemporaryDirectory _directory;
+
+        private HostRegistry(TemporaryDirectory directory, string registryPath)
+        {
+            _directory = directory;
+            RegistryPath = registryPath;
+        }
 
         public string RegistryPath { get; }
 
-        private HostRegistry(string registryPath, string directory)
+        public static HostRegistry Open()
         {
-            RegistryPath = registryPath;
-            _directory = directory;
+            var directory = TemporaryDirectory.Create("host-registry");
+            var registryPath = directory.WriteFile(
+                "routes.json",
+                DeclaringDashboardPublic(File.ReadAllText(TestEnvironment.TemplateRoutesPath())));
+
+            return new HostRegistry(directory, registryPath);
         }
 
-        public static HostRegistry Declaring(string path)
-        {
-            var directory = Path.Combine(
-                Path.GetTempPath(), $"poyo-host-registry-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(directory);
-
-            var registryPath = Path.Combine(directory, "routes.json");
-            File.WriteAllText(registryPath, Adding(File.ReadAllText(
-                TestEnvironment.TemplateRoutesPath()), path));
-
-            return new HostRegistry(registryPath, directory);
-        }
-
-        public void Dispose() => Directory.Delete(_directory, recursive: true);
+        public void Dispose() => _directory.Dispose();
 
         /// <summary>
-        /// The template's registry with one route appended, as text. Editing
-        /// the text keeps the host's registry byte-identical to the shipped
-        /// one apart from the addition, which is what makes the two comparable.
+        /// The template's registry with one route's access changed. Editing
+        /// the parsed value rather than the text keeps the rest of the file
+        /// exactly as the template wrote it, so the only difference between the
+        /// two registries is the access model under test.
         /// </summary>
-        private static string Adding(string registryJson, string path)
+        private static string DeclaringDashboardPublic(string registryJson)
         {
             using var document = JsonDocument.Parse(registryJson);
-            var routes = document.RootElement.EnumerateArray().ToList();
-
-            var addition = $$"""
+            var routes = document.RootElement.EnumerateArray().Select(route =>
+            {
+                var entry = JsonNode.Parse(route.GetRawText())!.AsObject();
+                if (entry["path"]!.GetValue<string>() == "/Dashboard")
                 {
-                    "path": "{{path}}",
-                    "name": "HostOnly",
-                    "files": {
-                        "react": "src/pages/Home/index.page.tsx",
-                        "view": "Views/Home/Index.cshtml"
-                    },
-                    "access": "public"
+                    entry["access"] = "public";
                 }
-                """;
 
-            return "[\n  " + string.Join(",\n  ", routes.Select(r => r.GetRawText()))
-                + ",\n  " + addition + "\n]\n";
+                return entry;
+            });
+
+            return new JsonArray(routes.Select(route => (JsonNode)route).ToArray())
+                .ToJsonString(new JsonSerializerOptions { WriteIndented = true });
         }
     }
 }
