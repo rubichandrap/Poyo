@@ -14,6 +14,9 @@ internal sealed class PublishedServer : IDisposable
 {
     private const string AssemblyFileName = "Poyo.Server.dll";
 
+    /// <summary>How long a boot gets to answer or exit before it is undecided.</summary>
+    private static readonly TimeSpan BootDeadline = TimeSpan.FromSeconds(60);
+
     private static readonly IReadOnlyDictionary<string, string?> NoVariables = new Dictionary<string, string?>();
 
     private static readonly Lazy<string> PublishOutput = new(Publish, LazyThreadSafetyMode.ExecutionAndPublication);
@@ -49,8 +52,21 @@ internal sealed class PublishedServer : IDisposable
         var origin = new Uri($"http://127.0.0.1:{FreePort()}");
         var server = Launch(workingDirectory, origin, environment);
 
-        await server.WaitUntilServingAsync();
-        return server;
+        using (var deadline = new CancellationTokenSource(BootDeadline))
+        {
+            switch (await server.WaitForBootAsync(deadline.Token))
+            {
+                case BootOutcome.Serving:
+                    return server;
+                case BootOutcome.Failed:
+                    throw new InvalidOperationException(
+                        $"The published application exited with code {server.ExitCode} " +
+                        $"before serving. Output:\n{server.CapturedOutput()}");
+                default:
+                    throw new InvalidOperationException(
+                        $"The published application never served. Output:\n{server.CapturedOutput()}");
+            }
+        }
     }
 
     /// <summary>
@@ -65,30 +81,24 @@ internal sealed class PublishedServer : IDisposable
     {
         var origin = new Uri($"http://127.0.0.1:{FreePort()}");
         using var server = Launch(PublishDirectory, origin, environment);
-        using var client = server.CreateClient();
 
-        // A boot that is required to fail must fail quickly, and a boot that
-        // serves instead is a failure of the thing under test rather than a
-        // wait worth sitting through.
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-        while (!server.HasExited)
+        using var deadline = new CancellationTokenSource(BootDeadline);
+        switch (await server.WaitForBootAsync(deadline.Token))
         {
-            if (await HasStartedServingAsync(client))
-            {
+            case BootOutcome.Failed:
+                return new BootFailure(server.ExitCode, server.CapturedOutput());
+            case BootOutcome.Serving:
+                // A boot that is required to fail must fail quickly, and a boot
+                // that serves instead is a failure of the thing under test
+                // rather than a wait worth sitting through.
                 throw new InvalidOperationException(
                     "The published application served instead of failing to start. Output:\n" +
                     server.CapturedOutput());
-            }
-
-            if (deadline.IsCancellationRequested)
-            {
+            default:
                 throw new InvalidOperationException(
                     "The published application neither served nor failed within the deadline. Output:\n" +
                     server.CapturedOutput());
-            }
         }
-
-        return new BootFailure(server.ExitCode, server.CapturedOutput());
     }
 
     /// <summary>
@@ -143,7 +153,10 @@ internal sealed class PublishedServer : IDisposable
     /// location is explicitly cleared for the same reason — the in-process
     /// hosts in this test run set it for themselves, and that must not become
     /// the answer for the published process, which is expected to carry its
-    /// own registry.
+    /// own registry. `EnvFile` is cleared with them: it is the one variable a
+    /// developer's shell most often carries, and a stray path here would make
+    /// the published process read a file it was never meant to see, which is
+    /// the very precedence the tests above are about.
     /// </summary>
     private static Dictionary<string, string?> DeploymentEnvironment() => new()
     {
@@ -151,6 +164,7 @@ internal sealed class PublishedServer : IDisposable
         ["DOTNET_ENVIRONMENT"] = null,
         ["ASPNETCORE_URLS"] = null,
         ["AllowedHosts"] = "*",
+        ["EnvFile"] = null,
         ["Routes__JsonPath"] = null,
         ["Vite__Server__AutoRun"] = "false",
         ["Vite__Server__Port"] = "5173",
@@ -173,29 +187,34 @@ internal sealed class PublishedServer : IDisposable
     }
 
     /// <summary>
-    /// Waits until the application answers HTTP. Any answer counts: a host
-    /// that names its own allowed hosts rejects the loopback host these tests
-    /// connect by, so "answered" and "served a page" are different questions
-    /// and only the caller's assertions can tell the second one.
+    /// One poll loop for both callers. Waiting for a server to serve and
+    /// waiting for it to fail are the same question with opposite verdicts, so
+    /// they share a loop: the only thing that differs is how each caller reads
+    /// the outcome, and keeping that in the callers is what lets the two tests
+    /// assert opposite things about one mechanism.
+    ///
+    /// Any HTTP answer counts as serving. A host that names its own allowed
+    /// hosts rejects the loopback host these tests connect by, so "answered"
+    /// and "served a page" are different questions and only the caller's
+    /// assertions can tell the second one.
     /// </summary>
-    private async Task WaitUntilServingAsync()
+    private async Task<BootOutcome> WaitForBootAsync(CancellationToken deadline)
     {
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         using var client = CreateClient();
 
-        while (!deadline.IsCancellationRequested)
+        while (true)
         {
             if (_process.HasExited)
             {
-                throw new InvalidOperationException(
-                    $"The published application exited with code {_process.ExitCode} " +
-                    $"before serving. Output:\n{CapturedOutput()}");
+                return BootOutcome.Failed;
             }
 
             try
             {
-                using var response = await client.GetAsync("/Login", deadline.Token);
-                return;
+                using var response = await client.GetAsync("/Login", deadline);
+                return response is not null
+                    ? BootOutcome.Serving
+                    : BootOutcome.Undecided;
             }
             catch (HttpRequestException)
             {
@@ -203,14 +222,23 @@ internal sealed class PublishedServer : IDisposable
             }
             catch (TaskCanceledException) when (deadline.IsCancellationRequested)
             {
-                break;
+                return BootOutcome.Undecided;
             }
 
-            await Task.Delay(200, deadline.Token);
+            await Task.Delay(200, deadline);
         }
+    }
 
-        throw new InvalidOperationException(
-            $"The published application never served. Output:\n{CapturedOutput()}");
+    private enum BootOutcome
+    {
+        /// <summary>It answered HTTP, one way or another.</summary>
+        Serving,
+
+        /// <summary>The process exited, so it cannot be serving now.</summary>
+        Failed,
+
+        /// <summary>Neither, before the deadline ran out.</summary>
+        Undecided,
     }
 
     /// <summary>
@@ -234,29 +262,6 @@ internal sealed class PublishedServer : IDisposable
 
     public int ExitCode => _process.ExitCode;
 
-    /// <summary>
-    /// A single non-throwing probe of "is it answering?". Used where the
-    /// application is required to fail, so a boot that serves is reported
-    /// rather than waited on. Like the start-up wait, any answer counts: the
-    /// question here is whether the application got far enough to answer at
-    /// all, and the assertions belong to the caller.
-    /// </summary>
-    private static async Task<bool> HasStartedServingAsync(HttpClient client)
-    {
-        try
-        {
-            using var response = await client.GetAsync("/Login");
-            return response is not null;
-        }
-        catch (HttpRequestException)
-        {
-            return false;
-        }
-        catch (TaskCanceledException)
-        {
-            return false;
-        }
-    }
 
     public void Dispose()
     {

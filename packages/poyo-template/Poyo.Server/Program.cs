@@ -3,22 +3,19 @@ using Microsoft.OpenApi;
 using Poyo.Framework;
 using Vite.AspNetCore;
 
-// The process environment owns the hosting environment (ADR 0015). It is read
-// from the process before anything else loads, so the environment file can
-// never decide the environment it is conditional on. A host names the
-// environment with either variable, and DOTNET_ENVIRONMENT wins in the
-// framework's own configuration, so read them the way the framework reads
-// them — otherwise a host using the general name would still be at the mercy
-// of the file.
+// The process environment owns the hosting environment (ADR 0017), read
+// before anything else loads so the environment file can never decide the
+// environment it is conditional on. A host may name it with either variable
+// and the framework gives DOTNET_ENVIRONMENT precedence, so read them the way
+// the framework reads them — otherwise a host using the general name would
+// still be at the file's mercy.
 string? dotnetEnvironment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
 string? aspnetEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 string? hostingEnvironment = dotnetEnvironment ?? aspnetEnvironment;
 
 // The environment file is a development convenience, never a deployment
-// requirement: the launcher names it, a missing file is not a failure, and it
-// is read only when the process says development or says nothing. The loader
-// defaults to overriding what is already set, so filling gaps is stated here
-// rather than inherited — a real deployment variable always wins.
+// requirement. The loader defaults to overriding, so filling gaps is stated
+// here rather than inherited: a real deployment variable always wins.
 string? envFile = Environment.GetEnvironmentVariable("EnvFile");
 
 if (IsUnsetOrDevelopment(hostingEnvironment)
@@ -27,9 +24,9 @@ if (IsUnsetOrDevelopment(hostingEnvironment)
 {
     Env.Load(envFile, LoadOptions.NoClobber());
 
-    // Filling gaps covers the hosting environment when the process left it
-    // out, so put back the absence of every name the process did not use. The
-    // file cannot contribute the environment, by either name or by omission.
+    // Filling gaps would otherwise cover the hosting environment when the
+    // process left it out, which is the one value this file must never supply
+    // however it spells its absence.
     if (dotnetEnvironment is null)
     {
         Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", null);
@@ -41,6 +38,10 @@ if (IsUnsetOrDevelopment(hostingEnvironment)
     }
 }
 
+// Unset counts as development because an unset environment is production, and
+// a deployment that forgot to name its environment still gets this file's
+// other values. The environment itself stays out of the file's reach either
+// way; the operator-facing fix is to set it on the host.
 static bool IsUnsetOrDevelopment(string? hostingEnvironment) =>
     string.IsNullOrWhiteSpace(hostingEnvironment)
     || string.Equals(hostingEnvironment, Environments.Development, StringComparison.OrdinalIgnoreCase);
@@ -66,9 +67,8 @@ WebApplicationBuilder? builder = WebApplication.CreateBuilder(args);
 // The Vite integration is a development tool, so its requirements are
 // development requirements. Outside development a host owns no client dev
 // server, and the allowed-hosts value ships in appsettings.json, so a
-// production host needs nothing this template owns. An unset hosting
-// environment is production, the framework's own default and the safe
-// direction; loud failure stays where no safe default exists, which is here.
+// production host needs nothing this template owns. Loud failure stays where no
+// safe default exists, which is the development variables.
 if (builder.Environment.IsDevelopment())
 {
     RequireEnv(

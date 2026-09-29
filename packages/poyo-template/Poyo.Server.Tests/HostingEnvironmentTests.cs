@@ -125,9 +125,11 @@ public class HostingEnvironmentTests
 
     /// <summary>
     /// A production boot with an environment file present honors the real
-    /// environment. The file is not read at all, so developer exception pages,
-    /// the Vite development integration and the absence of HTTPS redirection
-    /// cannot be enabled by accident.
+    /// environment. The file is not read at all here, so developer exception
+    /// pages, the Vite development integration and the absence of HTTPS
+    /// redirection cannot be enabled by accident. The *unset* environment is
+    /// the other half of the contract, and it reads the file:
+    /// <see cref="An_unset_hosting_environment_still_reads_a_present_environment_file"/>.
     /// </summary>
     [Fact]
     public async Task A_production_boot_ignores_a_present_environment_file()
@@ -157,6 +159,57 @@ public class HostingEnvironmentTests
             Variables(("ASPNETCORE_ENVIRONMENT", null), ("DOTNET_ENVIRONMENT", null)),
             isDevelopment: false);
     }
+
+    /// <summary>
+    /// An unset hosting environment with a file present boots as production
+    /// <em>and reads the file</em>. This is the case the guarantee is easiest
+    /// to overstate: the file is skipped when the process names the
+    /// environment, and an unset environment is production — but unset also
+    /// means development-or-nothing for the loader, so the file is read and
+    /// its other values apply.
+    ///
+    /// Both halves are asserted on one boot, because the halves are what make
+    /// the documentation honest. Asking as a host the file allows, the OpenAPI
+    /// document route is unmapped, so the application is not development. And
+    /// asking as the loopback host it does not, the request is rejected — the
+    /// file's allowed hosts are in force, so the file was read. The two
+    /// requests differ only in the `Host` header, because a host-filtered 400
+    /// would otherwise mask the 404 that says which way the environment went.
+    ///
+    /// The operator-facing fix is to set the environment on the host, and the
+    /// bootstrap says so where the decision is made.
+    /// </summary>
+    [Fact]
+    public async Task An_unset_hosting_environment_still_reads_a_present_environment_file()
+    {
+        using var environmentFile = EnvironmentFile.Containing(
+            """
+            AllowedHosts=poyo.test
+            """);
+
+        using var server = await PublishedServer.Start(
+            PublishedServer.PublishDirectory,
+            Variables(
+                ("ASPNETCORE_ENVIRONMENT", null),
+                ("DOTNET_ENVIRONMENT", null),
+                // The baseline deployment answers for every host, so the file
+                // would have nothing to fill here. Removing it is what makes
+                // the file's value observable: a process value is never
+                // overridden, and a gap is filled.
+                ("AllowedHosts", null),
+                ("EnvFile", environmentFile.FilePath)));
+
+        using var client = server.CreateClient();
+        using var allowed = await client.SendAsync(ToHost("poyo.test", OpenApiDocument));
+        using var rejected = await client.GetAsync("/Login");
+
+        Assert.Equal(HttpStatusCode.NotFound, allowed.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+    }
+
+    /// <summary>A request that names the host it is asking on behalf of.</summary>
+    private static HttpRequestMessage ToHost(string host, string path) =>
+        new(HttpMethod.Get, path) { Headers = { Host = host } };
 
     /// <summary>
     /// A production host needs no Vite variables. The port-integrality gate
@@ -191,6 +244,31 @@ public class HostingEnvironmentTests
 
         Assert.NotEqual(0, failure.ExitCode);
         Assert.Contains("Vite__Server__DevServerUrl", failure.Output, StringComparison.Ordinal);
+    }
+
+    /// <summary>
+    /// A development port that is not an integer still fails loudly. The gate
+    /// moved behind the development check, and the half that matters is that it
+    /// still fires <em>inside</em> development: a present value that is not a
+    /// port would otherwise become a Vite option and fail later, at the first
+    /// run-from-source launch, rather than at the boot that misconfigured it.
+    /// </summary>
+    [Theory]
+    [InlineData("not-a-port")]
+    [InlineData("")]
+    public async Task A_malformed_development_port_fails_loudly(string port)
+    {
+        var failure = await PublishedServer.StartExpectingBootFailure(
+            Variables(
+                ("ASPNETCORE_ENVIRONMENT", "Development"),
+                // The dev server URL is a development requirement of its own,
+                // so it is supplied here: without it the boot fails on that
+                // gate before reaching the port.
+                ("Vite__Server__DevServerUrl", "http://localhost:5173"),
+                ("Vite__Server__Port", port)));
+
+        Assert.NotEqual(0, failure.ExitCode);
+        Assert.Contains("Vite__Server__Port", failure.Output, StringComparison.Ordinal);
     }
 
     /// <summary>

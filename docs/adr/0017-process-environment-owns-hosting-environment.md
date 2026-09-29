@@ -26,4 +26,4 @@ A deployment that relied on the development defaults now gets production default
 
 A developer who sets a value in their shell now wins over the same value in `.env`, which is what they expected all along. A developer who sets `ASPNETCORE_ENVIRONMENT` in `.env` finds it ignored, and the example file says where the value comes from instead of being silently inert.
 
-The environment file is no longer read at all outside development, so a file a developer left in a deployment is inert rather than authoritative. It also never travels with the artifact.
+The environment file cannot contribute the hosting environment under any name, so a file left in a deployment can no longer make the application boot as development. It is not read at all once the process names the environment. An unset environment is production *and still reads the file*, so the guarantee is narrower than "a deployment never reads it": a deployment that forgets to name its environment applies the file's other values, and only the environment itself is out of its reach. It also never travels with the artifact.

@@ -73,5 +73,5 @@ The environment name the application booted as, owned by the process: the deploy
 _Avoid_: deployment environment, mode
 
 **Environment file**:
-A development convenience (`.env`) the launch profile names, holding the values a developer's machine owns for both the client and the server. Read only when the process says development or says nothing, and only ever fills a gap: a value the process already set is never overridden, and the file never contributes the hosting environment. Never read in a deployment, and never copied into publish output.
+A development convenience (`.env`) the launch profile names, holding the values a developer's machine owns for both the client and the server. Read only when the process says development or says nothing, and only ever fills a gap: a value the process already set is never overridden, and the file never contributes the hosting environment. Not read at all once the process names the environment — but an unset environment is production *and still reads the file*, so a deployment that forgets to set it applies the file's other values. Never copied into publish output.
 _Avoid_: configuration, settings file, env config
