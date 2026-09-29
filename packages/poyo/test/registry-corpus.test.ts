@@ -37,7 +37,8 @@ interface CorpusCase {
 	message: string[];
 	note: string;
 	registry: unknown;
-	text: string;
+	/** Raw registry text when the case overrides the JSON, else the `registry` value. */
+	text?: string;
 }
 
 function isVerdict(value: unknown): value is Verdict {
