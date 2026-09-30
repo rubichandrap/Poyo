@@ -135,10 +135,10 @@ public class RoutePolicyTests
     /// <summary>
     /// An operator reading a startup failure should not have to guess from a
     /// stack trace which of the four states the registry arrived in, so each
-    /// message carries its own state and no other one's. The four arrive from
-    /// three places, because that is where each of them can honestly come from:
-    /// a path that was never there, the no-content file state, a fixture held
-    /// open by this process, and the corpus case for text that is not JSON.
+    /// message carries its own state and no other one's. None of the four can
+    /// come from the same place: a path that was never there, a fixture with no
+    /// content, a fixture this process holds open, and the corpus case for text
+    /// that is not JSON.
     /// </summary>
     [Fact]
     public void The_four_unusable_registry_states_are_told_apart()

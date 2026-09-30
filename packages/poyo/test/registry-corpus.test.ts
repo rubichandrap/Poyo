@@ -38,7 +38,7 @@ interface CorpusFile {
 	message?: string[];
 	note?: string;
 	registry?: unknown;
-	/** Raw registry text when the case overrides the JSON, else the `registry` value. */
+	/** Present when the case overrides the JSON with raw registry text. */
 	text?: string;
 }
 

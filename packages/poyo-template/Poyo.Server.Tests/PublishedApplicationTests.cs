@@ -39,13 +39,11 @@ public class PublishedApplicationTests
     /// claim is checked against the output rather than against the project file
     /// that would have carried it.
     ///
-    /// The filter is the dotenv family, which is what the framework's loader
-    /// reads and what a hand-edited production file is called. It is not a
-    /// claim about every file an environment could name: `appsettings.json` and
-    /// its development sibling ship by the SDK's own design, and the general
-    /// "nothing environment-bearing" rests on this project having no copy item
-    /// for an environment file at all — of which this is the one that would
-    /// otherwise be invisible.
+    /// The filter is the dotenv family, because that is what the framework's
+    /// loader reads and what a hand-edited production file is called. It is not
+    /// a claim about every file an environment could name: `appsettings.json`
+    /// and its development sibling ship by the SDK's own design, and they hold
+    /// no operator's values.
     /// </summary>
     [Fact]
     public void The_publish_output_contains_no_dotenv_file()

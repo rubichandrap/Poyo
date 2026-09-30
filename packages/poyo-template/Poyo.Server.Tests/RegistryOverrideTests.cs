@@ -29,7 +29,7 @@ public class RegistryOverrideTests
         // is served it rather than challenged. The registry beside the
         // application calls it protected, so a 200 is only reachable through
         // the file the host named.
-        var dashboard = await DashboardServedBy(hostRegistry);
+        var dashboard = await AskForDashboard(hostRegistry);
 
         Assert.Equal(HttpStatusCode.OK, dashboard.Status);
     }
@@ -50,10 +50,10 @@ public class RegistryOverrideTests
         using var directory = TemporaryDirectory.Create("host-registry");
 
         // The control, and the only difference the second half relies on.
-        var named = await DashboardServedBy(HostNamesDashboardPublic(directory));
+        var named = await AskForDashboard(HostNamesDashboardPublic(directory));
         Assert.Equal(HttpStatusCode.OK, named.Status);
 
-        var lost = await DashboardServedBy(null);
+        var lost = await AskForDashboard(null);
 
         // Serving, and enforcing, from the registry beside the application —
         // where the same route is protected, so the anonymous caller is
@@ -69,7 +69,7 @@ public class RegistryOverrideTests
     /// target are the whole of what these tests read: whether the route was
     /// served, challenged, or landed somewhere else.
     /// </summary>
-    private static async Task<(HttpStatusCode Status, string? Location)> DashboardServedBy(
+    private static async Task<(HttpStatusCode Status, string? Location)> AskForDashboard(
         string? hostRegistryPath)
     {
         using var server = await PublishedServer.Start(
