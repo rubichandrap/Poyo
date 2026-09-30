@@ -31,6 +31,15 @@ jobs:
           pnpm --filter @rubichandrap/poyo build
           pnpm --filter @rubichandrap/create-poyo-app build
 
+      # The build above reads tsconfig.json, whose include is ["src"], so on its
+      # own it cannot see a test file. This is the gate that does, and a release
+      # that would have shipped a test failing to type-check stops here rather
+      # than at a contributor's machine.
+      - name: Type-check tests
+        run: |
+          pnpm --filter @rubichandrap/poyo type-check
+          pnpm --filter @rubichandrap/create-poyo-app type-check
+
       - name: Assert package versions match the tag
         run: node scripts/assert-release-version.mjs "${GITHUB_REF_NAME#v}"
 
