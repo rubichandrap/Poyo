@@ -43,6 +43,14 @@ internal static class RouteSchema
     private static readonly string[] AccessValues = ["public", "guest", "protected"];
 
     /// <summary>
+    /// The route under test and the registry it was read from — the two facts
+    /// every message here is worded from, carried together so a pass is a
+    /// question about one route in one file rather than a pair of arguments
+    /// every method has to keep in step.
+    /// </summary>
+    private readonly record struct SchemaContext(JsonElement Route, string RegistryPath);
+
+    /// <summary>
     /// Fails the boot unless every route declares a shape the registry
     /// contract names. The order of the three passes is the order of how much
     /// each says: a value that is wrong is reported before a name that is
@@ -64,66 +72,62 @@ internal static class RouteSchema
                 continue;
             }
 
-            ValidateDeclaredValues(element, routesJsonPath);
-            ValidateFieldNames(element, routesJsonPath);
-            ValidateRequiredMembers(element, routesJsonPath);
+            var context = new SchemaContext(element, routesJsonPath);
+
+            ValidateDeclaredValues(context);
+            ValidateFieldNames(context);
+            ValidateRequiredMembers(context);
         }
     }
 
     /// <summary>
     /// The two fields whose value is part of what the registry means, so a
     /// wrong one is a mistake about the route rather than a malformed file.
-    /// Each is looked up without regard to case and reports the spelling it was
-    /// written in, so a `dynamic` field that is both mis-spelled and wrongly
-    /// valued is diagnosed for the value — the thing that is actually wrong —
-    /// with the spelling beside it.
+    /// The two are told apart in the message they earn: a `dynamic` that is both
+    /// mis-spelled and wrongly valued is diagnosed for the value — the thing
+    /// that is actually wrong — with the spelling beside it, because a
+    /// mis-spelled name is only a symptom of the one mistake to fix.
     /// </summary>
-    private static void ValidateDeclaredValues(JsonElement route, string routesJsonPath)
+    private static void ValidateDeclaredValues(SchemaContext context)
     {
-        ValidateEnumValue(route, "access", AccessValues, routesJsonPath);
-        ValidateBooleanValue(route, "dynamic", routesJsonPath);
+        ValidateValue(
+            context,
+            "access",
+            declared => declared.ValueKind == JsonValueKind.String
+                && AccessValues.Contains(declared.GetString()),
+            (_, declared) => $"declares {Quote(declared.Name)}={AsWritten(declared.Value)} — expected one of "
+                + $"{string.Join(", ", AccessValues)}.");
+
+        ValidateValue(
+            context,
+            "dynamic",
+            declared => declared.ValueKind is JsonValueKind.True or JsonValueKind.False,
+            (field, declared) => $"has an invalid {field} field {Quote(declared.Name)}: expected boolean, "
+                + $"got {declared.Value.ValueKind}.");
     }
 
-    private static void ValidateEnumValue(
-        JsonElement route,
+    /// <summary>
+    /// Fails the boot unless a declared field's value is one the contract names.
+    /// Anything that is not one of the values is refused, including the numbers
+    /// and nulls the deserializer would reject, so the message names the route
+    /// instead of a position in the JSON. Each field is looked up without regard
+    /// to case, so a value check can still diagnose a field whose name is the
+    /// mistake, and the complaint quotes the spelling the registry was written
+    /// in, because the operator has to edit the text they wrote.
+    /// </summary>
+    private static void ValidateValue(
+        SchemaContext context,
         string field,
-        string[] allowed,
-        string routesJsonPath)
+        Func<JsonElement, bool> isDeclaredValue,
+        Func<string, JsonProperty, string> complaint)
     {
-        if (!TryGetPropertyIgnoringCase(route, field, out var declared)
-            || declared.Value.ValueKind == JsonValueKind.String
-                && allowed.Contains(declared.Value.GetString()))
+        if (!TryGetPropertyIgnoringCase(context.Route, field, out var declared)
+            || isDeclaredValue(declared.Value))
         {
             return;
         }
 
-        // Anything that is not one of the values is refused, including the
-        // numbers and nulls the enum converter would reject, so the message
-        // names the route instead of a position in the JSON.
-        var value = declared.Value.ValueKind == JsonValueKind.String
-            ? $"\"{declared.Value.GetString()}\""
-            : declared.Value.ToString();
-
-        throw new RoutePolicyException(
-            $"{RouteIdentity.Registry(routesJsonPath)}: {Describe(route)} declares " +
-            $"{Quote(declared.Name)}={value} — expected one of " +
-            $"{string.Join(", ", allowed)}.");
-    }
-
-    private static void ValidateBooleanValue(
-        JsonElement route,
-        string field,
-        string routesJsonPath)
-    {
-        if (!TryGetPropertyIgnoringCase(route, field, out var declared)
-            || declared.Value.ValueKind is JsonValueKind.True or JsonValueKind.False)
-        {
-            return;
-        }
-
-        throw new RoutePolicyException(
-            $"{RouteIdentity.Registry(routesJsonPath)}: {Describe(route)} has an invalid {field} field " +
-            $"{Quote(declared.Name)}: expected boolean, got {declared.Value.ValueKind}.");
+        throw Fail(context, complaint(field, declared));
     }
 
     /// <summary>
@@ -134,17 +138,19 @@ internal static class RouteSchema
     /// spelling is the only one, and it names the route beside the mistake
     /// instead of leaving a JSON path in its place.
     /// </summary>
-    private static void ValidateFieldNames(JsonElement route, string routesJsonPath)
+    private static void ValidateFieldNames(SchemaContext context)
     {
-        foreach (var member in route.EnumerateObject())
+        foreach (var member in context.Route.EnumerateObject())
         {
             if (!RouteFields.Contains(member.Name))
             {
-                ThrowUnknownField(route, member.Name, routesJsonPath);
+                throw Fail(
+                    context,
+                    $"declares unknown field {Quote(member.Name)} (not a supported route field).");
             }
         }
 
-        if (!route.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Object)
+        if (!context.Route.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Object)
         {
             return;
         }
@@ -153,18 +159,12 @@ internal static class RouteSchema
         {
             if (!FileFields.Contains(member.Name))
             {
-                ThrowUnknownField(route, $"files.{member.Name}", routesJsonPath);
+                throw Fail(
+                    context,
+                    $"declares unknown field {Quote($"files.{member.Name}")} (not a supported route field).");
             }
         }
     }
-
-    private static void ThrowUnknownField(
-        JsonElement route,
-        string field,
-        string routesJsonPath) =>
-        throw new RoutePolicyException(
-            $"{RouteIdentity.Registry(routesJsonPath)}: {Describe(route)} declares unknown field " +
-            $"{Quote(field)} (not a supported route field).");
 
     /// <summary>
     /// Fails the boot unless a route declares the members without which nothing
@@ -172,28 +172,38 @@ internal static class RouteSchema
     /// not part of a route's identity, and the registry is authored, so judging
     /// one is left to the route manager that resolves it.
     /// </summary>
-    private static void ValidateRequiredMembers(JsonElement route, string routesJsonPath)
+    private static void ValidateRequiredMembers(SchemaContext context)
     {
-        if (!route.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Object)
+        if (!context.Route.TryGetProperty("files", out var files) || files.ValueKind != JsonValueKind.Object)
         {
-            throw new RoutePolicyException(
-                $"{RouteIdentity.Registry(routesJsonPath)}: {Describe(route)} declares no \"files\". A route " +
-                "names the React page and the view that serve it.");
+            throw Fail(
+                context,
+                "declares no \"files\". A route names the React page and the view that serve it.");
         }
 
         if (!files.TryGetProperty("view", out var view) || view.ValueKind != JsonValueKind.String)
         {
-            throw new RoutePolicyException(
-                $"{RouteIdentity.Registry(routesJsonPath)}: {Describe(route)} declares no \"files.view\". The " +
-                "view is the one member the server reads, so a route without it cannot be served.");
+            throw Fail(
+                context,
+                "declares no \"files.view\". The view is the one member the server reads, so a route "
+                    + "without it cannot be served.");
         }
     }
 
     /// <summary>
-    /// Finds a declared field whatever case it was written in, so a value check
-    /// can still diagnose a field whose name is the mistake. The exact spelling
-    /// is reported, not the one the schema knows, because the operator has to
-    /// edit the file they wrote.
+    /// The one place a route's failure is worded: the registry, the route, and
+    /// what is wrong with it. A violation of the shape and a violation of the
+    /// identity are read as one contract because they are worded the same way.
+    /// </summary>
+    private static RoutePolicyException Fail(SchemaContext context, string detail) =>
+        new(
+            $"{RouteIdentity.RegistryLabel(context.RegistryPath)}: "
+                + $"{Describe(context.Route)} {detail}");
+
+    /// <summary>
+    /// Finds a declared field whatever case it was written in. The exact
+    /// spelling is reported by the caller, not the one the schema knows,
+    /// because the operator has to edit the file they wrote.
     /// </summary>
     private static bool TryGetPropertyIgnoringCase(
         JsonElement route,
@@ -212,6 +222,10 @@ internal static class RouteSchema
         declared = default;
         return false;
     }
+
+    /// <summary>A declared value as it was written, quoted when it is text.</summary>
+    private static string AsWritten(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String ? $"\"{value.GetString()}\"" : value.ToString();
 
     private static string Quote(string value) => $"'{value}'";
 

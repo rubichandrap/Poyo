@@ -95,7 +95,8 @@ Generated projects compile it in place through their csproj (`Compile Include=".
 ```bash
 pnpm install
 pnpm run build        # compile TypeScript
-pnpm run test         # build + vitest
+pnpm run type-check   # tsc over src, test/, and vitest.config.ts
+pnpm run test         # type-check + build + vitest
 pnpm run lint         # biome
 ```
 

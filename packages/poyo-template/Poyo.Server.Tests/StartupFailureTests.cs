@@ -9,7 +9,7 @@ public class StartupFailureTests
     public static TheoryData<string> RefusedCases()
     {
         var data = new TheoryData<string>();
-        foreach (var corpusCase in RegistryCorpus.All.Where(c => c.ServerRejects))
+        foreach (var corpusCase in RegistryCorpus.All.Where(c => c.ServerVerdict.Rejects))
         {
             data.Add(corpusCase.Id);
         }
@@ -27,9 +27,8 @@ public class StartupFailureTests
     [MemberData(nameof(RefusedCases))]
     public void Every_registry_the_corpus_refuses_fails_the_boot(string id)
     {
-        var corpusCase = RegistryCorpus.Require(id);
         using var directory = TemporaryDirectory.Create("startup-failure");
-        var registryPath = directory.WriteFile("routes.json", corpusCase.RegistryText);
+        var registryPath = RegistryCorpus.WriteTo(directory, id);
 
         var routePolicyError = TestEnvironment.BootFailureFor(registryPath);
 
@@ -41,12 +40,16 @@ public class StartupFailureTests
     /// arrive in is a startup failure with its own wording. A missing registry
     /// is the important one: it used to boot an application whose access model,
     /// SEO policy and no-store guarantee were all switched off.
+    ///
+    /// These two are the states no corpus case can declare, because neither is
+    /// a registry: there is no case for a file that is not there, and none for
+    /// a file with no content. Every state that *is* expressible as a registry
+    /// is booted by the theory above, and the wording of a message the corpus
+    /// cannot speak for both runtimes is pinned where the reader is tested.
     /// </summary>
     [Theory]
     [InlineData(TestEnvironment.MissingRegistry, "was not found")]
     [InlineData("routes.blank.json", "is empty")]
-    [InlineData("routes.empty.json", "is empty")]
-    [InlineData("routes.malformed.json", "is not a valid routes registry")]
     public void A_registry_the_server_cannot_load_fails_startup_loudly(
         string fixture,
         string messagePart)

@@ -18,30 +18,26 @@ namespace Poyo.Server.Tests.Support;
 /// without the test names following it, and two cases cannot share an id.
 /// </param>
 /// <param name="RegistryText">The registry exactly as a case declares it.</param>
-/// <param name="ServerVerdict">Whether the boot refuses it.</param>
-/// <param name="ManagerVerdict">Whether the route manager refuses it.</param>
+/// <param name="ServerVerdict">Whether the boot refuses it. A case's verdict
+/// for the route manager is read by the route manager's suite, which is the
+/// only side that asserts it; this one holds the server's, for the same
+/// reason.</param>
 /// <param name="Message">
 /// Fragments the runtimes that refuse this case are expected to carry. A case
-/// both refuse asserts them of both, so the two name the same facts; a pinned
-/// difference asserts them of the side that refuses it, which is the one whose
-/// message there is.
+/// both refuse asserts them of both, so the two name the same facts; a case
+/// pinned to one side asserts them of the side that refuses it, which is the
+/// one whose message there is.
 /// </param>
 internal sealed record RegistryCorpusCase(
     string Id,
     string RegistryText,
-    string ServerVerdict,
-    string ManagerVerdict,
+    Verdict ServerVerdict,
     IReadOnlyList<string> Message,
-    string Note)
-{
-    public bool ServerRejects => ServerVerdict == "reject";
-    public bool IsPinned => ServerVerdict != ManagerVerdict;
-}
+    string Note);
 
 internal static class RegistryCorpus
 {
-    public const string Reject = "reject";
-    public const string Accept = "accept";
+    private const string CorpusPath = "fixtures/registry";
 
     private static readonly Lazy<IReadOnlyList<RegistryCorpusCase>> Cases = new(Load);
 
@@ -50,31 +46,30 @@ internal static class RegistryCorpus
     public static RegistryCorpusCase Require(string id) =>
         All.Single(corpusCase => corpusCase.Id == id);
 
-    private static IReadOnlyList<RegistryCorpusCase> Load()
-    {
-        var directory = CorpusDirectory();
+    /// <summary>
+    /// Writes a case's registry into a temporary directory the caller owns and
+    /// disposes, and returns its path. Both seams a corpus case reaches — the
+    /// reader and the boot — take a path, so a test that exercises one has to
+    /// put the case's registry on disk first.
+    /// </summary>
+    public static string WriteTo(TemporaryDirectory directory, string id) =>
+        directory.WriteFile("routes.json", Require(id).RegistryText);
 
-        if (!Directory.Exists(directory))
-        {
-            throw new DirectoryNotFoundException(
-                $"The registry corpus is not at '{directory}'. Both the server suite and the " +
-                "route manager suite read it, and neither ships a copy: it is the repository's.");
-        }
-
-        return Directory.EnumerateFiles(directory, "*.json")
+    private static IReadOnlyList<RegistryCorpusCase> Load() =>
+        Directory
+            .EnumerateFiles(CorpusDirectory(), "*.json")
             .OrderBy(file => file, StringComparer.Ordinal)
             .Select(Read)
             .ToArray();
-    }
 
     /// <summary>
     /// The corpus as it sits in the source tree, rather than a copy beside the
-    /// test binaries, so a case edited is the case read.
+    /// test binaries, so a case edited is the case read. The corpus belongs to
+    /// the repository, so it is found by walking up to the directory that holds
+    /// it rather than by counting the levels back to the root — see
+    /// <see cref="SourceDirectory"/>.
     /// </summary>
-    private static string CorpusDirectory() => Path.Combine(
-        AppContext.BaseDirectory,
-        "..", "..", "..", "..", "..", "..",
-        "fixtures", "registry");
+    private static string CorpusDirectory() => SourceDirectory.Nearest(CorpusPath);
 
     private static RegistryCorpusCase Read(string file)
     {
@@ -90,31 +85,30 @@ internal static class RegistryCorpus
                 $"{id}: exactly one of \"verdict\" and \"verdicts\" must be declared.");
         }
 
-        var verdict = shared ? Verdict(body, id, "verdict") : string.Empty;
+        var verdict = shared ? ReadVerdict(body, id, "verdict") : ReadVerdict(verdicts, id, "server");
 
         return new RegistryCorpusCase(
             id,
             body.TryGetProperty("text", out var text)
                 ? text.GetString() ?? string.Empty
                 : body.GetProperty("registry").GetRawText(),
-            pinned ? Verdict(verdicts, id, "server") : verdict,
-            pinned ? Verdict(verdicts, id, "manager") : verdict,
+            verdict,
             body.TryGetProperty("message", out var message)
                 ? message.EnumerateArray().Select(fragment => fragment.GetString() ?? string.Empty).ToArray()
                 : [],
             body.TryGetProperty("note", out var note) ? note.GetString() ?? string.Empty : string.Empty);
     }
 
-    private static string Verdict(JsonElement element, string id, string member)
+    private static Verdict ReadVerdict(JsonElement element, string id, string member)
     {
         if (!element.TryGetProperty(member, out var value)
             || value.ValueKind != JsonValueKind.String
-            || value.GetString() is not (Accept or Reject))
+            || !Verdict.TryParse(value.GetString(), out var verdict))
         {
             throw new InvalidOperationException(
-                $"{id}: \"{member}\" must be one of \"{Accept}\" or \"{Reject}\".");
+                $"{id}: \"{member}\" must be one of \"{Verdict.Accept}\" or \"{Verdict.Reject}\".");
         }
 
-        return value.GetString()!;
+        return verdict;
     }
 }

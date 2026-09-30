@@ -112,7 +112,7 @@ The hosting environment comes from the process, and the server reads it *before*
 
 When the file is read, it **fills gaps without ever overriding** a value the process has already set, so a value in your shell wins over the same value in `.env`. A `.env` left in a production deployment cannot enable developer exception pages, the Vite development integration, or the absence of HTTPS redirection, because it can never contribute the hosting environment. It *is* read when the environment is unset — and an unset environment is production — so a deployment that forgets to set it still applies the file's other values. Nothing environment-bearing is copied into publish output: what you ship is what you reviewed, and the file does not travel with the artifact.
 
-Set production values through your host — a service manager `EnvironmentFile=`, `docker run --env-file`, IIS `web.config` `environmentVariables`, or an `appsettings.Production.json`.
+Set production values through your host; the supported mechanisms are named, once, in step 3 of [Upgrading an existing deployment](#upgrading-an-existing-deployment) below.
 
 ### Upgrading an existing deployment
 

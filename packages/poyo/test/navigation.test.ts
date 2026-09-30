@@ -10,14 +10,28 @@ import {
 	clearActiveRouteTable,
 	type AppRoute,
 } from "../src/runtime/route-table.js";
-import { createRouterHarness } from "./router-test-helpers.js";
+import { createRouterHarness, stubComponent } from "./router-test-helpers.js";
 
 const dummyRoute: AppRoute = {
 	path: "/dashboard",
 	pageName: "Dashboard",
 	access: "protected",
-	component: () => null,
+	component: stubComponent(),
 };
+
+/**
+ * Hand-rolled rather than `Promise.withResolvers`, which is ES2024: this package
+ * supports Node 20 (`engines`), where the builtin does not exist.
+ */
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<T>((onResolve, onReject) => {
+		resolve = onResolve;
+		reject = onReject;
+	});
+	return { promise, resolve, reject };
+}
 
 describe("Navigation Store & usePage", () => {
 	beforeEach(() => {
@@ -91,7 +105,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/dashboard",
 			pageName: "Dashboard",
 			access: "protected",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const routes: AppRoute[] = [dashboardRoute];
@@ -147,7 +161,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/login",
 			pageName: "Login",
 			access: "public",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const routes: AppRoute[] = [loginRoute];
@@ -188,7 +202,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/login",
 			pageName: "Login",
 			access: "public",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const fetchMock = vi.fn().mockResolvedValue({
@@ -271,13 +285,13 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/dashboard",
 			pageName: "Dashboard",
 			access: "protected",
-			component: () => null,
+			component: stubComponent(),
 		};
 		const loginRoute: AppRoute = {
 			path: "/login",
 			pageName: "Login",
 			access: "guest",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		// What a browser hands back for a cross-"same-origin" redirect under
@@ -326,7 +340,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/login",
 			pageName: "Login",
 			access: "guest",
-			component: () => null,
+			component: stubComponent(),
 		};
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,
@@ -362,7 +376,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/",
 			pageName: "Home",
 			access: "public",
-			component: () => null,
+			component: stubComponent(),
 		};
 		const harness = createRouterHarness({
 			routes: [activeRoute],
@@ -448,19 +462,19 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/slow",
 			pageName: "Slow",
 			access: "protected",
-			component: () => null,
+			component: stubComponent(),
 		};
 		const fastRoute: AppRoute = {
 			path: "/fast",
 			pageName: "Fast",
 			access: "protected",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const routes: AppRoute[] = [slowRoute, fastRoute];
 
 		const { promise: slowPromise, resolve: resolveSlowFetch } =
-			Promise.withResolvers<unknown>();
+			deferred<unknown>();
 
 		const fetchMock = vi.fn().mockImplementation((url: string) => {
 			if (url === "/slow") {
@@ -535,11 +549,11 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/active",
 			pageName: "Active",
 			access: "protected",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const { promise: slowPromise, reject: rejectSlowFetch } =
-			Promise.withResolvers<unknown>();
+			deferred<unknown>();
 
 		const fetchMock = vi.fn().mockImplementation((url: string) => {
 			if (url === "/stale-slow") {
@@ -585,7 +599,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/profile",
 			pageName: "Profile",
 			access: "protected",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const metaEl = {
@@ -650,7 +664,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/settings",
 			pageName: "Settings",
 			access: "protected",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const pageRegionEl = {
@@ -744,7 +758,7 @@ describe("useRouter and shell reactivity without a provider", () => {
 			path: "/",
 			pageName: "Home",
 			access: "public",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		// Server declared an unknown page name "GhostPage" on #react-root
@@ -776,7 +790,7 @@ describe("useRouter and shell reactivity without a provider", () => {
 			path: "/",
 			pageName: "Home",
 			access: "public",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const mockDoc = {
@@ -806,7 +820,7 @@ describe("useRouter and shell reactivity without a provider", () => {
 			path: "/about",
 			pageName: "About",
 			access: "public",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const fetchMock = vi.fn().mockResolvedValue({
@@ -845,7 +859,7 @@ describe("useRouter and shell reactivity without a provider", () => {
 			path: "/dashboard",
 			pageName: "Dashboard",
 			access: "protected",
-			component: () => null,
+			component: stubComponent(),
 		};
 
 		const routes: AppRoute[] = [dashboardRoute];
