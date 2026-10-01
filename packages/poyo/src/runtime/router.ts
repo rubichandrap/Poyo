@@ -321,14 +321,15 @@ export function createRouter(options?: RouterOptions): Router {
 	}
 
 	// A descriptor request that cannot be answered hands the decision back to the
-	// browser, which applies the redirect itself. `replace` is for the traversal
-	// paths: the browser has already moved the current history entry to the
+	// browser. The document load preserves the history operation the caller
+	// asked for, so `push` falls back through `location.assign` and `replace`
+	// through `location.replace`: a failed `replace` must not grow the history
+	// stack, and a failed `push` must not collapse it. Traversal already passes
+	// `true`, because the browser has moved the current history entry to the
 	// target, so a document load must settle that entry rather than risk growing
-	// or truncating the stack. It is equivalent to a reload when the browser
-	// agrees the entry is already correct, and it is the only form that cannot
-	// leave a stale forward entry behind if it does not. Push/replace for a
-	// client-initiated navigation is a separate question (R05).
-	const fallback = (url: string, token: number, replace = false) => {
+	// or truncating the stack. `replace` is required: a default would let a
+	// future call site inherit the wrong operation by omission.
+	const fallback = (url: string, token: number, replace: boolean) => {
 		if (token !== supersedeToken) return;
 		const target = win ?? (typeof window !== "undefined" ? window : undefined);
 		const location = target?.location;
@@ -360,7 +361,7 @@ export function createRouter(options?: RouterOptions): Router {
 			}
 
 			if (!result) {
-				fallback(url, currentToken);
+				fallback(url, currentToken, mode === "replace");
 				return;
 			}
 
@@ -399,7 +400,7 @@ export function createRouter(options?: RouterOptions): Router {
 			applySeoAndAccessibility(doc, result.body);
 			lastCommittedUrl = win?.location?.href ?? url;
 		} catch {
-			fallback(url, currentToken);
+			fallback(url, currentToken, mode === "replace");
 		}
 	};
 

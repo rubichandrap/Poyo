@@ -69,8 +69,12 @@ The thin Vite-boundary adapter in generated projects (`src/routes/route-loader.t
 _Avoid_: route engine, route resolver
 
 **Dynamic navigation**:
-The capability where an internal navigation swaps only the page component below the loaded shell instead of reloading the document, preserving client state. Driven explicitly — programmatically through the Router or declaratively through `Link` — never by intercepting arbitrary anchors. After a client-side navigation, browser Back/Forward swap pages the same way. The document load remains the floor: the first load of any URL, and the fallback for every failure.
+The capability where an internal navigation swaps only the page component below the loaded shell instead of reloading the document, preserving client state. Driven explicitly — programmatically through the Router or declaratively through `Link` — never by intercepting arbitrary anchors. After a client-side navigation, browser Back/Forward swap pages the same way. A Document load remains the floor: the first load of any URL, and the fallback for every failure.
 _Avoid_: hybrid navigation, soft navigation, SPA mode, client-side routing
+
+**Document load**:
+A full browser navigation that requests and renders a server document (a Razor view) and boots the React application anew. The initial load of any URL, the result of an unadorned `<a>` click, and the guaranteed floor under Dynamic navigation whenever a client-side swap cannot proceed — the URL returns to the browser, which preserves the history operation the caller requested. The noun Dynamic navigation and the map's fallback both name.
+_Avoid_: hard navigation, full page reload, browser reload, full reload
 
 **Router**:
 The programmatic navigation API: `useRouter` (push, replace, back, forward, and the current route as reactive state) plus the factory that wires it. `Link` is its declarative counterpart — link clicks and router calls share one navigation path.
