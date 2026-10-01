@@ -73,7 +73,7 @@ The capability where an internal navigation swaps only the page component below 
 _Avoid_: hybrid navigation, soft navigation, SPA mode, client-side routing
 
 **Document load**:
-A full browser navigation that requests and renders a server document (a Razor view) and boots the React application anew. The initial load of any URL, the result of an unadorned `<a>` click, and the guaranteed floor under Dynamic navigation whenever a client-side swap cannot proceed — the URL returns to the browser, which preserves the history operation the caller requested. The noun Dynamic navigation and the map's fallback both name.
+A full browser navigation that requests and renders a server document (a Razor view) and boots the React application anew. The initial load of any URL, the result of an unadorned `<a>` click, and the guaranteed floor under Dynamic navigation whenever a client-side swap cannot proceed.
 _Avoid_: hard navigation, full page reload, browser reload, full reload
 
 **Router**:

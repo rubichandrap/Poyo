@@ -468,9 +468,13 @@ describe("Router push, replace, and fallbacks", () => {
 	// R05: a descriptor that cannot be answered degrades to a document load, and
 	// that load must preserve the history operation the caller asked for — push
 	// falls back through location.assign, replace through location.replace, so a
-	// failed replace never grows the stack. Every reachable failure seam lands on
-	// that one line, including the catch path a network rejection takes; a matrix
-	// covering only the `!result` seams would let the catch site keep assign.
+	// failed replace never grows the stack. Both fallback sites in `navigate` land
+	// here — the unanswered-descriptor path and the catch path a network rejection
+	// takes; a matrix covering only the `!result` seams would let the catch site
+	// keep assign. The seams below are the descriptor-failure kinds; the defensive
+	// `!fetchFn || !routeTable` exit is unreachable under the shipped wiring
+	// (route-loader registers the table before app.tsx's router runs), so it is
+	// deliberately omitted.
 	const failureSeams: { label: string; makeFetch: () => Mock }[] = [
 		{
 			label: "a non-2xx response",
