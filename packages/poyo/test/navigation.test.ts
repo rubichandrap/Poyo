@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+	type Mock,
+} from "vitest";
 import { usePage } from "../src/runtime/use-page.js";
 import {
 	commitNavigation,
@@ -455,6 +463,110 @@ describe("Router push, replace, and fallbacks", () => {
 
 		expect(harness.assign).toHaveBeenCalledWith("/offline");
 		expect(router.route).toBeNull();
+	});
+
+	// R05: a descriptor that cannot be answered degrades to a document load, and
+	// that load must preserve the history operation the caller asked for — push
+	// falls back through location.assign, replace through location.replace, so a
+	// failed replace never grows the stack. Both fallback sites in `navigate` land
+	// here — the unanswered-descriptor path and the catch path a network rejection
+	// takes; a matrix covering only the `!result` seams would let the catch site
+	// keep assign. The seams below are the descriptor-failure kinds; the defensive
+	// `!fetchFn || !routeTable` exit is unreachable under the shipped wiring
+	// (route-loader registers the table before app.tsx's router runs), so it is
+	// deliberately omitted.
+	const failureSeams: { label: string; makeFetch: () => Mock }[] = [
+		{
+			label: "a non-2xx response",
+			makeFetch: () => vi.fn().mockResolvedValue({ ok: false, status: 404 }),
+		},
+		{
+			label: "an opaque redirect",
+			makeFetch: () =>
+				vi.fn().mockResolvedValue({
+					type: "opaqueredirect",
+					ok: false,
+					status: 0,
+					json: vi.fn(async () => {
+						throw new SyntaxError("Unexpected token '<'");
+					}),
+				}),
+		},
+		{
+			label: "a transport that reports the redirect",
+			makeFetch: () =>
+				vi.fn().mockResolvedValue({
+					ok: true,
+					status: 200,
+					redirected: true,
+					json: async () => ({ name: "Login", seo: null, pageData: null }),
+				}),
+		},
+		{
+			label: "an opt-out document instead of a descriptor",
+			makeFetch: () =>
+				vi.fn().mockResolvedValue({
+					ok: true,
+					status: 200,
+					json: vi.fn(async () => {
+						throw new SyntaxError("Unexpected token '<'");
+					}),
+				}),
+		},
+		{
+			label: "a malformed descriptor",
+			makeFetch: () =>
+				vi.fn().mockResolvedValue({
+					ok: true,
+					status: 200,
+					json: async () => [1, 2, 3],
+				}),
+		},
+		{
+			label: "a descriptor naming an unknown page",
+			makeFetch: () =>
+				vi.fn().mockResolvedValue({
+					ok: true,
+					status: 200,
+					json: async () => ({ name: "GhostPage", seo: null, pageData: {} }),
+				}),
+		},
+		{
+			label: "a network rejection",
+			makeFetch: () => vi.fn().mockRejectedValue(new Error("Network Error")),
+		},
+	];
+	const failureSeamRoute: AppRoute = {
+		path: "/target",
+		pageName: "Login",
+		access: "public",
+		component: stubComponent(),
+	};
+
+	describe.each(failureSeams)("R05 fallback — $label", ({ makeFetch }) => {
+		it.each([
+			"push",
+			"replace",
+		] as const)("degrades through the same history operation as %s()", async (mode) => {
+			const fetchMock = makeFetch();
+			const harness = createRouterHarness({
+				routes: [failureSeamRoute],
+				fetch: fetchMock as unknown as typeof fetch,
+			});
+
+			await harness.router[mode]("/target");
+
+			const expected =
+				mode === "push" ? harness.assign : harness.replaceLocation;
+			const forbidden =
+				mode === "push" ? harness.replaceLocation : harness.assign;
+			expect(expected).toHaveBeenCalledWith("/target");
+			expect(forbidden).not.toHaveBeenCalled();
+			// The router never wrote a client-side history entry for a page it
+			// could not render; the browser's own navigation owns the entry.
+			expect(harness.history.pushState).not.toHaveBeenCalled();
+			expect(harness.history.replaceState).not.toHaveBeenCalled();
+		});
 	});
 
 	it("ensures rapid successive pushes are last-write-wins (supersede token)", async () => {

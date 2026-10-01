@@ -111,19 +111,23 @@ Acceptance proof: A clean `dotnet publish` output runs from its publish director
 
 Priority: P1
 
-Evidence: `packages/poyo/src/runtime/router.ts:304-334` uses `location.assign()` for both push and replace failures. A failed replace adds a history entry.
+Status: **Resolved** — preserve the requested history operation.
 
-Decision to grill: Must failed `replace()` preserve replacement semantics, or is document navigation allowed to add an entry when the server cannot supply a descriptor?
+Decision: `navigate` threads its `mode` into both fallback sites (`router.ts:364` on `!result`, `:403` on `catch`), so `replace()` falls back through `location.replace` and `push()` through `location.assign`. The traversal paths already passed `true` (`:426`, `:447`, `:472`); this closes the two client-initiated sites. `fallback`'s `replace` parameter becomes required — no default — so a sixth call site cannot inherit a wrong default by omission, and all five sites state intent explicitly. `Link replace` is covered transitively: it dispatches `router.replace` (`link.tsx:92`) and owns no fallback logic, so the matrix tests the seam, not every caller of it.
 
-Recommended default: Preserve the requested history operation. Use replace-equivalent document navigation for failed `replace()` and push-equivalent navigation for failed `push()`.
+The client stays ignorant of `dynamic`: a `dynamic: false` target is answered with the document by the server (`PageResult.cs:160`), whose body fails `response.json()` and reaches the same floor. ADR 0009 decision 4 makes the server that enforcement point; adding `dynamic` to `AppRoute` would put a second copy of the policy on the type app code reads.
 
-Acceptance proof: 404, malformed descriptor, opt-out HTML, redirect, and network failures preserve Back/Forward history semantics.
+Acceptance proof: a table-driven matrix over the seven failure kinds — non-2xx, opaque redirect, reported redirect (`redirected === true`), opt-out/unparseable body, malformed descriptor, unknown page name, and the network rejection that exercises the `catch` site — each parametrized over `{push, replace}`, asserting `harness.assign` versus `harness.replaceLocation` and that `pushState`/`replaceState` are never called. The descriptor resolver has seven `return null` exits; the seventh, the defensive `!fetchFn || !routeTable`, is unreachable under the shipped wiring and is deliberately omitted. No test pins the old behavior, so the fix churns none. Real history-length assertions need a browser the repo does not have (no Playwright/Puppeteer in any package) and are deferred to R06 together with that toolchain decision.
+
+One consequence R05 does not fix, carried to R06: an apply error thrown *after* the history write still lands in `navigate`'s `catch`, so a `push` whose SEO/focus apply throws leaves two entries (the `pushState` write plus the `location.assign` fallback) while a `replace` replaces once. Measured, pre-existing, and untouched by this change — the post-commit tail sits inside the history-writing `try`, which is R06's state-machine territory.
+
+Amendments: ADR 0009 decision 7 (the history operation, and the opt-out reaching the same floor); `AGENTS.md` §3.7's fallback clause; `CONTEXT.md` gains **Document load** as a noun-only term, with **Dynamic navigation** trimmed to reference it.
 
 ### R06 - Scroll state and restoration
 
 Priority: P1
 
-Evidence: `router.ts:338-366` records zero scroll for a replacement without moving the viewport. `router.ts:430-436` schedules a restoration frame without checking whether a newer navigation superseded it. `router.ts:393-397` reloads cold entries while browser restoration is manual.
+Evidence: `router.ts:338-366` records zero scroll for a replacement without moving the viewport. `router.ts:430-436` schedules a restoration frame without checking whether a newer navigation superseded it. `router.ts:393-397` reloads cold entries while browser restoration is manual. Carried from R05: an apply error thrown after the history write lands in `navigate`'s `catch`, so a `push` whose SEO/focus apply throws leaves two entries (the `pushState` write plus the `location.assign` fallback) — the post-commit tail sits inside the history-writing `try`. R05 measured it and left it here.
 
 Decision to grill: Must scroll restoration work for cold entries, or is a cold entry explicitly a plain document navigation with browser-owned restoration?
 
