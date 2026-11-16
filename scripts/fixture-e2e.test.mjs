@@ -333,7 +333,7 @@ function packFrameworkPackage(destination) {
 }
 
 /** Boots the built fixture server and waits until it answers. */
-async function startServer(fixture, environment, port) {
+async function startServer(fixture, environment, port, extraEnv = {}) {
 	const serverDll = path.join(
 		fixture,
 		SERVER_DIR,
@@ -351,6 +351,7 @@ async function startServer(fixture, environment, port) {
 				...process.env,
 				ASPNETCORE_ENVIRONMENT: environment,
 				ASPNETCORE_URLS: `http://127.0.0.1:${port}`,
+				...extraEnv,
 			},
 			stdio: ["ignore", "pipe", "pipe"],
 		},
@@ -1236,6 +1237,22 @@ test(
 			await checkBrowserNavigation({
 				chromium,
 				origin: `http://127.0.0.1:${browserPort}`,
+			});
+			serverProcess.kill("SIGTERM");
+			serverProcess = null;
+
+			// 14. The same browser scenario under a path base. The host states
+			// PathBase once; assets, the client's data-base-path, API calls and
+			// every dynamic navigation must stay inside it. Same script, base
+			// included in the origin, so a URL the app emits outside the base
+			// fails the same assertions a root deployment passes.
+			const subpathPort = await getFreePort();
+			serverProcess = await startServer(fixture, "Production", subpathPort, {
+				PathBase: "/Poyo",
+			});
+			await checkBrowserNavigation({
+				chromium,
+				origin: `http://127.0.0.1:${subpathPort}/Poyo`,
 			});
 			serverProcess.kill("SIGTERM");
 			serverProcess = null;
