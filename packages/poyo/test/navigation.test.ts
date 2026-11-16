@@ -7,18 +7,40 @@ import {
 	vi,
 	type Mock,
 } from "vitest";
+import { useSyncExternalStore } from "react";
 import { usePage } from "../src/runtime/use-page.js";
 import {
 	commitNavigation,
 	getNavigationStore,
 	resetNavigationStore,
 } from "../src/runtime/navigation-store.js";
-import { getActiveRouter, setActiveRouter } from "../src/runtime/router.js";
+import {
+	SEO_MARKER_ATTRIBUTE,
+	TITLE_TEMPLATE_ATTRIBUTE,
+	createRouter,
+	getActiveRouter,
+	setActiveRouter,
+} from "../src/runtime/router.js";
+import { type FakeDocument, createFakeDocument, seed } from "./fake-head.js";
 import {
 	clearActiveRouteTable,
 	type AppRoute,
 } from "../src/runtime/route-table.js";
 import { createRouterHarness, stubComponent } from "./router-test-helpers.js";
+
+// usePage is a hook over the navigation store. These tests read it outside a
+// React render (the package has no renderer), so the store hook reads the
+// snapshot directly; the subscription itself is asserted on its own.
+vi.mock("react", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("react")>();
+	return {
+		...actual,
+		useSyncExternalStore: vi.fn(
+			(_subscribe: () => () => void, getSnapshot: () => unknown) =>
+				getSnapshot(),
+		),
+	};
+});
 
 const dummyRoute: AppRoute = {
 	path: "/dashboard",
@@ -42,6 +64,19 @@ function deferred<T>() {
 }
 
 describe("Navigation Store & usePage", () => {
+	it("subscribes to the navigation store, so a memoized page re-renders on navigation", () => {
+		vi.stubGlobal("window", { SERVER_DATA: { user: "alice" } });
+		const store = getNavigationStore();
+
+		usePage();
+
+		expect(useSyncExternalStore).toHaveBeenCalledWith(
+			store.subscribe,
+			store.getPageData,
+			expect.any(Function),
+		);
+	});
+
 	beforeEach(() => {
 		clearActiveRouteTable();
 		resetNavigationStore();
@@ -771,6 +806,48 @@ describe("Router push, replace, and fallbacks", () => {
 		expect(headAppendMock).toHaveBeenCalledWith(metaEl);
 	});
 
+	it("falls back to the route name and drops the description when the registry gives neither", async () => {
+		const plainRoute: AppRoute = {
+			path: "/plain",
+			pageName: "Plain",
+			access: "public",
+			component: stubComponent(),
+		};
+		// The previous page left a description tag behind.
+		const staleDescription = { setAttribute: vi.fn(), remove: vi.fn() };
+		const mockDoc = {
+			title: "Profile - Poyo",
+			querySelector: vi.fn((sel: string) =>
+				sel === 'meta[name="description"]' ? staleDescription : null,
+			),
+			createElement: vi.fn(),
+			head: { appendChild: vi.fn() },
+			body: { appendChild: vi.fn() },
+			getElementById: vi.fn().mockReturnValue(null),
+		};
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			// A registry `seo` object with neither a title nor a description.
+			json: async () => ({
+				name: "Plain",
+				seo: { title: null, description: null, meta: null, jsonLd: null },
+				pageData: null,
+			}),
+		});
+		const harness = createRouterHarness({
+			routes: [plainRoute],
+			fetch: fetchMock as unknown as typeof fetch,
+			document: mockDoc as unknown as Document,
+		});
+
+		await harness.router.push("/plain");
+
+		expect(mockDoc.title).toBe("Plain");
+		expect(staleDescription.remove).toHaveBeenCalled();
+		expect(staleDescription.setAttribute).not.toHaveBeenCalled();
+	});
+
 	it("moves focus to the page region and announces swap via live region", async () => {
 		const settingsRoute: AppRoute = {
 			path: "/settings",
@@ -1006,5 +1083,232 @@ describe("useRouter and shell reactivity without a provider", () => {
 			(store.getState().pageData as { generation: number }).generation,
 		).toBe(2);
 		expect(usePage<{ generation: number }>()?.generation).toBe(2);
+	});
+});
+
+describe("Head parity with the server-rendered document", () => {
+	const profileRoute: AppRoute = {
+		path: "/profile",
+		pageName: "Profile",
+		access: "public",
+		component: stubComponent(),
+	};
+
+	afterEach(() => {
+		getActiveRouter()?.destroy?.();
+		setActiveRouter(undefined);
+		vi.unstubAllGlobals();
+		clearActiveRouteTable();
+		resetNavigationStore();
+	});
+
+	const navigateTo = async (doc: FakeDocument, seo: unknown) => {
+		const harness = createRouterHarness({
+			routes: [profileRoute],
+			fetch: vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ name: "Profile", seo, pageData: null }),
+			}) as unknown as typeof fetch,
+			document: doc as unknown as Document,
+		});
+		await harness.router.push("/profile");
+	};
+
+	// What the layout rendered for the previous page.
+	const previousPage = () => {
+		const doc = createFakeDocument();
+		seed(
+			doc,
+			"title",
+			{ [TITLE_TEMPLATE_ATTRIBUTE]: "%s - Poyo" },
+			"Home - Poyo",
+		);
+		seed(doc, "meta", {
+			name: "description",
+			content: "Home page",
+			[SEO_MARKER_ATTRIBUTE]: "",
+		});
+		seed(doc, "meta", {
+			property: "og:title",
+			content: "Home",
+			[SEO_MARKER_ATTRIBUTE]: "",
+		});
+		seed(doc, "meta", {
+			name: "robots",
+			content: "noindex",
+			[SEO_MARKER_ATTRIBUTE]: "",
+		});
+		seed(
+			doc,
+			"script",
+			{ type: "application/ld+json", [SEO_MARKER_ATTRIBUTE]: "" },
+			'{"@type":"WebSite"}',
+		);
+		seed(doc, "link", { rel: "icon", href: "/poyo.png" });
+		return doc;
+	};
+
+	const metaContent = (doc: FakeDocument, attribute: string, key: string) =>
+		doc.querySelector(`meta[${attribute}="${key}"]`)?.getAttribute("content");
+
+	it("formats the title through the layout's template", async () => {
+		const doc = previousPage();
+		await navigateTo(doc, { title: "Your profile" });
+		expect(doc.title).toBe("Your profile - Poyo");
+	});
+
+	it("replaces the previous route's description, meta tags and JSON-LD", async () => {
+		const doc = previousPage();
+		await navigateTo(doc, {
+			title: "Your profile",
+			description: "Edit your profile",
+			meta: { "og:title": "Profile" },
+			jsonLd: { "@type": "ProfilePage" },
+		});
+
+		expect(metaContent(doc, "name", "description")).toBe("Edit your profile");
+		expect(metaContent(doc, "property", "og:title")).toBe("Profile");
+		// Owned by the previous route only: gone.
+		expect(doc.querySelector('meta[name="robots"]')).toBeNull();
+		const scripts = doc.querySelectorAll("script");
+		expect(scripts).toHaveLength(1);
+		expect(JSON.parse(scripts[0].textContent)).toEqual({
+			"@type": "ProfilePage",
+		});
+		// Not route-owned: untouched.
+		expect(doc.querySelector("link")).not.toBeNull();
+	});
+
+	it("leaves no route-owned head element behind for a route without SEO", async () => {
+		const doc = previousPage();
+		await navigateTo(doc, null);
+
+		expect(doc.title).toBe("Profile - Poyo");
+		expect(doc.querySelectorAll(`[${SEO_MARKER_ATTRIBUTE}]`)).toHaveLength(0);
+		expect(doc.querySelector('meta[name="description"]')).toBeNull();
+	});
+
+	it("reuses an unmarked tag from a layout that predates the markers instead of duplicating it", async () => {
+		const doc = createFakeDocument();
+		seed(doc, "meta", { property: "og:title", content: "Home" });
+		await navigateTo(doc, {
+			title: "Profile",
+			meta: { "og:title": "Profile" },
+		});
+
+		const tags = doc.querySelectorAll('meta[property="og:title"]');
+		expect(tags).toHaveLength(1);
+		expect(tags[0].getAttribute("content")).toBe("Profile");
+		// Without a template the title is the page title alone.
+		expect(doc.title).toBe("Profile");
+	});
+});
+
+describe("Base path and fragment targets", () => {
+	afterEach(() => {
+		getActiveRouter()?.destroy?.();
+		setActiveRouter(undefined);
+		vi.unstubAllGlobals();
+		clearActiveRouteTable();
+		resetNavigationStore();
+	});
+
+	it("requests, records and falls back to the base-path URL for an app-relative push", async () => {
+		const dashboard: AppRoute = {
+			path: "/Dashboard",
+			pageName: "Dashboard",
+			access: "public",
+			component: stubComponent(),
+		};
+		const fetchMock = vi
+			.fn()
+			.mockResolvedValueOnce({
+				ok: true,
+				status: 200,
+				json: async () => ({ name: "Dashboard", seo: null, pageData: null }),
+			})
+			.mockResolvedValueOnce({ ok: false, status: 500 });
+		const routeTable = {
+			basePath: "/Poyo",
+			routes: [dashboard],
+			routeMap: { Dashboard: dashboard.component },
+			findRouteByName: (name: string) =>
+				name === "Dashboard" ? dashboard : undefined,
+			findRouteGeneric: () => undefined,
+			detectGhostRoutes: () => undefined,
+		};
+		const assign = vi.fn();
+		const pushState = vi.fn();
+		const win = {
+			location: {
+				origin: "http://localhost:3000",
+				href: "http://localhost:3000/Poyo/",
+				pathname: "/Poyo/",
+				search: "",
+				hash: "",
+				assign,
+				replace: vi.fn(),
+			},
+			history: { state: null, pushState, replaceState: vi.fn() },
+			scrollTo: vi.fn(),
+			addEventListener: vi.fn(),
+			removeEventListener: vi.fn(),
+		} as unknown as Window;
+		vi.stubGlobal("window", win);
+		const router = createRouter({
+			routeTable,
+			window: win,
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		await router.push("/Dashboard");
+		expect(fetchMock).toHaveBeenNthCalledWith(
+			1,
+			"/Poyo/Dashboard",
+			expect.anything(),
+		);
+		expect(pushState).toHaveBeenCalledWith(
+			expect.anything(),
+			"",
+			"/Poyo/Dashboard",
+		);
+
+		await router.push("/Dashboard?broken=1");
+		expect(assign).toHaveBeenCalledWith("/Poyo/Dashboard?broken=1");
+	});
+
+	it("scrolls to the fragment's element once the new page renders it", async () => {
+		const doc = createFakeDocument();
+		const team = doc.createElement("section");
+		team.setAttribute("id", "team");
+		const scrollIntoView = vi.fn();
+		Object.assign(team, { scrollIntoView });
+		const about: AppRoute = {
+			path: "/about",
+			pageName: "About",
+			access: "public",
+			component: stubComponent(),
+		};
+		const harness = createRouterHarness({
+			routes: [about],
+			fetch: vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ name: "About", seo: null, pageData: null }),
+			}) as unknown as typeof fetch,
+			document: doc as unknown as Document,
+		});
+
+		// The page renders its markup after the commit.
+		doc.body.appendChild(team);
+		await harness.router.push("/about#team");
+
+		expect(harness.history.pushState).toHaveBeenCalledWith(
+			expect.anything(),
+			"",
+			"/about#team",
+		);
+		expect(scrollIntoView).toHaveBeenCalled();
 	});
 });

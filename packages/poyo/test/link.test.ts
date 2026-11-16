@@ -45,6 +45,7 @@ describe("<Link /> component click eligibility rules", () => {
 				props: React.ComponentProps<typeof Link>,
 				ref: React.Ref<HTMLAnchorElement>,
 			) => React.ReactElement<{
+				href: string;
 				onClick: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 			}>;
 		};
@@ -333,7 +334,7 @@ describe("<Link /> component click eligibility rules", () => {
 		expect(pushMock).not.toHaveBeenCalled();
 	});
 
-	it("keeps native behavior for links pointing outside the application base path", async () => {
+	it("resolves app-relative hrefs against the base path and leaves absolute URLs outside it native", async () => {
 		const pushMock = vi.fn();
 		const router = createRouter({
 			routeTable: {
@@ -365,9 +366,22 @@ describe("<Link /> component click eligibility rules", () => {
 
 		pushMock.mockClear();
 
-		// Link outside base path -> native navigation (not intercepted)
+		// An app-relative href (a registry path, a routePath() result) gains
+		// the base path, both in the markup and in the navigation.
+		const eventRelative = createMockEvent();
+		const renderedRelative = renderLink({ href: "/settings" });
+		expect(renderedRelative.props.href).toBe("/portal/settings");
+		renderedRelative.props.onClick(eventRelative);
+		expect(eventRelative.preventDefault).toHaveBeenCalled();
+		expect(pushMock).toHaveBeenCalledWith("/portal/settings");
+
+		pushMock.mockClear();
+
+		// A URL outside the app is spelled absolutely and stays native.
 		const eventOutside = createMockEvent();
-		const renderedOutside = renderLink({ href: "/other-app/dashboard" });
+		const renderedOutside = renderLink({
+			href: "http://localhost:3000/other-app/dashboard",
+		});
 		renderedOutside.props.onClick(eventOutside);
 		expect(eventOutside.preventDefault).not.toHaveBeenCalled();
 		expect(pushMock).not.toHaveBeenCalled();

@@ -48,40 +48,81 @@ describe("Router Traversal — Slice 1: Cold entry traversal", () => {
 		expect(harness.history.scrollRestoration).toBe("manual");
 	});
 
-	it("triggers a replace-equivalent document load on cold-entry Back/Forward traversal", async () => {
-		const fetchMock = vi.fn();
-		const harness = createRouterHarness({
-			routes,
-			fetch: fetchMock as unknown as typeof fetch,
-		});
+	// popstate fires only for entries of the current document: an entry of
+	// another document is a document load the browser performs itself. So
+	// every entry that reaches the handler is this document's own, and none of
+	// them is answered with a reload.
+	it("adopts the landing entry so Back to it is a same-document traversal", () => {
+		const harness = createRouterHarness({ routes });
 
-		expect(harness.addEventListener).toHaveBeenCalledWith(
-			"popstate",
-			expect.any(Function),
-		);
-
-		await harness.popstate(null);
-
-		expect(harness.replaceLocation).toHaveBeenCalledWith("/");
-		expect(fetchMock).not.toHaveBeenCalled();
-	});
-
-	it("triggers document load if popstate state is a non-Poyo object (e.g. third-party state)", async () => {
-		const fetchMock = vi.fn();
-		const harness = createRouterHarness({
-			routes,
-			fetch: fetchMock as unknown as typeof fetch,
-			historyState: { someOtherLib: 123 },
-			location: {
-				pathname: "/some-page",
-				href: "http://localhost:3000/some-page",
+		expect(harness.history.state).toEqual({
+			__poyo: {
+				clientNavigated: true,
+				scroll: { x: 0, y: 0 },
+				url: "http://localhost:3000/",
 			},
 		});
+	});
 
+	it("keeps another library's keys when adopting the landing entry", () => {
+		const harness = createRouterHarness({
+			routes,
+			historyState: { someOtherLib: 123 },
+		});
+
+		expect(harness.history.state).toEqual(
+			expect.objectContaining({
+				someOtherLib: 123,
+				__poyo: expect.objectContaining({ clientNavigated: true }),
+			}),
+		);
+	});
+
+	it("traverses an entry without router state through the descriptor instead of reloading", async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ name: "Dashboard", seo: null, pageData: null }),
+		});
+		const harness = createRouterHarness({
+			routes,
+			fetch: fetchMock as unknown as typeof fetch,
+			scrollY: 640,
+		});
+
+		// Back to an entry another library pushed at a different path.
+		harness.location.pathname = "/dashboard";
+		harness.location.href = "http://localhost:3000/dashboard";
+		harness.history.state = { someOtherLib: 123 };
 		await harness.popstate({ someOtherLib: 123 });
 
-		expect(harness.replaceLocation).toHaveBeenCalledWith("/some-page");
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		expect(getNavigationStore().getRoute()).toBe(dashboardRoute);
+		// No scroll record: the page is shown from the top, not at the
+		// outgoing page's offset, and the entry gains a record.
+		expect(harness.scrollTo).toHaveBeenLastCalledWith(0, 0);
+		expect(harness.history.state).toEqual(
+			expect.objectContaining({
+				someOtherLib: 123,
+				__poyo: expect.objectContaining({ scroll: { x: 0, y: 0 } }),
+			}),
+		);
+	});
+
+	it("leaves a same-URL entry another library pushed to that library", async () => {
+		const fetchMock = vi.fn();
+		const harness = createRouterHarness({
+			routes,
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		// e.g. a modal library's history.pushState({ modal: true }, "", sameUrl)
+		await harness.popstate({ modal: true });
+
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
+		expect(harness.assign).not.toHaveBeenCalled();
 	});
 });
 
@@ -703,5 +744,124 @@ describe("Router Traversal — Slice 5: Failed and superseded traversal handling
 		expect(getNavigationStore().getPageData()).toEqual({ pushed: true });
 		expect(harness.assign).not.toHaveBeenCalled();
 		expect(harness.replaceLocation).not.toHaveBeenCalled();
+	});
+});
+
+describe("Router Traversal — entries the model checker found", () => {
+	beforeEach(() => {
+		clearActiveRouteTable();
+		resetNavigationStore();
+		setActiveRouter(undefined);
+	});
+
+	afterEach(() => {
+		getActiveRouter()?.destroy?.();
+		setActiveRouter(undefined);
+		vi.unstubAllGlobals();
+		clearActiveRouteTable();
+		resetNavigationStore();
+	});
+
+	it("does not copy the entry being left into a pushed entry", async () => {
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ name: "Dashboard", seo: null, pageData: null }),
+		});
+		const harness = createRouterHarness({
+			routes,
+			fetch: fetchMock as unknown as typeof fetch,
+			historyState: { modal: { open: true } },
+		});
+
+		await harness.router.push("/dashboard");
+
+		const pushed = harness.history.pushState.mock.calls[0][0];
+		expect(pushed).not.toHaveProperty("modal");
+		expect(pushed).toEqual({
+			__poyo: expect.objectContaining({ clientNavigated: true }),
+		});
+	});
+
+	it("does not record the outgoing page's scroll into the entry a traversal is moving to", async () => {
+		let answer: (value: unknown) => void = () => undefined;
+		const fetchMock = vi.fn(
+			() =>
+				new Promise((resolve) => {
+					answer = resolve;
+				}),
+		);
+		const destination = {
+			__poyo: {
+				clientNavigated: true,
+				scroll: { x: 0, y: 120 },
+				url: "/dashboard",
+			},
+		};
+		const harness = createRouterHarness({
+			routes,
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		// Back: the browser now points at /dashboard; "/" is still on screen.
+		harness.location.pathname = "/dashboard";
+		harness.location.href = "http://localhost:3000/dashboard";
+		harness.history.state = destination;
+		const traversal = harness.popstate(destination);
+
+		// The user scrolls the outgoing page before the descriptor arrives.
+		(window as unknown as { scrollY: number }).scrollY = 900;
+		harness.scroll();
+
+		expect(harness.history.replaceState).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				__poyo: expect.objectContaining({ scroll: { x: 0, y: 900 } }),
+			}),
+			"",
+			expect.anything(),
+		);
+
+		answer({
+			ok: true,
+			status: 200,
+			json: async () => ({ name: "Dashboard", seo: null, pageData: null }),
+		});
+		await traversal;
+
+		expect(harness.scrollTo).toHaveBeenLastCalledWith(0, 120);
+	});
+});
+
+describe("Router Traversal — replace keeps screen and scroll record in step", () => {
+	afterEach(() => {
+		getActiveRouter()?.destroy?.();
+		setActiveRouter(undefined);
+		vi.unstubAllGlobals();
+		clearActiveRouteTable();
+		resetNavigationStore();
+	});
+
+	it("shows a replaced page from the top, matching the entry's fresh scroll record", async () => {
+		clearActiveRouteTable();
+		resetNavigationStore();
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ name: "Dashboard", seo: null, pageData: null }),
+		});
+		const harness = createRouterHarness({
+			routes,
+			fetch: fetchMock as unknown as typeof fetch,
+			scrollY: 480,
+		});
+
+		await harness.router.replace("/dashboard");
+
+		expect(harness.history.state).toEqual(
+			expect.objectContaining({
+				__poyo: expect.objectContaining({ scroll: { x: 0, y: 0 } }),
+			}),
+		);
+		expect(harness.scrollTo).toHaveBeenLastCalledWith(0, 0);
 	});
 });

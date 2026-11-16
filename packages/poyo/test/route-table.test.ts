@@ -3,6 +3,7 @@ import { createElement, type ComponentType } from "react";
 import {
 	createRouteTable,
 	routePath,
+	withBasePath,
 	type PageLoaders,
 	type RouteEntry,
 	type RouteName,
@@ -408,5 +409,65 @@ describe("routePath and active route table registration", () => {
 		const path: RoutePath = "/arbitrary/path";
 		expect(typeof name).toBe("string");
 		expect(typeof path).toBe("string");
+	});
+});
+
+describe("base path resolution", () => {
+	it("matches the base path on a segment boundary only", async () => {
+		const { isUnderBasePath } = await import("../src/runtime/route-table.js");
+
+		expect(isUnderBasePath("/app", "/app")).toBe(true);
+		expect(isUnderBasePath("/APP/x", "/app")).toBe(true);
+		expect(isUnderBasePath("/apple", "/app")).toBe(false);
+		expect(isUnderBasePath("/anything", "/")).toBe(true);
+	});
+
+	it("does not strip a base path that is only a prefix of the first segment", () => {
+		const about: RouteEntry = {
+			path: "/le",
+			name: "About",
+			files: {
+				react: "src/pages/About/index.page.tsx",
+				view: "Views/About/Index.cshtml",
+			},
+		};
+		const table = createRouteTable([about], loadersFor(about), {
+			baseUrl: "/app",
+		});
+
+		// Under base "/app", "/apple" used to be stripped to "/le".
+		expect(table.findRouteGeneric("/apple")).toBeUndefined();
+		expect(table.findRouteGeneric("/app/le")?.pageName).toBe("About");
+	});
+
+	it("prefixes app-relative paths and leaves everything else alone", () => {
+		expect(withBasePath("/Dashboard", "/Poyo")).toBe("/Poyo/Dashboard");
+		expect(withBasePath("/", "/Poyo")).toBe("/Poyo");
+		expect(withBasePath("/Dashboard?tab=1#team", "/Poyo")).toBe(
+			"/Poyo/Dashboard?tab=1#team",
+		);
+		// Already resolved: resolving twice is harmless.
+		expect(withBasePath("/poyo/Dashboard", "/Poyo")).toBe("/poyo/Dashboard");
+		expect(withBasePath("/Poyo", "/Poyo")).toBe("/Poyo");
+		// Root base, absolute and non-root-relative hrefs.
+		expect(withBasePath("/Dashboard", "/")).toBe("/Dashboard");
+		expect(withBasePath("https://example.com/x", "/Poyo")).toBe(
+			"https://example.com/x",
+		);
+		expect(withBasePath("//cdn.example.com/x", "/Poyo")).toBe(
+			"//cdn.example.com/x",
+		);
+		expect(withBasePath("#team", "/Poyo")).toBe("#team");
+		expect(withBasePath("?tab=1", "/Poyo")).toBe("?tab=1");
+	});
+
+	it("turns a routePath() result into the URL the browser needs under a base path", () => {
+		createRouteTable([dashboardEntry], loadersFor(dashboardEntry), {
+			baseUrl: "https://host/Poyo/",
+		});
+
+		expect(withBasePath(routePath("Dashboard" as RouteName))).toBe(
+			"/Poyo/Dashboard",
+		);
 	});
 });

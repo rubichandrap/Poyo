@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { getNavigationStore } from "./navigation-store.js";
 
 /**
@@ -9,6 +10,8 @@ import { getNavigationStore } from "./navigation-store.js";
  * navigation updates the store with the descriptor's `pageData`; its
  * representation matches the same normalized value, while a later controller
  * invocation may produce fresh time-varying fields.
+ * It subscribes to the store, so a page below a memoized boundary re-renders
+ * with the new data on navigation rather than waiting for its parent.
  * It is SSR-safe: without a `window` it returns null, and non-object
  * payloads (missing, null, arrays, primitives) also resolve to null — only
  * a plain object is returned, typed with `T`.
@@ -19,9 +22,13 @@ import { getNavigationStore } from "./navigation-store.js";
 export function usePage<
 	T extends object = Record<string, unknown>,
 >(): T | null {
+	const store = getNavigationStore();
+	const serverData = useSyncExternalStore(
+		store.subscribe,
+		store.getPageData,
+		() => null,
+	);
 	if (typeof window === "undefined") return null;
-
-	const serverData = getNavigationStore().getPageData();
 
 	if (
 		typeof serverData === "object" &&
