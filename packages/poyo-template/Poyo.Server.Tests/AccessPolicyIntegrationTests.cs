@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 using Poyo.Server.Tests.Support;
 
 namespace Poyo.Server.Tests;
@@ -153,5 +156,69 @@ public sealed class AccessPolicyServerFixture : IDisposable
     public void Dispose()
     {
         Factory.Dispose();
+    }
+}
+
+/// <summary>
+/// The guest redirect under a path base: an application hosted at /Poyo lands
+/// authenticated visitors on its own landing page, not the host's.
+/// </summary>
+public class PathBaseAccessPolicyTests : IClassFixture<PathBaseAccessPolicyServerFixture>
+{
+    private readonly WebApplicationFactory<Program> _factory;
+
+    public PathBaseAccessPolicyTests(PathBaseAccessPolicyServerFixture fixture)
+    {
+        _factory = fixture.Factory;
+    }
+
+    [Fact]
+    public async Task Guest_redirect_lands_under_the_path_base()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+        });
+        var login = await client.PostAsJsonAsync("/Poyo/api/auth/login", new
+        {
+            username = "demo",
+            password = "password",
+        });
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+
+        var response = await client.GetAsync("/Poyo/Guest");
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("/Poyo/Dashboard", response.Headers.Location?.ToString());
+    }
+}
+
+public sealed class PathBaseAccessPolicyServerFixture : IDisposable
+{
+    public PathBaseAccessPolicyServerFixture()
+    {
+        Factory = TestEnvironment.CreateServer(
+            TestEnvironment.FixturePath("routes.access.json"),
+            startClient: true,
+            configureBuilder: builder => builder.ConfigureServices(services =>
+                services.AddSingleton<IStartupFilter>(new PathBaseStartupFilter("/Poyo"))));
+    }
+
+    public WebApplicationFactory<Program> Factory { get; }
+
+    public void Dispose()
+    {
+        Factory.Dispose();
+    }
+
+    private sealed class PathBaseStartupFilter(string pathBase) : IStartupFilter
+    {
+        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) =>
+            app =>
+            {
+                app.UsePathBase(pathBase);
+                next(app);
+            };
     }
 }
