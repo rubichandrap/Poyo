@@ -175,6 +175,16 @@ if (builder.Environment.IsDevelopment())
 
 WebApplication app = builder.Build();
 
+// A deployment may mount the app under a path base (an IIS virtual directory,
+// a reverse-proxy prefix). The host states it once, here; every URL the app
+// emits — asset tags through Url.Content, navigation, API calls, redirects —
+// resolves against the same Request.PathBase, so nothing has to guess it.
+string? pathBase = builder.Configuration["PathBase"];
+if (!string.IsNullOrWhiteSpace(pathBase))
+{
+    app.UsePathBase(pathBase);
+}
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 

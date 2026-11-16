@@ -201,8 +201,7 @@ public sealed class PathBaseAccessPolicyServerFixture : IDisposable
         Factory = TestEnvironment.CreateServer(
             TestEnvironment.FixturePath("routes.access.json"),
             startClient: true,
-            configureBuilder: builder => builder.ConfigureServices(services =>
-                services.AddSingleton<IStartupFilter>(new PathBaseStartupFilter("/Poyo"))));
+            pathBase: "/Poyo");
     }
 
     public WebApplicationFactory<Program> Factory { get; }
@@ -210,15 +209,5 @@ public sealed class PathBaseAccessPolicyServerFixture : IDisposable
     public void Dispose()
     {
         Factory.Dispose();
-    }
-
-    private sealed class PathBaseStartupFilter(string pathBase) : IStartupFilter
-    {
-        public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) =>
-            app =>
-            {
-                app.UsePathBase(pathBase);
-                next(app);
-            };
     }
 }

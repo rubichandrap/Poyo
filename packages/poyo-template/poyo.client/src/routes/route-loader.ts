@@ -6,6 +6,7 @@ import {
 	type RouteEntry,
 } from "@rubichandrap/poyo/runtime";
 import rawRoutes from "../../../routes.json";
+import { appBasePath } from "../lib/base-path";
 
 // Vite glob keys are relative to this module ("../pages/..."); the registry
 // speaks registry-space paths ("src/pages/..."). Re-key into registry space.
@@ -24,12 +25,8 @@ const pageLoaders: PageLoaders = Object.fromEntries(
 // The server injects its hosting path on the mount root (or <body>) as
 // data-base-path; VITE_BASE_URL is the standalone-dev fallback; "/" is the
 // default. createRouteTable normalizes and matches it case-insensitively.
-const mountRoot = document.getElementById("react-root");
-const baseUrl =
-	mountRoot?.dataset.basePath ??
-	document.body.dataset.basePath ??
-	(import.meta.env.VITE_BASE_URL as string | undefined) ??
-	"/";
+// One helper computes it, so navigation and API calls cannot disagree.
+const baseUrl = appBasePath();
 
 const { routes, routeMap, findRouteByName, findRouteGeneric } =
 	createRouteTable(rawRoutes as unknown as readonly RouteEntry[], pageLoaders, {
