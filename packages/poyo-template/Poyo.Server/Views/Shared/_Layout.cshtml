@@ -1,4 +1,10 @@
 @inject IConfiguration Configuration
+@{
+    // The title format, written once: the server renders the document title
+    // through it, and the client runtime reads it from the <title> attribute
+    // to title the pages it swaps in the same way. %s is the page title.
+    const string TitleTemplate = "%s - Poyo";
+}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -6,11 +12,13 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewBag.Title - Poyo</title>
-    
+    <title data-poyo-title-template="@TitleTemplate">@(TitleTemplate.Replace("%s", (string?)ViewBag.Title ?? string.Empty))</title>
+
+    @* data-poyo-seo marks the head elements the route's registry seo owns, so
+       a dynamic navigation can replace exactly these and nothing else. *@
     @if (ViewBag.Description != null)
     {
-        <meta name="description" content="@ViewBag.Description" />
+        <meta name="description" content="@ViewBag.Description" data-poyo-seo />
     }
     <link rel="icon" type="image/png" href="~/poyo.png" />
 
@@ -20,13 +28,13 @@
         {
             var key = tag.Key;
             var att = key.StartsWith("og:") ? "property" : "name";
-            <meta @att="@key" content="@tag.Value" />
+            <meta @att="@key" content="@tag.Value" data-poyo-seo />
         }
     }
 
     @if (ViewBag.JsonLd != null)
     {
-        <script type="application/ld+json">
+        <script type="application/ld+json" data-poyo-seo>
             @Html.Raw(ViewBag.JsonLd)
         </script>
     }
