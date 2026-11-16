@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "The files object is held to its own two members.",
-	"message": [
-		"files.bogus",
-		"/Home"
-	],
+	"message": ["files.bogus", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A controller names a type; a number names nothing.",
-	"message": [
-		"controller"
-	],
+	"message": ["controller"],
 	"registry": [
 		{
 			"path": "/Home",

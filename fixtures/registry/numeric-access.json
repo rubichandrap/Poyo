@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "The access enum is refused in integer form rather than coerced.",
-	"message": [
-		"access",
-		"/Home"
-	],
+	"message": ["access", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

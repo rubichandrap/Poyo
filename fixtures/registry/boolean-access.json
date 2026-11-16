@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A boolean is not one of the three access values either.",
-	"message": [
-		"access",
-		"/Home"
-	],
+	"message": ["access", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

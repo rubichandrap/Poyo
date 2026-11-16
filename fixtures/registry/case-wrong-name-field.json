@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "The same one-spelling rule for a field the declaration would otherwise have carried correctly.",
-	"message": [
-		"Name",
-		"/Home"
-	],
+	"message": ["Name", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

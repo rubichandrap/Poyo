@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A declared path is the URL the client links to, so it begins with a slash.",
-	"message": [
-		"must begin with \"/\"",
-		"/Home"
-	],
+	"message": ["must begin with \"/\"", "/Home"],
 	"registry": [
 		{
 			"path": "Home",

@@ -2,6 +2,7 @@
 	"name": "poyo.client",
 	"private": false,
 	"version": "0.0.3",
+	"license": "MIT",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
@@ -35,7 +36,7 @@
 		"react-dom": "19.1.1",
 		"react-hook-form": "7.70.0",
 		"tailwindcss": "4.1.18",
-		"typescript": "6.0.3",
+		"typescript": "5.9.3",
 		"vite": "npm:rolldown-vite@7.1.14",
 		"zod": "3.25.76"
 	},

@@ -69,6 +69,7 @@ A decision that rests on platform behavior (the browser, ASP.NET, npm) names the
 
 ## Build, generate, deploy
 
+- `pnpm install` builds both workspace CLIs from `postinstall` (`build:packages`), because `packages/poyo`'s binary lives in a gitignored `dist` — without it a clean clone can install and then run none of the documented template commands. `pnpm run test:clean-checkout` walks that lifecycle against a real clone.
 - `pnpm --filter poyo-template run client:generate` — DTOs and Zod schemas from the committed `openapi/openapi.json` (re-exported by the server on Development/Staging boots), plus the route manifest.
 - `pnpm --filter poyo-template run build` — client build, `poyo build` (syncs manifest assets into `wwwroot/generated` and rewrites `_ReactAssets.cshtml`), server build.
 - Deployment: set `ASPNETCORE_ENVIRONMENT` on the host, and `Routes:JsonPath` only for a registry outside the app directory. `.env` is development-only and never ships; `.env.example` carries no hosting environment. The operator procedure for upgrading a deployment that relied on a production `.env` is in `packages/poyo-template/README.md` ("Upgrading an existing deployment").

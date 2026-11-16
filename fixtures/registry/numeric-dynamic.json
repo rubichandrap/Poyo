@@ -1,11 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A number is not a boolean, and is not coerced into one.",
-	"message": [
-		"dynamic",
-		"/Home",
-		"boolean"
-	],
+	"message": ["dynamic", "/Home", "boolean"],
 	"registry": [
 		{
 			"path": "/Home",

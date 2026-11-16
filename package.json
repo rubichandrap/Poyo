@@ -6,13 +6,16 @@
 	"license": "MIT",
 	"scripts": {
 		"prepare": "husky",
+		"build:packages": "pnpm --filter @rubichandrap/poyo build && pnpm --filter @rubichandrap/create-poyo-app build",
+		"postinstall": "pnpm run build:packages",
+		"test:clean-checkout": "node --test scripts/clean-checkout.test.mjs",
 		"lint": "biome lint .",
 		"lint:fix": "biome lint . --write",
 		"format": "biome format . && pnpm --filter poyo-template run server:format",
 		"format:fix": "biome format . --write && pnpm --filter poyo-template run server:format:fix",
-		"test:release": "node --test scripts/assert-release-version.test.mjs scripts/fixture-e2e.test.mjs",
-		"test:release:prepublish": "POYO_FIXTURE_SOURCE=pack node --test scripts/fixture-e2e.test.mjs",
-		"release:check": "node scripts/assert-release-version.mjs"
+		"test:release": "node --test scripts/assert-release-version.test.mjs scripts/peer-ranges.test.mjs scripts/assert-peer-compat.test.mjs scripts/fixture-e2e.test.mjs",
+		"test:release:prepublish": "POYO_FIXTURE_SOURCE=pack node --test scripts/clean-checkout.test.mjs scripts/fixture-e2e.test.mjs",
+		"release:check": "node scripts/assert-release-version.mjs && node scripts/assert-peer-compat.mjs"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.3.11",
@@ -23,12 +26,5 @@
 	"engines": {
 		"node": ">=20.19.0",
 		"pnpm": ">=9"
-	},
-	"pnpm": {
-		"peerDependencyRules": {
-			"allowedVersions": {
-				"typescript": "6.0.3"
-			}
-		}
 	}
 }

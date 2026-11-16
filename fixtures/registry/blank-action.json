@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A whitespace-only action is blank, not merely empty.",
-	"message": [
-		"action",
-		"/Home"
-	],
+	"message": ["action", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A member the schema does not know is refused rather than ignored.",
-	"message": [
-		"bogusField",
-		"/Home"
-	],
+	"message": ["bogusField", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

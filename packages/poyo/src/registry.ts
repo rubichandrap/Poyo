@@ -187,7 +187,10 @@ function validateRouteIdentity(route: unknown, index: number): void {
 	// JSON null means undeclared here too, by the reading ADR 0015 pinned for
 	// `controller`: the server's `SeoModel?` is null for it, and an authored
 	// null declares "no SEO" rather than one nothing can act on.
-	if (entry.seo != null && (typeof entry.seo !== "object" || Array.isArray(entry.seo))) {
+	if (
+		entry.seo != null &&
+		(typeof entry.seo !== "object" || Array.isArray(entry.seo))
+	) {
 		throw new CliError(`${label}: "seo" must be an object`);
 	}
 

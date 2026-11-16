@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "access is one of three values, and an unknown one is not a default.",
-	"message": [
-		"access",
-		"/Home"
-	],
+	"message": ["access", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

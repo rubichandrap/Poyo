@@ -21,7 +21,12 @@
 		{
 			"id": "no-seo",
 			"name": "Bare",
-			"expected": { "title": "Bare - Poyo", "description": null, "meta": {}, "jsonLd": null }
+			"expected": {
+				"title": "Bare - Poyo",
+				"description": null,
+				"meta": {},
+				"jsonLd": null
+			}
 		},
 		{
 			"id": "seo-without-title",
@@ -40,13 +45,19 @@
 			"seo": {
 				"title": "Tom & Jerry <3",
 				"description": "Quotes \" and 'apostrophes' & <tags>",
-				"jsonld": { "@type": "WebPage", "name": "</script><script>alert(1)</script>" }
+				"jsonld": {
+					"@type": "WebPage",
+					"name": "</script><script>alert(1)</script>"
+				}
 			},
 			"expected": {
 				"title": "Tom & Jerry <3 - Poyo",
 				"description": "Quotes \" and 'apostrophes' & <tags>",
 				"meta": {},
-				"jsonLd": { "@type": "WebPage", "name": "</script><script>alert(1)</script>" }
+				"jsonLd": {
+					"@type": "WebPage",
+					"name": "</script><script>alert(1)</script>"
+				}
 			}
 		}
 	]

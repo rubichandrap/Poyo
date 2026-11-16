@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A route names the action that serves it, so the pair is declared together or not at all.",
-	"message": [
-		"controller",
-		"/Home"
-	],
+	"message": ["controller", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

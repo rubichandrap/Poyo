@@ -1,11 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "dynamic is an opt-out, so only a boolean opts out.",
-	"message": [
-		"dynamic",
-		"/Home",
-		"boolean"
-	],
+	"message": ["dynamic", "/Home", "boolean"],
 	"registry": [
 		{
 			"path": "/Home",

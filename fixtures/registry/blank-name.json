@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "Blank means blank, not merely empty: a name of \"   \" is a declaration the server cannot act on.",
-	"message": [
-		"missing or blank",
-		"/Home"
-	],
+	"message": ["missing or blank", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",
