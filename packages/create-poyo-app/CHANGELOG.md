@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0-beta.3] - 2026-11-17
+
 ### Changed
 
 - Newly scaffolded projects spell every registry field exactly one way, and the server enforces it. The deserializer matched property names case-insensitively, which is how a lower camel case registry maps onto a PascalCase model but also meant `{"Path": "/Home"}` booted; the server now refuses a member it does not recognize, along with a route that declares no `files` or no `files.view`, and names the offending route in each message (ADR 0018).
@@ -14,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Newly scaffolded projects ship the Routes registry as a required deployment artifact. The csproj copies the project-root `routes.json` beside the application on build and publish, so a `dotnet publish` output serves every registry route from any working directory; a registry that is missing, empty, unreadable, or unparseable fails startup naming which of the four it was, rather than booting an application whose access model, SEO policy and `private, no-store` guarantee were all switched off by the same missing file. `Properties/launchSettings.json` names the project-root registry and the optional `.env`, so `pnpm run dev` works on a fresh clone with no environment file present (ADR 0014).
 - Newly scaffolded projects hold a route's identity to a canonical form on disk: a `path` must begin with `/` and carry no trailing slash except the root, a `name` must be present and carry no leading or trailing slash, both must be unique ignoring case, and a `controller` and `action` are declared together or not at all. Every violation is a startup failure naming the route and the value, and the `poyo` route manager refuses the same registries when it reads or writes them (ADR 0015).
 - Newly scaffolded projects give the hosting environment to the process. The server reads it from `DOTNET_ENVIRONMENT` or `ASPNETCORE_ENVIRONMENT` before anything else loads, so the `.env` file can never decide the environment it is conditional on; it is read only when the process says development or says nothing, and it fills gaps without ever overriding a value the process has set. `ASPNETCORE_ENVIRONMENT` is deliberately absent from the bootstrapped `.env.example` for that reason, and nothing environment-bearing is copied into publish output. An unset hosting environment is production (ADR 0017).
+- Newly scaffolded projects resolve their app URLs through the runtime's base path instead of a build-time `appUrl()` helper, so a project hosted under a base path links, redirects and logs out inside it. Their `_Layout.cshtml` also declares its title format once (`data-poyo-title-template`) and marks the registry-owned description, meta tags and JSON-LD with `data-poyo-seo`, so a dynamic navigation leaves the head identical to a document load.
 
 
 ## [0.5.0-beta.2] - 2026-09-24

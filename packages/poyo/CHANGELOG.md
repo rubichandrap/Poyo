@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0-beta.3] - 2026-11-17
+
 ### Security
 
 - The Routes registry is a required deployment artifact and the server core treats it as one (ADR 0014). A registry that is missing, empty, unreadable, or unparseable now fails startup with a message naming which of the four it was, instead of booting an application whose access model, SEO policy, and `private, no-store` guarantee were all switched off by the same missing file. A registry that declares no routes is a startup failure.

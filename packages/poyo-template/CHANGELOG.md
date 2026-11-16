@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0-beta.3] - 2026-11-17
+
 ### Security
 
 - The process environment owns the hosting environment, and `.env` is a development convenience (ADR 0017). `Program.cs` reads the hosting environment from the process (`DOTNET_ENVIRONMENT`, else `ASPNETCORE_ENVIRONMENT`, the order the framework itself uses) before anything else loads, so the file can no longer decide the environment it is conditional on; it is read only when the process says development or says nothing; and it never contributes the hosting environment under either name. A deployment that set its environment correctly previously still booted as development — developer exception pages, Vite development integration, no HTTPS redirection. A `.env` left in a production deployment cannot contribute the hosting environment under either name, and is not read at all once the host names the environment. An unset environment is production and does still read the file, so a deployment that forgets to set it applies the file's other values.
@@ -29,6 +31,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The Vite variable requirements and the `Vite__Server__Port` integrity gate run only in development, so a production host needs no Vite variables. The `AllowedHosts` and `ASPNETCORE_ENVIRONMENT` requirements are gone: `appsettings.json` ships the allowed-hosts value and the publish output includes it, and an unset hosting environment is production rather than a failure. A missing development variable still fails loudly and names the variable.
 - `Program.cs` wires the server core with `AddPoyo(builder.Configuration, contentRootPath: builder.Environment.ContentRootPath)`: the registry resolves from `Routes:JsonPath` (a relative value against the content root) or from `routes.json` beside the application; the fallback never consults the process working directory, and a relative `Routes:JsonPath` resolves against the content root, which in ASP.NET *is* the working directory. Deployments that stored the registry path in a hand-edited environment file keep working through `Routes:JsonPath`; deployments that relied on the file sitting in the working directory must ship it with the application.
 - The `README.md` shipped with this template — the README of every generated project — gains an "Upgrading an existing deployment" section: the diff against `.env.example` to run before upgrading, the values to expect in the result, `Routes:JsonPath` called out as the one to check twice, the four supported host mechanisms by name, and why a green boot is not evidence the migration is complete. `Poyo.Server/README.md` carries the hazard alongside its configuration reference.
+- The template resolves app URLs through the runtime: `Link` takes `routePath()` results directly, full-page redirects use `withBasePath()`, and the build-time `appUrl()` helper (`src/lib/base-url.ts`) is gone. A generated project hosted under a base path links and redirects inside it instead of leaving the app for the host root.
 
 ### Removed
 

@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.0-beta.3] - 2026-11-17
+
 ### Security
 
 - The process environment now owns the hosting environment, and an environment file is a development convenience (ADR 0017). A deployment that sets its hosting environment correctly is no longer overridden by a `.env` file: the environment is read from the process (`DOTNET_ENVIRONMENT`, else `ASPNETCORE_ENVIRONMENT`, the order the framework itself uses) before anything else loads, so the file cannot decide the environment it is conditional on, and it is read only when the process says development or says nothing. The file never contributes the hosting environment under either name, and after it is read the process's own values are put back. A `.env` present in a production deployment cannot contribute the environment under either name, so developer exception pages, the Vite development integration, and the absence of HTTPS redirection cannot be enabled by accident — and it is not read at all once the host names the environment. An unset environment is production and does still read the file, so a deployment that forgets to set it applies the file's other values.
