@@ -55,6 +55,7 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         PageResponseAssertions.AssertPrivateNoStore(response);
 
         var descriptor = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(PageDescriptor.CurrentVersion, descriptor.GetProperty("v").GetInt32());
         Assert.Equal("Public", descriptor.GetProperty("name").GetString());
         Assert.Equal(
             "Public Page Title",

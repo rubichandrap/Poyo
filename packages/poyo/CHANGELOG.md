@@ -17,6 +17,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **Breaking:** `usePage()` follows React's hook rules now that it subscribes to the store, so it must be called while a component renders. Read Page data elsewhere with `getPageData()`.
+- The template resolves app URLs through the runtime: `Link` takes `routePath()` results directly, full-page redirects use `withBasePath()`, and the build-time `appUrl()` helper (`src/lib/base-url.ts`) is gone. The Dashboard logout no longer redirects to the host root under a base path.
 - **Contract change:** a field has exactly one accepted spelling in the registry, and the server enforces it (ADR 0018). The deserializer's property matching is case-insensitive because that is how a lower camel case registry maps onto a PascalCase model, which meant `{"Path": "/Home"}` and `{"Access": "public"}` booted while the route manager refused them — two spellings for one field across the three runtimes that read the registry. `RoutePolicy` now checks a field's name, a route's required `files` members, and the `access`/`dynamic` values on the raw JSON before the deserializer: a mis-cased member is an unknown member, a route with no `files` or no `files.view` is a startup failure rather than a null reference when the routes are mapped, and an `access` that is not one of the three values is reported against the route rather than a JSON path. A registry that already booted with a mis-cased member now fails to start, and the message names the member and the route. Only presence and type of a file path are checked: a blank one is still the route manager's rule, because a file path is not a route's identity (ADR 0015).
 - **Contract change:** a `dynamic` field spelled with the wrong case is reported for its value, with the spelling it was written in. The pre-check's lookup was case-sensitive, so a mis-spelled field was missed entirely and the deserializer's generic `is not a valid routes registry` failure answered instead — the one message naming neither the field nor the route.
 - The registry's rules are now held to one shared corpus, `fixtures/registry/`, read by this package's suite and by the server's. A registry and the verdict it earns, one file per rule, so a rule added to one runtime and not the other fails a test rather than a review. A case declaring one verdict for the two also pins the message fragments both messages must carry; a case declaring a verdict per runtime pins a deliberate difference, of which there are four today: the empty registry, which this package reads and writes legitimately and the server refuses to boot on (ADR 0014), a `seo` member the model does not know, which only the server refuses, and the two halves of the file-path boundary the two runtimes draw differently — ADR 0018 names each. The route manager's failure messages now name the route they are about wherever the route is readable, including a route with no readable `path`, which is named by its name instead; a blank or unrooted `path` is one rule rather than two, and an array is refused where an object is required. An authored `"seo": null` is no longer refused: it is read as "no SEO" by the same rule this package already followed for `"controller": null`, which the shared corpus found was the one field whose meaning the two runtimes disagreed about.
@@ -38,6 +40,8 @@ Public server-core API in this release. `@rubichandrap/poyo` is pre-1.0, so thes
 
 ### Fixed
 
+- A registry JSON-LD value containing `</script>` no longer closes the layout's script element: `SeoPolicyFilter` re-serializes JSON-LD with HTML-sensitive characters escaped.
+- The fixture e2e requested `/api/test-unrelated` for a controller routed at `/api/TestUnrelated`, so the release gate could never pass that step.
 - Back/Forward to the landing page, to an in-page fragment entry, or to an entry another library pushed no longer reloads the whole document. `popstate` fires only for entries of the current document, so the old "no Poyo state → document load" branch was only ever reached by this document's own entries. The router now stamps the landing entry on install, adopts any unrecorded entry it scrolls on, and traverses every non-hash entry through the descriptor (found by the navigation model check, `test/navigation-model.test.ts`).
 - Back past a same-URL entry another library pushed (an open modal, a tab) no longer reloads the page; that entry is left to its library.
 - `push` no longer copies the outgoing entry's history-state keys into the new entry; `replace` still preserves them.
@@ -58,6 +62,13 @@ Public server-core API in this release. `@rubichandrap/poyo` is pre-1.0, so thes
 - A client-initiated `router.replace()` that cannot fetch a descriptor now degrades to a document load through `location.replace`, so a failed replacement no longer adds a history entry; `push()` still degrades through `location.assign`. The two call sites in `navigate` — the unanswered-descriptor path and the thrown-request path — both preserve the operation the caller asked for, and the fallback's history selector is a required parameter so a future call site cannot inherit the wrong operation by omission.
 
 
+
+### Added
+
+- The page descriptor carries a format version, `"v": 1`. A client refuses a version newer than it understands and falls back to a document load; a descriptor without `v` is read as version 1.
+- `getPageData()` reads Page data outside a component render (event handlers, utilities, tests). `usePage()` is the hook components call.
+- `pnpm run test:release:prepublish` runs the fixture project against the tarball `pnpm pack` produces, including a real-browser check of Link, Back and Forward (`scripts/browser-navigation.mjs`). The release workflow runs it before publishing, so a broken release is caught before it is public. It needs `playwright` as a root dev dependency and Chromium (`pnpm exec playwright install chromium`).
+- `fixtures/head/head-parity.json`: one corpus both runtimes read, so the head after a dynamic navigation and the head of a document load are held to the same expected head.
 
 ## [0.5.0-beta.2] - 2026-09-24
 

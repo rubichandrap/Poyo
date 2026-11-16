@@ -12,7 +12,16 @@ import {
 export const NAVIGATION_HEADER = "X-Poyo-Navigation";
 export const NAVIGATION_HEADER_VALUE = "1";
 
+/**
+ * The newest descriptor format this runtime understands (wire contract). A
+ * descriptor declaring a newer `v` is refused, which sends the navigation to
+ * its document-load floor rather than misreading the payload. A descriptor
+ * without `v` predates versioning and is read as version 1.
+ */
+export const DESCRIPTOR_VERSION = 1;
+
 export interface PageDescriptor {
+	v?: number;
 	name: string;
 	seo?: {
 		title?: string | null;
@@ -28,6 +37,15 @@ export function isPageDescriptor(value: unknown): value is PageDescriptor {
 		return false;
 	}
 	const candidate = value as Record<string, unknown>;
+	if (
+		candidate.v !== undefined &&
+		(typeof candidate.v !== "number" ||
+			!Number.isInteger(candidate.v) ||
+			candidate.v < 1 ||
+			candidate.v > DESCRIPTOR_VERSION)
+	) {
+		return false;
+	}
 	return typeof candidate.name === "string" && candidate.name.length > 0;
 }
 export interface PoyoHistoryState {

@@ -15,10 +15,12 @@ import {
 	resetNavigationStore,
 } from "../src/runtime/navigation-store.js";
 import {
+	DESCRIPTOR_VERSION,
 	SEO_MARKER_ATTRIBUTE,
 	TITLE_TEMPLATE_ATTRIBUTE,
 	createRouter,
 	getActiveRouter,
+	isPageDescriptor,
 	setActiveRouter,
 } from "../src/runtime/router.js";
 import { type FakeDocument, createFakeDocument, seed } from "./fake-head.js";
@@ -1312,3 +1314,44 @@ describe("Base path and fragment targets", () => {
 		expect(scrollIntoView).toHaveBeenCalled();
 	});
 });
+
+describe("Descriptor format version", () => {
+	it("accepts the current version and an unversioned descriptor", () => {
+		expect(isPageDescriptor({ v: DESCRIPTOR_VERSION, name: "Home" })).toBe(
+			true,
+		);
+		expect(isPageDescriptor({ name: "Home" })).toBe(true);
+	});
+
+	it("refuses a version this runtime does not understand", () => {
+		expect(isPageDescriptor({ v: DESCRIPTOR_VERSION + 1, name: "Home" })).toBe(
+			false,
+		);
+		expect(isPageDescriptor({ v: "1", name: "Home" })).toBe(false);
+		expect(isPageDescriptor({ v: 0, name: "Home" })).toBe(false);
+	});
+
+	it("falls back to a document load for a newer descriptor", async () => {
+		const harness = createRouterHarness({
+			routes: [dummyRoute],
+			fetch: vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ v: DESCRIPTOR_VERSION + 1, name: "Dashboard" }),
+			}) as unknown as typeof fetch,
+		});
+
+		await harness.router.push("/dashboard");
+
+		expect(harness.assign).toHaveBeenCalledWith("/dashboard");
+		afterNavigationCleanup();
+	});
+});
+
+function afterNavigationCleanup() {
+	getActiveRouter()?.destroy?.();
+	setActiveRouter(undefined);
+	vi.unstubAllGlobals();
+	clearActiveRouteTable();
+	resetNavigationStore();
+}

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -30,7 +31,14 @@ public sealed class SeoPolicyFilter : IActionFilter
         controller.ViewData["Title"] = seo?.Title ?? route.Name;
         controller.ViewData["Description"] = seo?.Description;
         controller.ViewData["MetaTags"] = seo?.Meta ?? new Dictionary<string, string>();
-        controller.ViewData["JsonLd"] = seo?.JsonLd?.ToString();
+        // The layout writes JSON-LD raw inside a <script> element, so the text
+        // must not be able to close it. Re-serializing with the default encoder
+        // escapes "<", ">" and "&" as \u003C-style sequences — the same JSON
+        // value, with no "</script>" in its text. The registry's own text
+        // (JsonElement.ToString) keeps whatever the author wrote.
+        controller.ViewData["JsonLd"] = seo?.JsonLd is JsonElement jsonLd
+            ? JsonSerializer.Serialize(jsonLd)
+            : null;
     }
 
     public void OnActionExecuted(ActionExecutedContext context)
