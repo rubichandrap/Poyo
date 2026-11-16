@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { Command } from "commander";
 import { CliError } from "./error.js";
+import { isProjectNameValid, projectNameError } from "./project-name.js";
 import {
 	protectFrameworkIdentifiers,
 	rewriteClientPackageJson,
@@ -167,6 +168,13 @@ export function createProject(
 	projectName: string,
 	options: { skipInstall: boolean },
 ): void {
+	// Validate before anything touches the filesystem: the name becomes a C#
+	// namespace segment, an npm package name and a directory, so a name that
+	// breaks one of the three must fail here, not halfway through scaffolding.
+	if (!isProjectNameValid(projectName)) {
+		throw new CliError(projectNameError(projectName));
+	}
+
 	const pascal = projectName.charAt(0).toUpperCase() + projectName.slice(1);
 	const lower = projectName.toLowerCase();
 	const targetDir = path.resolve(process.cwd(), projectName);

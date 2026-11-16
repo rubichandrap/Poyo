@@ -1,0 +1,150 @@
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import {
+	MAX_PROJECT_NAME_LENGTH,
+	type NameState,
+	isProjectNameValid,
+	projectNameError,
+	stepName,
+} from "../src/project-name.js";
+import { exists, makeTempDir, runCli } from "./helpers.js";
+
+/**
+ * An independent reading of the three consumers the name must satisfy. Kept
+ * deliberately as direct assertions rather than a second state machine, so a
+ * mistake in the automaton cannot be mirrored here.
+ */
+function oracleAccepts(name: string): boolean {
+	if (name.length === 0 || name.length > MAX_PROJECT_NAME_LENGTH) return false;
+
+	// C# namespace segment: `<Name>.Server` and `<Name>.Server.Controllers`.
+	// The identifier start class of C# is letter-or-underscore, but a leading
+	// underscore is refused here because the npm name is the lowercased name
+	// and `_app.client` is legal only by accident; one grammar, one answer.
+	if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) return false;
+
+	// One path segment: no separator, no traversal, no absolute escape.
+	if (path.posix.basename(name) !== name) return false;
+	if (path.win32.basename(name) !== name) return false;
+	if (name === "." || name === "..") return false;
+	if (name.includes("\0")) return false;
+
+	// The npm package name is `<name>.client` after lowercasing, so the
+	// lowercased form must survive npm's name rules.
+	const npmName = `${name.toLowerCase()}.client`;
+	if (
+		!/^(?:@[a-z0-9-*~][a-z0-9-*._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/.test(npmName)
+	) {
+		return false;
+	}
+
+	return true;
+}
+
+const ALPHABET = ["a", "Z", "0", "_", "-", ".", " ", "/", "\\", "é", "~", "+"];
+
+/** Every string over ALPHABET of length 0..maxLength. */
+function* enumerateStrings(maxLength: number): Generator<string> {
+	yield "";
+	let frontier = [""];
+	for (let length = 1; length <= maxLength; length++) {
+		const next: string[] = [];
+		for (const prefix of frontier) {
+			for (const character of ALPHABET) {
+				const candidate = prefix + character;
+				next.push(candidate);
+				yield candidate;
+			}
+		}
+		frontier = next;
+	}
+}
+
+describe("project-name automaton (model check)", () => {
+	it("agrees with the three-consumer oracle on every string up to length 4", () => {
+		const disagreements: string[] = [];
+		let checked = 0;
+		for (const candidate of enumerateStrings(4)) {
+			checked += 1;
+			if (isProjectNameValid(candidate) !== oracleAccepts(candidate)) {
+				disagreements.push(JSON.stringify(candidate));
+			}
+		}
+		// 12^0 + 12^1 + 12^2 + 12^3 + 12^4 — a guard, so a shortened
+		// enumeration cannot pass as a proof.
+		expect(checked).toBe(22621);
+		expect(disagreements).toEqual([]);
+	});
+
+	it("keeps the reject state absorbing for every character", () => {
+		for (const character of ALPHABET) {
+			expect(stepName("reject", character)).toBe("reject");
+		}
+	});
+
+	it("reaches both accepting and refusing outcomes from start", () => {
+		const states = new Set<NameState>(["start"]);
+		for (const character of ALPHABET) states.add(stepName("start", character));
+		expect(states.has("body")).toBe(true);
+		expect(states.has("reject")).toBe(true);
+	});
+
+	it("holds the length boundary at each side", () => {
+		const atLimit = "a".repeat(MAX_PROJECT_NAME_LENGTH);
+		const overLimit = "a".repeat(MAX_PROJECT_NAME_LENGTH + 1);
+		expect(isProjectNameValid(atLimit)).toBe(true);
+		expect(isProjectNameValid(overLimit)).toBe(false);
+		expect(projectNameError(overLimit)).toContain("at most");
+	});
+
+	it("states the broken rule for each refusal", () => {
+		expect(projectNameError("")).toContain("must not be empty");
+		expect(projectNameError("1App")).toContain(
+			"must start with an ASCII letter",
+		);
+		expect(projectNameError("my-app")).toContain("only ASCII letters");
+		expect(projectNameError("app.name")).toContain("only ASCII letters");
+		expect(projectNameError("app name")).toContain("only ASCII letters");
+	});
+});
+
+describe("scaffolder name validation (seam)", () => {
+	it.each([
+		["my-app", "hyphen"],
+		["1App", "leading digit"],
+		["app.name", "dot"],
+		["..", "traversal"],
+		["app/child", "separator"],
+		["app name", "space"],
+	])("refuses '%s' (%s) before creating anything", (name) => {
+		const cwd = makeTempDir();
+		const before = fs.readdirSync(cwd);
+		const result = runCli([name, "--skip-install"], { cwd });
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("[ERROR]");
+		// The snapshot covers names that would land outside cwd (`..`,
+		// absolute paths) as well as ordinary ones: nothing may be created.
+		expect(fs.readdirSync(cwd)).toEqual(before);
+	});
+
+	it.each([
+		"App",
+		"App_1",
+		"a",
+		"X2",
+		"MyPoyoApp",
+	])("scaffolds '%s'", (name) => {
+		const cwd = makeTempDir();
+		const result = runCli([name, "--skip-install"], { cwd });
+
+		expect(result.status).toBe(0);
+		expect(exists(cwd, `${name}/package.json`)).toBe(true);
+		expect(exists(cwd, `${name}/${name.toLowerCase()}.client`)).toBe(true);
+		// The namespace the grammar promised: a leading digit or hyphen in
+		// the name would have produced an uncompilable `.cs` file here.
+		const pascal = name.charAt(0).toUpperCase() + name.slice(1);
+		expect(exists(cwd, `${name}/${pascal}.Server`)).toBe(true);
+	});
+});
