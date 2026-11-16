@@ -822,6 +822,15 @@ test(
 				/Route table not initialized/,
 				"the runtime route helper (routePath) is missing from the built client bundle",
 			);
+			// Development's VITE_SERVER_URL must not follow a build into
+			// production: the bundle is served by the host that owns the API,
+			// so an absolute dev origin here would send every request to it —
+			// and a subpath deployment would never reach its own /api.
+			assert.doesNotMatch(
+				bundle,
+				/localhost:5104/,
+				"the development server origin leaked into the production client bundle",
+			);
 
 			// 7b. Sync the built bundle into the server (what `pnpm run build`
 			// does), so a Production boot serves it — the browser check needs
