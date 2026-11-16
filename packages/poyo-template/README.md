@@ -79,6 +79,10 @@ On the client, `src/routes/route-loader.ts` is a thin Vite-boundary adapter: it 
 
 The server resolves it from `Routes:JsonPath` when the host names a location (a relative value resolves against the content root), and otherwise from `routes.json` beside the application assembly. `Poyo.Server.csproj` copies the project-root registry there on build and publish, so `dotnet publish` output is self-contained and serves the same routes from any working directory. The default never consults the working directory; a `Routes:JsonPath` you set yourself is resolved against the content root, so keep it absolute if the host may not set the content root. Keep editing the single project-root `routes.json`; the copy in the build output is not the source of truth. Development launches name the project-root registry (and the optional `.env`) in `Poyo.Server/Properties/launchSettings.json`, so `pnpm run dev` works on a fresh clone with no `.env` present.
 
+### Hosting under a path base
+
+Set `PathBase` (for example `/Poyo`) when the app is not at the host root — an IIS virtual directory, a reverse-proxy prefix. `Program.cs` calls `UsePathBase` with it once, and every URL the app emits resolves against that one value: asset tags through `Url.Content`, the client's `data-base-path`, dynamic navigation, API calls and the authentication challenge. Leave it unset for a root deployment. The reverse proxy must forward the prefixed path (or strip nothing) — the app answers at `/Poyo/...` and does not guess the prefix from headers.
+
 ### Route identity
 
 A route's identity is one thing, defined once, and the registry is held to it: **strict on disk, liberal at runtime.** The file is authored, so it is canonical; a request URL is owned by the browser, so it is resolved rather than rejected.

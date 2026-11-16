@@ -83,8 +83,10 @@ describe("poyo build", () => {
 			fixture,
 			"Poyo.Server/Views/Shared/_ReactAssets.cshtml",
 		);
-		expect(content).toContain('src="/generated/index-abc.js"');
-		expect(content).toContain('href="/generated/index-abc.css"');
+		expect(content).toContain('src="@Url.Content("~/generated/index-abc.js")"');
+		expect(content).toContain(
+			'href="@Url.Content("~/generated/index-abc.css")"',
+		);
 	});
 
 	it("writes a css-less _ReactAssets when the entry has no css", () => {
@@ -104,7 +106,9 @@ describe("poyo build", () => {
 			fixture,
 			"Poyo.Server/Views/Shared/_ReactAssets.cshtml",
 		);
-		expect(content).toContain('src="/generated/index-no.css.js"');
+		expect(content).toContain(
+			'src="@Url.Content("~/generated/index-no.css.js")"',
+		);
 		expect(content).not.toContain('<link rel="stylesheet"');
 	});
 
@@ -116,8 +120,10 @@ describe("poyo build", () => {
 			readFixtureFile(fixture, "Poyo.Server/wwwroot/manifest.json"),
 		);
 		expect(manifest).toEqual({
-			js: "/generated/index-abc.js",
-			css: "/generated/index-abc.css",
+			// App-relative: a consumer resolves these with Url.Content so the
+			// host's path base is applied.
+			js: "~/generated/index-abc.js",
+			css: "~/generated/index-abc.css",
 		});
 	});
 

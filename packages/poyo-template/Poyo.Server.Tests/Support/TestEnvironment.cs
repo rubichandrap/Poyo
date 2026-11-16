@@ -92,7 +92,8 @@ internal static class TestEnvironment
         string? routesJsonPath = null,
         string? environment = null,
         Action<Microsoft.AspNetCore.Hosting.IWebHostBuilder>? configureBuilder = null,
-        bool startClient = false)
+        bool startClient = false,
+        string? pathBase = null)
     {
         lock (Gate)
         {
@@ -114,7 +115,19 @@ internal static class TestEnvironment
 
             if (startClient)
             {
-                customizedFactory.CreateClient();
+                // The path base is a deployment fact, not a test seam: it is
+                // supplied the way a host supplies it (an environment variable
+                // the configuration reads) and removed once the host is up, so
+                // a parallel fixture cannot inherit another test's base.
+                Environment.SetEnvironmentVariable("PathBase", pathBase);
+                try
+                {
+                    customizedFactory.CreateClient();
+                }
+                finally
+                {
+                    Environment.SetEnvironmentVariable("PathBase", null);
+                }
             }
 
             return customizedFactory;

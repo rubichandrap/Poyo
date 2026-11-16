@@ -57,7 +57,9 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 		const pageErrors = [];
 		page.on("pageerror", (error) => pageErrors.push(error));
 
-		const homeReady = () => page.waitForSelector('a[href="/Login"]');
+		// The rendered href includes the app's path base (/Login at the host
+		// root, /Poyo/Login under one), so match the route, not the raw path.
+		const homeReady = () => page.waitForSelector('a[href$="/Login"]');
 		const loginReady = () => page.waitForSelector("form");
 
 		/** The head a fresh document load of `path` renders, from a second tab. */
@@ -71,7 +73,7 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 				await fresh.close();
 			}
 		};
-		const expectedHome = await documentHead("/", 'a[href="/Login"]');
+		const expectedHome = await documentHead("/", 'a[href$="/Login"]');
 		const expectedLogin = await documentHead("/Login", "form");
 
 		const assertSameDocument = async (step) => {
@@ -89,8 +91,8 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 		}, LANDING_MARKER);
 
 		// Link click: a dynamic navigation.
-		await page.click('a[href="/Login"]');
-		await page.waitForURL(`${origin}/Login`);
+		await page.click('a[href$="/Login"]');
+		await page.waitForURL(/\/Login$/);
 		await loginReady();
 		await assertSameDocument("Link to /Login");
 		assert.deepEqual(
@@ -112,7 +114,7 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 
 		// Forward again.
 		await page.goForward();
-		await page.waitForURL(`${origin}/Login`);
+		await page.waitForURL(/\/Login$/);
 		await loginReady();
 		await assertSameDocument("Forward to /Login");
 		assert.deepEqual(await readHead(page), expectedLogin);
