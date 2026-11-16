@@ -1,6 +1,20 @@
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { usePage } from "../src/runtime/index.js";
 
+// usePage is a hook over the navigation store. These tests read it outside a
+// React render (the package has no renderer), so the store hook reads the
+// snapshot directly; the subscription itself is asserted on its own.
+vi.mock("react", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("react")>();
+	return {
+		...actual,
+		useSyncExternalStore: vi.fn(
+			(_subscribe: () => () => void, getSnapshot: () => unknown) =>
+				getSnapshot(),
+		),
+	};
+});
+
 afterEach(() => {
 	vi.unstubAllGlobals();
 });

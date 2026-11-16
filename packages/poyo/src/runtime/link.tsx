@@ -3,7 +3,12 @@ import React, {
 	type ComponentPropsWithoutRef,
 	type MouseEvent,
 } from "react";
-import { getActiveRouteTable, type RoutePath } from "./route-table.js";
+import {
+	getActiveRouteTable,
+	isUnderBasePath,
+	type RoutePath,
+	withBasePath,
+} from "./route-table.js";
 import { getActiveRouter } from "./router.js";
 
 export interface LinkProps extends ComponentPropsWithoutRef<"a"> {
@@ -53,12 +58,11 @@ function isEligibleClick(
 			return false;
 		}
 		const activeTable = getActiveRouteTable();
-		if (activeTable?.basePath && activeTable.basePath !== "/") {
-			const normBase = activeTable.basePath.toLowerCase();
-			const normPath = targetUrl.pathname.toLowerCase();
-			if (normPath !== normBase && !normPath.startsWith(`${normBase}/`)) {
-				return false;
-			}
+		if (
+			activeTable?.basePath &&
+			!isUnderBasePath(targetUrl.pathname, activeTable.basePath)
+		) {
+			return false;
 		}
 
 		if (
@@ -80,18 +84,22 @@ export const Link = forwardRef<HTMLAnchorElement, LinkProps>(
 		const { href, replace, onClick, target, download, children, ...rest } =
 			props;
 		const router = getActiveRouter();
+		// `href` is app-relative, like a registry path; the rendered anchor
+		// carries the base path, so a middle-click or a plain load reaches the
+		// same URL a dynamic navigation would.
+		const resolvedHref = withBasePath(href);
 
 		const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
 			if (onClick) {
 				onClick(event);
 			}
 
-			if (isEligibleClick(event, href, target, download)) {
+			if (isEligibleClick(event, resolvedHref, target, download)) {
 				event.preventDefault();
 				if (replace) {
-					router.replace(href);
+					router.replace(resolvedHref);
 				} else {
-					router.push(href);
+					router.push(resolvedHref);
 				}
 			}
 		};
@@ -99,7 +107,7 @@ export const Link = forwardRef<HTMLAnchorElement, LinkProps>(
 		return (
 			<a
 				ref={ref}
-				href={href}
+				href={resolvedHref}
 				target={target}
 				download={download}
 				onClick={handleClick}

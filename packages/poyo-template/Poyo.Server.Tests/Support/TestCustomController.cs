@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Poyo.Framework;
 
@@ -37,6 +38,17 @@ public sealed class TestCustomController : Controller
             special = "quotes: \" apostrophe: ' backslash: \\ slash: / newline:\n tab:\t",
             __proto__ = "safe",
         });
+    }
+
+    /// <summary>
+    /// A page answered with a non-success status: both representations must
+    /// carry it.
+    /// </summary>
+    public IActionResult Gone()
+    {
+        var result = this.PoyoPage(new { message = "gone" });
+        result.StatusCode = StatusCodes.Status410Gone;
+        return result;
     }
 
     /// <summary>

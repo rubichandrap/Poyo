@@ -9,6 +9,7 @@ export { usePage } from "./use-page.js";
 export {
 	createRouteTable,
 	routePath,
+	withBasePath,
 	type AppRoute,
 	type PageLoader,
 	type PageLoaders,

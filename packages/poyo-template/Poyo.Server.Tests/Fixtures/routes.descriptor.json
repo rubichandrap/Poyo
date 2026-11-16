@@ -97,6 +97,17 @@
 		"action": "Page"
 	},
 	{
+		"path": "/Gone",
+		"name": "Gone",
+		"files": {
+			"react": "src/pages/Gone/index.page.tsx",
+			"view": "Views/Home/Index.cshtml"
+		},
+		"access": "public",
+		"controller": "TestCustom",
+		"action": "Gone"
+	},
+	{
 		"path": "/OptOut",
 		"name": "OptOut",
 		"files": {

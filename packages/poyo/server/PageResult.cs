@@ -182,6 +182,15 @@ public sealed class PageResult : ViewResult
             _route.Seo,
             _explicitPageData);
 
+        // The descriptor is the same page in another representation, so it
+        // answers with the status the document would. A non-2xx status sends
+        // the client to its document-load floor, which then renders that page
+        // with that status.
+        if (StatusCode is int statusCode)
+        {
+            response.StatusCode = statusCode;
+        }
+
         response.ContentType = "application/json; charset=utf-8";
         await response.WriteAsync(JsonSerializer.Serialize(descriptor, DescriptorJsonOptions));
     }

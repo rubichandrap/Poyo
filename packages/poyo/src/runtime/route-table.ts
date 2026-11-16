@@ -177,10 +177,7 @@ export function createRouteTable(
 
 	const findRouteGeneric = (pathname: string): AppRoute | undefined => {
 		let relativePath = pathname;
-		if (
-			basePath !== "/" &&
-			relativePath.toLowerCase().startsWith(basePath.toLowerCase())
-		) {
+		if (isUnderBasePath(relativePath, basePath)) {
 			relativePath = relativePath.slice(basePath.length);
 		}
 		if (!relativePath.startsWith("/")) {
@@ -261,6 +258,38 @@ export function routePath(name: RouteName): RoutePath {
 		throw new Error(`[RouteTable] Unknown route "${String(name)}".`);
 	}
 	return route.path as RoutePath;
+}
+
+/**
+ * Whether a pathname lies under the base path, on a segment boundary: under
+ * base "/app", "/app" and "/app/x" do, "/apple" does not. Case-insensitive,
+ * like every other path comparison in the runtime. The root base contains
+ * every path.
+ */
+export function isUnderBasePath(pathname: string, basePath: string): boolean {
+	if (basePath === "/") return true;
+	const path = pathname.toLowerCase();
+	const base = basePath.toLowerCase();
+	return path === base || path.startsWith(`${base}/`);
+}
+
+/**
+ * Resolves an app-relative href against the app base path, the way Next.js
+ * treats `basePath`: registry paths and `routePath()` results are
+ * app-relative ("/Dashboard"), and the URL the browser sees carries the base
+ * ("/Poyo/Dashboard"). Left untouched: the root base, absolute URLs
+ * ("https://…", "//host/…"), hrefs that are not root-relative ("#x", "?q",
+ * "docs"), and a path already under the base, so resolving twice is harmless.
+ */
+export function withBasePath(
+	href: string,
+	basePath: string | undefined = activeRouteTable?.basePath,
+): string {
+	if (!basePath || basePath === "/") return href;
+	if (!href.startsWith("/") || href.startsWith("//")) return href;
+	const pathname = href.split(/[?#]/, 1)[0];
+	if (isUnderBasePath(pathname, basePath)) return href;
+	return href === "/" ? basePath : `${basePath}${href}`;
 }
 
 function normalizeBasePath(rawBaseUrl: string): string {

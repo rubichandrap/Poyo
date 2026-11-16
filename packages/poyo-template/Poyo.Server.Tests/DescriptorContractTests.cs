@@ -271,6 +271,34 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
 
 }
 
+public class DescriptorStatusCodeTests : IClassFixture<DescriptorServerFixture>
+{
+    private readonly WebApplicationFactory<Program> _factory;
+
+    public DescriptorStatusCodeTests(DescriptorServerFixture fixture)
+    {
+        _factory = fixture.Factory;
+    }
+
+    [Fact]
+    public async Task Descriptor_answers_with_the_status_the_document_answers_with()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+        });
+
+        var document = await client.GetAsync("/Gone");
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/Gone");
+        request.Headers.Add(PageResult.NavigationHeaderName, PageResult.NavigationHeaderValue);
+        var descriptor = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Gone, document.StatusCode);
+        Assert.Equal(HttpStatusCode.Gone, descriptor.StatusCode);
+    }
+}
+
 public sealed class DescriptorServerFixture : IDisposable
 {
     public DescriptorServerFixture()
