@@ -1,0 +1,53 @@
+{
+	"note": "Head parity: for each route, the <head> a document load renders (the server's layout) and the <head> a dynamic navigation produces (the client runtime applying the descriptor) must be the same. Both runtimes read this file: the server suite renders each route and checks its document head and its descriptor's seo; the runtime suite applies that descriptor seo to a page left by another route and checks the same head. `seo` is the registry input; `expected` is the head both must show, as the route-owned elements only (marked data-poyo-seo) plus the title.",
+	"titleTemplate": "%s - Poyo",
+	"cases": [
+		{
+			"id": "full-seo",
+			"name": "Full",
+			"seo": {
+				"title": "Full page",
+				"description": "Everything the registry can say",
+				"meta": { "og:title": "Full OG", "keywords": "poyo, parity" },
+				"jsonld": { "@context": "https://schema.org", "@type": "WebPage" }
+			},
+			"expected": {
+				"title": "Full page - Poyo",
+				"description": "Everything the registry can say",
+				"meta": { "og:title": "Full OG", "keywords": "poyo, parity" },
+				"jsonLd": { "@context": "https://schema.org", "@type": "WebPage" }
+			}
+		},
+		{
+			"id": "no-seo",
+			"name": "Bare",
+			"expected": { "title": "Bare - Poyo", "description": null, "meta": {}, "jsonLd": null }
+		},
+		{
+			"id": "seo-without-title",
+			"name": "Untitled",
+			"seo": { "description": "Has a description but no title" },
+			"expected": {
+				"title": "Untitled - Poyo",
+				"description": "Has a description but no title",
+				"meta": {},
+				"jsonLd": null
+			}
+		},
+		{
+			"id": "html-sensitive-text",
+			"name": "Sensitive",
+			"seo": {
+				"title": "Tom & Jerry <3",
+				"description": "Quotes \" and 'apostrophes' & <tags>",
+				"jsonld": { "@type": "WebPage", "name": "</script><script>alert(1)</script>" }
+			},
+			"expected": {
+				"title": "Tom & Jerry <3 - Poyo",
+				"description": "Quotes \" and 'apostrophes' & <tags>",
+				"meta": {},
+				"jsonLd": { "@type": "WebPage", "name": "</script><script>alert(1)</script>" }
+			}
+		}
+	]
+}
