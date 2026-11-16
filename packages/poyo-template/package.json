@@ -2,6 +2,7 @@
 	"name": "@rubichandrap/poyo-template",
 	"version": "0.5.0-beta.3",
 	"description": "The Poyo skeleton: React client, .NET server, and routes registry.",
+	"license": "MIT",
 	"private": false,
 	"repository": {
 		"type": "git",
