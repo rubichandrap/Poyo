@@ -18,6 +18,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- **Breaking:** `usePage()` follows React's hook rules now that it subscribes to the store, so it must be called while a component renders. Read Page data elsewhere with `getPageData()`.
+- The template resolves app URLs through the runtime: `Link` takes `routePath()` results directly, full-page redirects use `withBasePath()`, and the build-time `appUrl()` helper (`src/lib/base-url.ts`) is gone. The Dashboard logout no longer redirects to the host root under a base path.
 - **The registry's rules are now proven equivalent across the server and the route manager, not asserted (ADR 0018).** They are written twice, in C# and in TypeScript, because the two runtimes refuse a bad registry at different moments, and two suites that each assert their own wording cannot detect the wording drifting apart — which is how an absent `access` and a `"controller": null` came to disagree in the first place. A **registry corpus** at `fixtures/registry/` holds one file per rule, a registry and the verdict it earns, and both runtimes read all of it: a rule added to one side and not the other is a test failure rather than a review finding. A case declaring one verdict for the two also pins the message fragments both messages must carry; a case declaring a verdict per runtime pins a deliberate difference — today the empty registry, which the route manager legitimately reads and the server refuses to boot on because a registry declaring no routes switches off the access model, the SEO policy and the `private, no-store` guarantee. The corpus lives at the repository root because it belongs to neither package: `packages/poyo` must not read files out of `poyo-template`, and the template's tests must not read them out of a published package. A validation rule lands with its case; that is the workflow the mechanism depends on.
 
 - One lookup resolves every request. `RoutePolicy.Find`, by normalized request path, is the only way a server seam answers "which route serves this request": the access filter, the SEO filter, the page controller, and the controller extension. The controller/action lookup and its access-priority ordering are removed, along with the list-order tie-break between routes that share a defaulted controller. `RoutePolicy.FindForRequest` is removed from the framework package's public server core; call `Find` with a request path instead.
@@ -35,6 +37,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A registry JSON-LD value containing `</script>` no longer closes the layout's script element: `SeoPolicyFilter` re-serializes JSON-LD with HTML-sensitive characters escaped.
+- The fixture e2e requested `/api/test-unrelated` for a controller routed at `/api/TestUnrelated`, so the release gate could never pass that step.
 - Back/Forward to the landing page, to an in-page fragment entry, or to an entry another library pushed no longer reloads the whole document. `popstate` fires only for entries of the current document, so the old "no Poyo state → document load" branch was only ever reached by this document's own entries. The router now stamps the landing entry on install, adopts any unrecorded entry it scrolls on, and traverses every non-hash entry through the descriptor (found by the navigation model check, `test/navigation-model.test.ts`).
 - Back past a same-URL entry another library pushed (an open modal, a tab) no longer reloads the page; that entry is left to its library.
 - `push` no longer copies the outgoing entry's history-state keys into the new entry; `replace` still preserves them.
@@ -63,6 +67,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A Back/Forward traversal that cannot fetch a descriptor now hands the URL back with `location.replace` instead of `location.assign`, so the document load settles the entry the browser already moved to rather than risking a history entry that was never rendered.
 - Two claims that had no test behind them are now pinned at the published-application seam: a deployment that loses `Routes:JsonPath` serves a *different* access model than the one its host named, and the publish output carries no environment file.
 
+
+### Added
+
+- The page descriptor carries a format version, `"v": 1`. A client refuses a version newer than it understands and falls back to a document load; a descriptor without `v` is read as version 1.
+- `getPageData()` reads Page data outside a component render (event handlers, utilities, tests). `usePage()` is the hook components call.
+- `pnpm run test:release:prepublish` runs the fixture project against the tarball `pnpm pack` produces, including a real-browser check of Link, Back and Forward (`scripts/browser-navigation.mjs`). The release workflow runs it before publishing, so a broken release is caught before it is public. It needs `playwright` as a root dev dependency and Chromium (`pnpm exec playwright install chromium`).
+- `fixtures/head/head-parity.json`: one corpus both runtimes read, so the head after a dynamic navigation and the head of a document load are held to the same expected head.
 
 ## [0.5.0-beta.2] - 2026-09-24
 
