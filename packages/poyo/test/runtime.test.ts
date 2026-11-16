@@ -69,3 +69,20 @@ describe("usePage", () => {
 		expectTypeOf<Window["SERVER_DATA"]>().toEqualTypeOf<unknown | undefined>();
 	});
 });
+
+describe("getPageData", () => {
+	it("reads Page data outside a component render, with usePage's narrowing", async () => {
+		const { getPageData } = await import("../src/runtime/index.js");
+		const { resetNavigationStore } = await import(
+			"../src/runtime/navigation-store.js"
+		);
+		resetNavigationStore();
+		vi.stubGlobal("window", { SERVER_DATA: { user: "demo" } });
+		expect(getPageData<{ user: string }>()?.user).toBe("demo");
+
+		resetNavigationStore();
+		vi.stubGlobal("window", { SERVER_DATA: [1, 2] });
+		expect(getPageData()).toBeNull();
+		resetNavigationStore();
+	});
+});
