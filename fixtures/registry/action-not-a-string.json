@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "An action names a method; a boolean names nothing.",
-	"message": [
-		"action"
-	],
+	"message": ["action"],
 	"registry": [
 		{
 			"path": "/Home",

@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A declared path is stored exactly as written, so the canonical form is named instead.",
-	"message": [
-		"trailing slash",
-		"/Home"
-	],
+	"message": ["trailing slash", "/Home"],
 	"registry": [
 		{
 			"path": "/Home/",

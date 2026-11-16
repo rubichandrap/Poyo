@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A declared value is one the registry names whether or not it says something: \"controller\": \"\" is a declaration the server cannot act on.",
-	"message": [
-		"controller",
-		"/Home"
-	],
+	"message": ["controller", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

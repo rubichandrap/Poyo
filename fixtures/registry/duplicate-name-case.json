@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "The client route table holds a name in three structures under two tie-break rules, so two routes claiming one resolve to different pages depending on the case of the string used to ask for it.",
-	"message": [
-		"/About"
-	],
+	"message": ["/About"],
 	"registry": [
 		{
 			"path": "/Home",

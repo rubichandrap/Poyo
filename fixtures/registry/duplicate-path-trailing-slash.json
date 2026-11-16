@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "The collision the raw-string check misses, because the request lookup normalizes.",
-	"message": [
-		"/Home/"
-	],
+	"message": ["/Home/"],
 	"registry": [
 		{
 			"path": "/Home",

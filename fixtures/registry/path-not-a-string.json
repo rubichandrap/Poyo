@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A path is a URL, and a number is not one however it is spelled.",
-	"message": [
-		"path"
-	],
+	"message": ["path"],
 	"registry": [
 		{
 			"path": 5,

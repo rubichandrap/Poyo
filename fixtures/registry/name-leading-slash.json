@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A name is an identifier, not a path.",
-	"message": [
-		"must not begin or end with \"/\"",
-		"/Home"
-	],
+	"message": ["must not begin or end with \"/\"", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

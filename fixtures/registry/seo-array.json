@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "An array is not an object, however loosely the word is read.",
-	"message": [
-		"seo"
-	],
+	"message": ["seo"],
 	"registry": [
 		{
 			"path": "/Home",

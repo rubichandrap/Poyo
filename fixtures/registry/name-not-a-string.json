@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A name is an identifier, and a boolean is not one.",
-	"message": [
-		"name"
-	],
+	"message": ["name"],
 	"registry": [
 		{
 			"path": "/Home",

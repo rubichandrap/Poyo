@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "seo is an object of the server's SEO model, not a string.",
-	"message": [
-		"seo"
-	],
+	"message": ["seo"],
 	"registry": [
 		{
 			"path": "/Home",

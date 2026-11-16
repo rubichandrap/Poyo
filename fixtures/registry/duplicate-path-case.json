@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "Two paths that differ only by case are one route served in declaration order; uniqueness ignores case.",
-	"message": [
-		"/home"
-	],
+	"message": ["/home"],
 	"registry": [
 		{
 			"path": "/Home",

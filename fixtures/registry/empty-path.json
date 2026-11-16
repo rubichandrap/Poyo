@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A path is present and rooted.",
-	"message": [
-		"must begin with \"/\""
-	],
+	"message": ["must begin with \"/\""],
 	"registry": [
 		{
 			"path": "",

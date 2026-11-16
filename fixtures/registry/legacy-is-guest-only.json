@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "Both legacy flags are unknown members.",
-	"message": [
-		"isGuestOnly",
-		"/Home"
-	],
+	"message": ["isGuestOnly", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

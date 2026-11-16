@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "A whitespace-only path is blank, not rooted.",
-	"message": [
-		"must begin with \"/\""
-	],
+	"message": ["must begin with \"/\""],
 	"registry": [
 		{
 			"path": "   ",

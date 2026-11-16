@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "Either half alone is the same mistake read the other way round.",
-	"message": [
-		"action",
-		"/Home"
-	],
+	"message": ["action", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",

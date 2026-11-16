@@ -1,9 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "An access the route manager defaults cannot be written as null: null is not one of the three values, and the server's enum converter refuses it too.",
-	"message": [
-		"access"
-	],
+	"message": ["access"],
 	"registry": [
 		{
 			"path": "/Home",

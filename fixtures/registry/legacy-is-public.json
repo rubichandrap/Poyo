@@ -1,10 +1,7 @@
 {
 	"verdict": "reject",
 	"note": "The legacy flag has no migration shim: it is an unknown member now.",
-	"message": [
-		"isPublic",
-		"/Home"
-	],
+	"message": ["isPublic", "/Home"],
 	"registry": [
 		{
 			"path": "/Home",
