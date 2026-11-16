@@ -1,4 +1,4 @@
-import { usePage } from "@rubichandrap/poyo/runtime";
+import { usePage, withBasePath } from "@rubichandrap/poyo/runtime";
 import { useLogout } from "~/hooks-api/auth";
 
 interface DashboardData {
@@ -14,7 +14,7 @@ export default function DashboardPage() {
 	const handleLogout = async () => {
 		try {
 			await logoutMutation.mutateAsync();
-			window.location.href = "/";
+			window.location.href = withBasePath("/");
 		} catch (err) {
 			console.error("Logout failed", err);
 		}
