@@ -40,11 +40,21 @@
  *  12. No committed route manifest and no client `index.html` in the
  *      generated project.
  *
- * This test is a publish-time gate, wired into `pnpm run test:release`. It is
- * RED until the release version is published: an unpublished version fails
- * pnpm install with a resolution error, which the fixture surfaces with a
- * [RED-UNTIL-PUBLISHED] diagnostic. Run it after publishing (or at any time)
- * to prove the published packages work together.
+ *  13. Dynamic navigation in a real browser (scripts/browser-navigation.mjs):
+ *      a second boot in Production serves the built bundle, and a Link click,
+ *      Back to the landing entry and Forward each swap the page without a
+ *      document load and leave the head a document load would render.
+ *
+ * Two modes, chosen by POYO_FIXTURE_SOURCE:
+ *
+ *   - `pack` (pre-publish, `pnpm run test:release:prepublish`): the framework
+ *     package is installed from the tarball `pnpm pack` produces — byte for
+ *     byte what publishing would upload — so a broken release is caught
+ *     before it is public. The release workflow runs this before publishing.
+ *   - unset (post-publish, `pnpm run test:release`): the version is resolved
+ *     from npm. RED until the release version is published: an unpublished
+ *     version fails pnpm install with a resolution error, which the fixture
+ *     surfaces with a [RED-UNTIL-PUBLISHED] diagnostic.
  */
 
 import assert from "node:assert/strict";
@@ -63,6 +73,8 @@ const REPO_ROOT = path.resolve(
 const SCAFFOLDER_PKG = path.join(REPO_ROOT, "packages", "create-poyo-app");
 const SCAFFOLDER_BIN = path.join(SCAFFOLDER_PKG, "dist", "index.js");
 const POYO_PKG = "@rubichandrap/poyo";
+const POYO_PKG_DIR = path.join(REPO_ROOT, "packages", "poyo");
+const PACK_MODE = process.env.POYO_FIXTURE_SOURCE === "pack";
 
 // The scaffolder's rename rule turns poyo.client into <lower>.client and
 // Poyo.Server into <Pascal>.Server, so a project named fixtureApp produces
@@ -223,7 +235,9 @@ async function assertGeneratedRuntimeNavigation(
 		assert.equal(request.init.credentials, "same-origin");
 		assert.equal(request.init.headers[NAVIGATION_HEADER], "1");
 		assert.equal(router.route?.pageName, "Dashboard");
-		assert.equal(runtime.usePage()?.user, "demo");
+		// Outside a render, Page data is read with getPageData(); usePage()
+		// is the hook a component calls.
+		assert.equal(runtime.getPageData()?.user, "demo");
 	} finally {
 		router.destroy?.();
 		delete globalThis.window;
@@ -282,7 +296,77 @@ before(() => {
 		300_000,
 	);
 	assert.equal(build.status, 0, `scaffolder build failed:\n${build.output}`);
+
+	if (PACK_MODE) {
+		// The tarball is packed from dist/, so build what it will carry.
+		const poyoBuild = run(
+			"pnpm",
+			["--filter", POYO_PKG, "build"],
+			REPO_ROOT,
+			300_000,
+		);
+		assert.equal(
+			poyoBuild.status,
+			0,
+			`framework package build failed:\n${poyoBuild.output}`,
+		);
+	}
 });
+
+/**
+ * Packs the framework package the way publishing would (pnpm pack rewrites
+ * workspace: protocols, honors `files`) and returns the tarball path.
+ */
+function packFrameworkPackage(destination) {
+	const pack = run(
+		"pnpm",
+		["pack", "--pack-destination", destination],
+		POYO_PKG_DIR,
+		120_000,
+	);
+	assert.equal(pack.status, 0, `pnpm pack failed:\n${pack.output}`);
+	const tarball = fs
+		.readdirSync(destination)
+		.find((name) => name.endsWith(".tgz"));
+	assert.ok(tarball, `pnpm pack produced no tarball:\n${pack.output}`);
+	return path.join(destination, tarball);
+}
+
+/** Boots the built fixture server and waits until it answers. */
+async function startServer(fixture, environment, port) {
+	const serverDll = path.join(
+		fixture,
+		SERVER_DIR,
+		"bin",
+		"Debug",
+		"net10.0",
+		"FixtureApp.Server.dll",
+	);
+	const child = spawn(
+		"dotnet",
+		[serverDll, "--urls", `http://127.0.0.1:${port}`],
+		{
+			cwd: path.join(fixture, SERVER_DIR),
+			env: {
+				...process.env,
+				ASPNETCORE_ENVIRONMENT: environment,
+				ASPNETCORE_URLS: `http://127.0.0.1:${port}`,
+			},
+			stdio: ["ignore", "pipe", "pipe"],
+		},
+	);
+	for (let attempt = 0; attempt < 50; attempt++) {
+		await new Promise((r) => setTimeout(r, 200));
+		try {
+			const res = await fetch(`http://127.0.0.1:${port}/Login`);
+			if (res.status === 200) return child;
+		} catch {
+			// Server is still starting up
+		}
+	}
+	child.kill("SIGTERM");
+	throw new Error(`${environment} server failed to start on port ${port}`);
+}
 
 test(
 	"scaffolded project proves the published navigation contract",
@@ -491,8 +575,30 @@ test(
 
 			// 3. pnpm install — this is where npm resolution is proven. An
 			// unpublished version fails resolution, keeping the gate red until
-			// the release hits the registry.
+			// the release hits the registry. In pack mode the framework package
+			// comes from the tarball publishing would upload instead.
+			if (PACK_MODE) {
+				const tarball = packFrameworkPackage(tmpRoot);
+				const manifestPath = path.join(fixture, "package.json");
+				const manifest = readJson(manifestPath);
+				manifest.pnpm = {
+					...manifest.pnpm,
+					overrides: {
+						...manifest.pnpm?.overrides,
+						[POYO_PKG]: `file:${tarball}`,
+					},
+				};
+				fs.writeFileSync(
+					manifestPath,
+					`${JSON.stringify(manifest, null, 2)}\n`,
+				);
+			}
 			const install = run("pnpm", ["install"], fixture, 600_000);
+			if (install.status !== 0 && PACK_MODE) {
+				throw new Error(
+					`pnpm install from the packed tarball failed in ${fixture}:\n${install.output}`,
+				);
+			}
 			if (install.status !== 0) {
 				const published = run(
 					"npm",
@@ -531,7 +637,7 @@ test(
 			const realDir = fs.realpathSync(resolvedDir);
 			assert.ok(
 				!realDir.startsWith(REPO_ROOT),
-				`${POYO_PKG} resolved from the workspace (${realDir}), not from npm`,
+				`${POYO_PKG} resolved from the workspace (${realDir}), not from ${PACK_MODE ? "the packed tarball" : "npm"}`,
 			);
 			assert.ok(
 				fs.existsSync(path.join(resolvedDir, "dist", "runtime", "index.js")),
@@ -714,6 +820,21 @@ test(
 				bundle,
 				/Route table not initialized/,
 				"the runtime route helper (routePath) is missing from the built client bundle",
+			);
+
+			// 7b. Sync the built bundle into the server (what `pnpm run build`
+			// does), so a Production boot serves it — the browser check needs
+			// the real bundle, not the Vite dev server.
+			const assetSync = run(
+				"pnpm",
+				["exec", "poyo", "build"],
+				fixture,
+				120_000,
+			);
+			assert.equal(
+				assetSync.status,
+				0,
+				`poyo build (asset sync) failed:\n${assetSync.output}`,
 			);
 
 			// 8. Server build succeeds.
@@ -1032,7 +1153,7 @@ test(
 			authCookie = authCookieOf(refreshApiRes);
 
 			const unrelatedApiRes = await fetch(
-				`http://127.0.0.1:${serverPort}/api/test-unrelated`,
+				`http://127.0.0.1:${serverPort}/api/TestUnrelated`,
 				{ headers: { cookie: authCookie } },
 			);
 			assert.equal(unrelatedApiRes.status, 200);
@@ -1103,6 +1224,22 @@ test(
 				serverProcess = null;
 			}
 
+			// 13. Dynamic navigation in a real browser, against a Production
+			// boot serving the built bundle.
+			const { chromium } = await import("playwright");
+			const { checkBrowserNavigation } = await import(
+				pathToFileURL(path.join(REPO_ROOT, "scripts", "browser-navigation.mjs"))
+					.href
+			);
+			const browserPort = await getFreePort();
+			serverProcess = await startServer(fixture, "Production", browserPort);
+			await checkBrowserNavigation({
+				chromium,
+				origin: `http://127.0.0.1:${browserPort}`,
+			});
+			serverProcess.kill("SIGTERM");
+			serverProcess = null;
+
 			fs.rmSync(tmpRoot, { recursive: true, force: true });
 		} catch (error) {
 			if (serverProcess && !serverProcess.killed) {
@@ -1121,7 +1258,11 @@ test(
 	// Catches a workspace:* protocol leaking into the published manifest
 	// (0.3.0 shipped exactly that; pnpm publish rewrites workspace deps,
 	// npm publish does not). Red until a working version is published.
-	{ timeout: 300_000 },
+	{
+		timeout: 300_000,
+		skip:
+			PACK_MODE && "post-publish only: it downloads the published scaffolder",
+	},
 	() => {
 		const version = releaseVersion();
 		const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "poyo-dlx-"));

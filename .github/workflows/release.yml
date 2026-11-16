@@ -66,6 +66,21 @@ jobs:
           done
           echo "Version ${VERSION} is not yet published on npm."
 
+      # The end-to-end gate runs before anything is public: the fixture project
+      # installs the framework package from the tarball `pnpm pack` produces
+      # (what publishing uploads), builds client and server, checks the wire
+      # contract, and drives dynamic navigation in a real browser. The
+      # post-publish `pnpm run test:release` stays as the npm-resolution proof.
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Install Chromium for the browser check
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Pre-publish fixture e2e (packed tarball)
+        run: pnpm run test:release:prepublish
+
       - name: Compute npm dist-tag
         id: disttag
         run: |
