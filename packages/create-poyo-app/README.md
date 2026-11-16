@@ -11,9 +11,19 @@ npx @rubichandrap/create-poyo-app@latest MyApp
 
 cd MyApp
 pnpm run restore     # install JS dependencies and restore .NET packages
-pnpm run generate    # generate TypeScript DTOs and Zod schemas from offline OpenAPI snapshot
+pnpm run generate    # generate TypeScript DTOs + Zod schemas from offline OpenAPI snapshot
 pnpm run dev         # start the .NET watch server (full-stack MPA; alias for server:watch)
 ```
+
+### Project names
+
+A name is accepted only when it can be all three things it becomes:
+
+- a C# namespace segment (`<Name>.Server`, `<Name>.Server.Controllers`),
+- an npm package name (`<name>.client`),
+- one directory name under the current directory.
+
+The grammar is `^[A-Za-z][A-Za-z0-9_]{0,63}$`: start with an ASCII letter, then letters, digits or underscores, at most 64 characters. `my-app`, `1App`, `app.name`, `app name` and `..` are refused before any file is written, and the message names the rule that refused it.
 
 ### Options
 
