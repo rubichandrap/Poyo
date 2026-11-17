@@ -7,9 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-17
+
 ### Fixed
 
 - A scaffolded project no longer inherits the template's `repository`, `homepage`, `bugs` or `keywords`; the rename had turned the repository URL into `github.com/rubichandrap/<Project>`, which does not exist. **Existing projects:** delete those fields from the root `package.json`.
+
+### Changed
+
+- Declares npm `keywords`, `homepage` and `bugs`.
 
 ## [0.7.0] - 2026-11-17
 
