@@ -1365,3 +1365,74 @@ function afterNavigationCleanup() {
 	clearActiveRouteTable();
 	resetNavigationStore();
 }
+
+describe("programmatic navigation to a fragment of the page on screen", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		clearActiveRouteTable();
+		resetNavigationStore();
+		setActiveRouter(undefined);
+	});
+
+	const home: AppRoute = {
+		path: "/",
+		pageName: "Home",
+		access: "public",
+		component: stubComponent(),
+	};
+	const other: AppRoute = {
+		path: "/other",
+		pageName: "Other",
+		access: "public",
+		component: stubComponent(),
+	};
+
+	const boot = () => {
+		clearActiveRouteTable();
+		resetNavigationStore();
+		setActiveRouter(undefined);
+		const fetchMock = vi.fn(async () => ({
+			ok: true,
+			status: 200,
+			redirected: false,
+			json: async () => ({ name: "Other", pageData: null }),
+		}));
+		const harness = createRouterHarness({
+			routes: [home, other],
+			fetch: fetchMock as unknown as typeof fetch,
+			location: { pathname: "/", href: "http://localhost:3000/" },
+		});
+		// Installing adopts the landing entry; only what the call does counts.
+		harness.history.replaceState.mockClear();
+		return { harness, fetchMock };
+	};
+
+	// R07: the router ran a whole navigation — descriptor request, a second
+	// commit of the page on screen, a history entry, scroll to the top — for
+	// what an in-page anchor does natively.
+	it.each([
+		["push", "#team", "assign"],
+		["push", "/#team", "assign"],
+		["replace", "#team", "replace"],
+	] as const)("%s(%s) is the browser's own fragment navigation", async (op, href, method) => {
+		const { harness, fetchMock } = boot();
+
+		await harness.router[op](href);
+
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(harness.history.pushState).not.toHaveBeenCalled();
+		expect(harness.history.replaceState).not.toHaveBeenCalled();
+		expect(harness.scrollTo).not.toHaveBeenCalled();
+		const called = method === "assign" ? harness.assign : harness.replaceLocation;
+		expect(called).toHaveBeenCalledWith(href);
+	});
+
+	it("still navigates through the descriptor to a fragment of another page", async () => {
+		const { harness, fetchMock } = boot();
+
+		await harness.router.push("/other#team");
+
+		expect(fetchMock).toHaveBeenCalledWith("/other", expect.anything());
+		expect(harness.assign).not.toHaveBeenCalled();
+	});
+});

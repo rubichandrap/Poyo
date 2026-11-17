@@ -56,8 +56,40 @@ export interface PoyoHistoryState {
 			y: number;
 		};
 		url?: string;
+		/**
+		 * Identifies the entry within this document's session history, so its
+		 * scroll position can be remembered outside history state (which can
+		 * no longer be written once the address bar has moved past the entry).
+		 * Absent on entries written by a 0.5.1 or older runtime.
+		 */
+		key?: string;
 	};
 	[key: string]: unknown;
+}
+
+// A random prefix keeps keys of this document apart from keys an earlier
+// document wrote into the same entries before a reload.
+const ENTRY_KEY_PREFIX = Math.random().toString(36).slice(2, 10);
+let entryKeySequence = 0;
+
+/** A key no other entry of this session history carries. */
+function newEntryKey(): string {
+	entryKeySequence += 1;
+	return `${ENTRY_KEY_PREFIX}.${entryKeySequence}`;
+}
+
+/** The entry key a history state carries, if the router wrote one. */
+function entryKeyOf(state: unknown): string | undefined {
+	if (!isPoyoHistoryState(state)) return undefined;
+	return typeof state.__poyo.key === "string" ? state.__poyo.key : undefined;
+}
+
+/** The window's scroll position. */
+function readScroll(win: Window | undefined): { x: number; y: number } {
+	return {
+		x: win?.scrollX ?? win?.pageXOffset ?? 0,
+		y: win?.scrollY ?? win?.pageYOffset ?? 0,
+	};
 }
 
 export function isPoyoHistoryState(state: unknown): state is PoyoHistoryState {
@@ -269,7 +301,8 @@ function saveCurrentScroll(win: Window | undefined): void {
 	const y = win.scrollY ?? win.pageYOffset ?? 0;
 	if (
 		currentState.__poyo.scroll.x !== x ||
-		currentState.__poyo.scroll.y !== y
+		currentState.__poyo.scroll.y !== y ||
+		currentState.__poyo.key === undefined
 	) {
 		win.history.replaceState(
 			{
@@ -277,6 +310,7 @@ function saveCurrentScroll(win: Window | undefined): void {
 				__poyo: {
 					...currentState.__poyo,
 					scroll: { x, y },
+					key: currentState.__poyo.key ?? newEntryKey(),
 				},
 			},
 			"",
@@ -305,11 +339,9 @@ function adoptCurrentEntry(
 				...existing,
 				__poyo: {
 					clientNavigated: true,
-					scroll: scroll ?? {
-						x: win.scrollX ?? win.pageXOffset ?? 0,
-						y: win.scrollY ?? win.pageYOffset ?? 0,
-					},
+					scroll: scroll ?? readScroll(win),
 					url: href,
+					key: newEntryKey(),
 				},
 			} satisfies PoyoHistoryState,
 			"",
@@ -317,6 +349,45 @@ function adoptCurrentEntry(
 		);
 	} catch {
 		// A history write the environment refuses leaves the entry cold.
+	}
+}
+
+/**
+ * The current entry's key, adopting the entry or adding a key to an entry an
+ * older runtime wrote, so every entry the router looks at can be remembered.
+ */
+function ensureEntryKey(win: Window | undefined): string | undefined {
+	if (!win?.history) return undefined;
+	adoptCurrentEntry(win);
+	const state = win.history.state;
+	const existing = entryKeyOf(state);
+	if (existing || !isPoyoHistoryState(state)) return existing;
+	const key = newEntryKey();
+	try {
+		win.history.replaceState(
+			{ ...state, __poyo: { ...state.__poyo, key } },
+			"",
+			win.location?.href ?? "",
+		);
+	} catch {
+		return undefined;
+	}
+	return key;
+}
+
+/**
+ * Whether a navigation target is a fragment of the document on screen: the
+ * same resource as the current URL, with a fragment. Such a target is the
+ * browser's own fragment navigation, as an in-page `<a href="#x">` is.
+ */
+function isFragmentOfCurrent(url: string, win: Window | undefined): boolean {
+	const current = win?.location?.href;
+	if (!current) return false;
+	try {
+		const target = new URL(url, current);
+		return target.hash !== "" && isSameResource(current, target.href);
+	} catch {
+		return false;
 	}
 }
 
@@ -467,7 +538,13 @@ export function createRouter(options?: RouterOptions): Router {
 	// outgoing page's position into the destination's record. So scroll is
 	// recorded only while the current entry names the resource on screen.
 	let screenUrl = lastCommittedUrl;
+	// Between a traversal's popstate and its commit, nothing is recorded:
+	// whatever the screen shows then is not yet the destination entry's page
+	// (ADR 0019 decision 4), even when it happens to share the URL — a Forward
+	// back onto the page still on screen restores where it was left.
+	let traversing = false;
 	const recordScroll = () => {
+		if (traversing) return;
 		if (
 			isSameResource(
 				screenUrl,
@@ -487,6 +564,33 @@ export function createRouter(options?: RouterOptions): Router {
 	if (store.getRoute()) {
 		adoptCurrentEntry(win);
 	}
+
+	// Scroll positions by entry key, written on every scroll event while the
+	// entry's page is on screen, and taken from the viewport at popstate for
+	// the entry being left. History state keeps a record too, written on a
+	// frame, so it survives a reload; but it cannot be written once the
+	// address bar has moved past the entry, which lost the last position when
+	// an entry was left within a frame of the last scroll (ADR 0019).
+	const scrollMemory = new Map<string, { x: number; y: number }>();
+	// The entry the browser is on, as of the router's last look at it.
+	let currentKey = entryKeyOf(win?.history?.state);
+	const rememberScroll = () => {
+		if (traversing) return;
+		if (
+			!isSameResource(
+				screenUrl,
+				win?.location?.href ?? "",
+				win?.location?.origin,
+			)
+		) {
+			return;
+		}
+		const key = ensureEntryKey(win);
+		if (key) {
+			currentKey = key;
+			scrollMemory.set(key, readScroll(win));
+		}
+	};
 
 	// The browser's own restoration is disabled while this router is installed;
 	// destroy() puts the previous value back.
@@ -516,6 +620,21 @@ export function createRouter(options?: RouterOptions): Router {
 		const target = win ?? (typeof window !== "undefined" ? window : undefined);
 		const location = target?.location;
 		if (!location) return;
+		// A URL with a fragment that names the resource already in the address
+		// bar is a fragment navigation, not a document load (HTML "navigate":
+		// same URL ignoring fragments, fragment non-null). That is the traversal
+		// case — the browser has already moved to the entry — and assign or
+		// replace would scroll and leave the previous page on screen. Reloading
+		// loads the entry's document in place, without touching history.
+		// Pinned in Chromium by scripts/platform-facts.test.mjs.
+		if (
+			url.includes("#") &&
+			typeof location.reload === "function" &&
+			isSameResource(location.href, url, location.origin)
+		) {
+			location.reload();
+			return;
+		}
 		const method = replace ? location.replace : location.assign;
 		if (typeof method === "function") {
 			method.call(location, url);
@@ -566,11 +685,28 @@ export function createRouter(options?: RouterOptions): Router {
 		requestedUrl: string,
 		mode: "push" | "replace",
 	): Promise<void> => {
-		const currentToken = ++supersedeToken;
 		const activeTable = options?.routeTable ?? getActiveRouteTable();
 		// Callers speak app-relative paths, as the registry does; the request,
 		// the history entry and any fallback use the URL the browser sees.
 		const url = withBasePath(requestedUrl, activeTable?.basePath);
+
+		// A fragment of the page on screen is not a page change. The browser
+		// performs it natively — scroll to the element, a history entry for
+		// push or none for replace, popstate for the router to adopt — exactly
+		// as for an in-page anchor, which `Link` already leaves native. It does
+		// not supersede a navigation in flight, for the same reason.
+		if (isFragmentOfCurrent(url, win)) {
+			const location = win?.location;
+			const method = mode === "replace" ? location?.replace : location?.assign;
+			if (location && typeof method === "function") {
+				method.call(location, url);
+			}
+			return;
+		}
+
+		const currentToken = ++supersedeToken;
+		// A navigation supersedes any traversal in flight.
+		traversing = false;
 
 		try {
 			const result = await fetchAndResolveDescriptor(
@@ -591,6 +727,7 @@ export function createRouter(options?: RouterOptions): Router {
 			}
 
 			// Save current scroll of the entry we are leaving BEFORE committing new route
+			rememberScroll();
 			recordScroll();
 
 			// Atomic commit to navigation store
@@ -611,12 +748,14 @@ export function createRouter(options?: RouterOptions): Router {
 					win.history.state !== null
 						? win.history.state
 						: {};
+				const key = newEntryKey();
 				const newState: PoyoHistoryState = {
 					...existingState,
 					__poyo: {
 						clientNavigated: true,
 						scroll: { x: 0, y: 0 },
 						url,
+						key,
 					},
 				};
 				// Both operations show the new page from the top, which is what the
@@ -627,6 +766,7 @@ export function createRouter(options?: RouterOptions): Router {
 				} else {
 					win.history.replaceState(newState, "", url);
 				}
+				currentKey = key;
 				win.scrollTo?.(0, 0);
 			}
 			// A target with a fragment then scrolls to its element once the new
@@ -652,6 +792,23 @@ export function createRouter(options?: RouterOptions): Router {
 
 		const state = event.state ?? win?.history?.state;
 
+		// The entry being left. Its page is still on screen when popstate
+		// fires — with manual scroll restoration the browser has not moved the
+		// viewport — so its position is read now, the last moment it can be.
+		// Only when the screen shows that entry: mid-traversal the screen
+		// shows an earlier page, whose position this is not.
+		const outgoingKey = currentKey;
+		const outgoingOnScreen = isSameResource(
+			screenUrl,
+			lastCommittedUrl,
+			win?.location?.origin,
+		);
+		const captureOutgoing = () => {
+			if (outgoingKey && outgoingOnScreen) {
+				scrollMemory.set(outgoingKey, readScroll(win));
+			}
+		};
+
 		// Not a page change: a hash-only change (the browser owns anchor
 		// scrolling), or an entry for the resource already on screen that this
 		// router never wrote — another library's in-page state, such as an open
@@ -664,12 +821,19 @@ export function createRouter(options?: RouterOptions): Router {
 			(!isPoyoHistoryState(state) &&
 				isSameResource(lastCommittedUrl, currentHref, win?.location?.origin))
 		) {
+			// Traversing to an entry the router knows, the browser does not
+			// scroll; a new fragment entry may already have scrolled to its
+			// element, so the position read now would be the destination's.
+			if (isPoyoHistoryState(state)) captureOutgoing();
 			lastCommittedUrl = currentHref;
 			adoptCurrentEntry(win);
+			currentKey = entryKeyOf(win?.history?.state);
 			return;
 		}
 
+		captureOutgoing();
 		lastCommittedUrl = currentHref;
+		currentKey = entryKeyOf(state);
 
 		// popstate fires only for entries of this document — an entry of
 		// another document is a document load the browser performs itself. So
@@ -677,6 +841,7 @@ export function createRouter(options?: RouterOptions): Router {
 		// created before this router was installed) is still traversed through
 		// the descriptor; it only lacks a scroll record to restore.
 		const currentToken = ++supersedeToken;
+		traversing = true;
 
 		try {
 			const activeTable = options?.routeTable ?? getActiveRouteTable();
@@ -711,11 +876,16 @@ export function createRouter(options?: RouterOptions): Router {
 			// against the outgoing document's height. An entry with no record
 			// shows its page from the top, as a push does, rather than at the
 			// outgoing page's offset; adopting it gives it a record from here on.
-			const { x, y } = isPoyoHistoryState(state)
-				? state.__poyo.scroll
-				: { x: 0, y: 0 };
+			traversing = false;
+			const targetKey = entryKeyOf(state);
+			const { x, y } =
+				(targetKey ? scrollMemory.get(targetKey) : undefined) ??
+				(isPoyoHistoryState(state) ? state.__poyo.scroll : { x: 0, y: 0 });
 			screenUrl = currentHref;
 			if (!isPoyoHistoryState(state)) adoptCurrentEntry(win, { x, y });
+			// Read, not ensured: a traversal writes no history of its own. An
+			// entry an older runtime wrote gains a key on its first scroll.
+			currentKey = entryKeyOf(win?.history?.state);
 			if (typeof win?.requestAnimationFrame === "function") {
 				// A navigation that commits before this frame owns the viewport:
 				// restoring now would scroll its page to this entry's offset, and
@@ -734,6 +904,7 @@ export function createRouter(options?: RouterOptions): Router {
 
 	let scrollRafId: number | undefined;
 	const onScroll = () => {
+		rememberScroll();
 		if (typeof win?.requestAnimationFrame === "function") {
 			if (
 				scrollRafId !== undefined &&
