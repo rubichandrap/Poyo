@@ -608,9 +608,18 @@ async function explore(depth: number): Promise<Map<string, Counterexample>> {
 	// Breadth-first, so the first counterexample per invariant is a shortest one.
 	let frontier: Event[][] = [[]];
 	let explored = 0;
+	let sinceYield = 0;
 	for (let d = 0; d < depth; d++) {
 		const next: Event[][] = [];
 		for (const prefix of frontier) {
+			// The checker awaits only microtasks, so a deep run never hands the
+			// event loop back; the test worker then misses its RPC deadline and
+			// vitest fails a run whose checks all passed. Yield a macrotask now
+			// and then.
+			if (++sinceYield >= 200) {
+				sinceYield = 0;
+				await new Promise((resolve) => setTimeout(resolve, 0));
+			}
 			for (const e of ALPHABET) {
 				const trace = [...prefix, e];
 				const run = boot();
