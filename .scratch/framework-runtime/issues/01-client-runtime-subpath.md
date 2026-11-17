@@ -6,6 +6,8 @@
 
 **Status:** done — PR #29
 
+**Completion:** Done. GitHub issues #23-#28 are closed; implemented in PR #29.
+
 - [x] @rubichandrap/poyo exposes "./runtime" with usePage<T extends object = Record<string, unknown>>(): T | null (SSR guard; null for missing/null/array/primitive SERVER_DATA; plain object → payload)
 - [x] The package declares Window.SERVER_DATA?: unknown globally (upgraded from any)
 - [x] react declared as peerDependency; the runtime module stays dependency-free and browser-safe

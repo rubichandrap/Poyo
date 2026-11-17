@@ -1,5 +1,7 @@
 # Controller `ViewData["Title"]` and dynamic-navigation SEO
 
+Status: Done. Research completed. The shipped contract keeps SEO in the registry; the proposed raw ViewData overlay was not adopted.
+
 ## Assessment
 
 **The proposed raw `ViewData["Title"]` overlay is not a complete or sufficiently explicit change.** It would repair the mismatch for a title deliberately assigned by a custom controller, but it would turn a weakly typed MVC transport key into a second, hidden SEO source without establishing one canonical effective title for both representations.

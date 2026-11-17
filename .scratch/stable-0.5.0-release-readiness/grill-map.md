@@ -1,8 +1,8 @@
 # Stable 0.5.0 Release Readiness Grill Map
 
-Status: decision map, not an implementation plan
+Status: Done. All R01-R17 candidates are resolved through the published 0.6.0 changes and the merged #106 work. The audit evidence below is historical.
 Comparison baseline: `v0.4.1` (`1c85643dbd36a70505676bb635aa54ab7bbb3bbc`) to current `HEAD` (`71ae93c`)
-Current release: `0.5.0-beta.2`
+Historical release audited: `0.5.0-beta.2`
 
 ## Purpose
 
@@ -20,7 +20,7 @@ A candidate is not accepted merely because it is interesting. It is accepted onl
 - Re-run the complete release gate after the accepted decisions are implemented.
 - Do not rewrite published Git history for commit-message convention findings.
 
-## Current verification snapshot
+## Historical verification snapshot
 
 Passed during the audit:
 
@@ -48,6 +48,8 @@ Failed or incomplete:
 ## Candidate map
 
 ### R01 - Personalized descriptor caching
+
+Status: **Resolved**. Private no-store policy is implemented. Issues #66-#69 and ADR 0013.
 
 Priority: P0
 
@@ -85,6 +87,8 @@ Acceptance proof: a redirect cannot be committed; the request is never made with
 
 ### R03 - Configuration ownership and `.env`
 
+Status: **Resolved**. The process owns the environment; dotenv is conditional and no-clobber. Issue #80 and ADR 0017.
+
 Priority: P0
 
 Evidence: `packages/poyo-template/Poyo.Server/Program.cs:6-10` loads `.env` with defaults that can override deployment process variables. `packages/poyo-template/.env.example:4`, `:17`, and `:28` contain development defaults.
@@ -96,6 +100,8 @@ Recommended default: Keep environment variables as the runtime source of truth. 
 Acceptance proof: Development, staging, and production boots prove that deployment variables win, production does not require Vite-only variables, and missing required configuration fails clearly.
 
 ### R04 - Registry discovery in published output
+
+Status: **Resolved**. The registry ships beside the assembly and missing or invalid registries fail boot. Issue #77 and ADR 0014, including its content-root amendment.
 
 Priority: P0
 
@@ -153,6 +159,8 @@ Acceptance proof: Programmatic and declarative hash navigation do not fetch, swa
 
 ### R08 - Route registry validation
 
+Status: **Resolved**. Canonical registry identity and a shared validation corpus are implemented. Issues #78 and #85, ADRs 0015 and 0018; #108 adds segment rejection.
+
 Priority: P1
 
 Evidence: `packages/poyo/server/RoutePolicy.cs:56-66`, `:75-84`, and `:125-145` do not reject empty/duplicate names, normalized duplicate paths, trailing-slash duplicates, or incomplete controller/action pairs.
@@ -178,6 +186,8 @@ Recommended default: Validate the landing path at startup, reject self/redirect 
 Acceptance proof: Default, custom, self-referential, missing, protected, and `PathBase` scenarios have integration coverage.
 
 ### R10 - SEO precedence and dynamic metadata
+
+Status: **Resolved**. Resolved with registry-authoritative SEO and shared document/runtime head parity. Controller SEO overrides were not adopted. HeadParityCorpusTests, test/head-corpus.test.ts, and fixtures/head/head-parity.json prove parity.
 
 Priority: P1
 
@@ -205,6 +215,8 @@ Acceptance proof: SSR view sections render in the head, descriptor requests do n
 
 ### R12 - Workspace clean-build bootstrap
 
+Status: **Resolved**. Postinstall builds workspace CLIs; the real clean-checkout gate proves the documented lifecycle. Issue #95 and scripts/clean-checkout.test.mjs.
+
 Priority: P1
 
 Evidence: `packages/poyo/package.json:11-13` exposes the CLI through `dist`, which is generated and ignored. A clean archive can install before the CLI binary exists; the current dirty workspace hides this because `dist` exists.
@@ -216,6 +228,8 @@ Recommended default: Make the documented clean-checkout path work without a pre-
 Acceptance proof: A clean archive runs install, the prescribed build/generate commands, and server/client tests without relying on ignored files.
 
 ### R13 - Scaffolder project-name validation
+
+Status: **Resolved**. Project-name grammar, reserved identifiers, and derived C# collision refusals are implemented. Issue #96 and the scaffolder suites; 0.5.1 closes namespace-shadowing gaps.
 
 Priority: P1
 
@@ -229,6 +243,8 @@ Acceptance proof: Invalid names fail before directory creation; every accepted s
 
 ### R14 - TypeScript peer compatibility
 
+Status: **Resolved**. TypeScript 5.9.3 satisfies the codegen peer range; strict-peer checks pass. Issue #97, ADR 0011 amendment, and scripts/assert-peer-compat.test.mjs.
+
 Priority: P1
 
 Evidence: The generated client uses TypeScript `6.0.3` while `openapi-typescript@7.13.0` declares a TypeScript 5 peer range. Default installs warn; strict peer installs fail.
@@ -240,6 +256,8 @@ Recommended default: Do not ship a stable template with a known peer conflict. E
 Acceptance proof: Clean generated-project installation with strict peer enforcement succeeds, and the supported Node/package-manager matrix is documented.
 
 ### R15 - Subpath deployment support
+
+Status: **Resolved**. Root and subpath deployment are covered through the packed scaffold in Chromium. Issue #100; #110 moves the unchanged middleware into UsePoyoPathBase.
 
 Priority: P1
 

@@ -1,5 +1,7 @@
 # R01 — Private Page Response Caching
 
+Status: Done. GitHub issues #66-#69 are closed. ADR 0013 records the final cache-policy contract.
+
 ## Problem Statement
 
 Poyo page responses can contain user-specific Page data, but their HTTP responses do not declare a privacy-safe cache policy. A shared intermediary could store a document or navigation descriptor containing one user’s data and serve it to another user. The current `Vary: X-Poyo-Navigation` header distinguishes the document representation from the descriptor representation, but it does not distinguish users and does not prevent shared caching.

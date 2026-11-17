@@ -6,6 +6,8 @@
 
 **Status:** done — implemented on feat/01-route-table-runtime
 
+**Completion:** Done. Shipped in v0.3.0. ADRs 0006 and 0010 record route-table ownership and the later manifest design.
+
 - [x] AGENTS.md describes the adapter + runtime-owned resolution
 - [x] READMEs updated; CONTEXT.md glossary gets Route loader / Route table terms + registry avoid-note reword
 - [x] CHANGELOG entries prepared for the 0.3.0 release commit

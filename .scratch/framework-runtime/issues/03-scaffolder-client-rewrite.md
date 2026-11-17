@@ -6,6 +6,8 @@
 
 **Status:** done — PR #29
 
+**Completion:** Done. GitHub issues #23-#28 are closed; implemented in PR #29.
+
 - [x] rewritePackageJson rewrites the framework package dependency in <project>.client/package.json from workspace:* to the scaffolder's lockstep version
 - [x] Dependency absent → left untouched (silent-skip)
 - [x] scaffold.test.ts is red-green: dependency absent → untouched; workspace:* → release version

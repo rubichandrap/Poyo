@@ -6,6 +6,8 @@
 
 **Status:** done — implemented in PR #62
 
+**Completion:** Done. GitHub issues #56-#61 are closed; implemented in PR #62.
+
 - [x] `@Html.PoyoPageData()` is implemented in `namespace Poyo.Framework`.
 - [x] `@Html.PoyoPageData()` emits `HtmlString.Empty` when Page data is absent or null.
 - [x] `@Html.PoyoPageData()` serializes non-null object data with `JavaScriptEncoder.Default` into `<script>window.SERVER_DATA = ...;</script>` with trailing semicolon.

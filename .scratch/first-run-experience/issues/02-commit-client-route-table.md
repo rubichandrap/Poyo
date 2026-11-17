@@ -6,6 +6,8 @@
 
 **Status:** closed
 
+**Completion:** Done. GitHub issues #31-#37 are closed. The original committed-manifest design was later superseded by ADR 0010.
+
 - [x] Route-manifest emitter writes to client package root (`<client>/routes.generated.ts`)
 - [x] `routes.generated.ts` is un-ignored in `.gitignore` and committed in `packages/poyo-template/poyo.client/`
 - [x] `"predev": "poyo generate"` removed from `packages/poyo-template/poyo.client/package.json`

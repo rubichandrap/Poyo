@@ -6,6 +6,8 @@
 
 **Status:** done — implemented in PR #62
 
+**Completion:** Done. GitHub issues #56-#61 are closed; implemented in PR #62.
+
 - [x] `this.PoyoPage(data)` accepts C# objects and records, serializing them to `JsonElement` with camelCase property naming.
 - [x] `this.PoyoPage(jsonString)` accepts pre-serialized JSON strings representing objects, preserving existing property names.
 - [x] `this.PoyoPage` wraps `JsonException` in `ArgumentException` when an invalid JSON string is passed.

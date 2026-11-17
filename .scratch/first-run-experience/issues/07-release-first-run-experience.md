@@ -6,6 +6,8 @@
 
 **Status:** closed
 
+**Completion:** Done. GitHub issues #31-#37 are closed. The original committed-manifest design was later superseded by ADR 0010.
+
 - [x] Lockstep version bump across all three packages (`@rubichandrap/poyo`, `@rubichandrap/poyo-template`, `@rubichandrap/create-poyo-app`)
 - [x] CHANGELOG.md entries in root and package folders
 - [x] Lockstep assertion tests pass (`pnpm run release:check`)

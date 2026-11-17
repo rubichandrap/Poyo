@@ -6,6 +6,8 @@
 
 **Status:** closed
 
+**Completion:** Done. GitHub issues #31-#37 are closed. The original committed-manifest design was later superseded by ADR 0010.
+
 - [x] Fixture e2e asserts a fresh scaffold has `routes.generated.ts` at client root and is not gitignored
 - [x] Fixture builds offline without any live API server or network requests
 - [x] Server boot produces a valid OpenAPI snapshot at `openapi/openapi.json`

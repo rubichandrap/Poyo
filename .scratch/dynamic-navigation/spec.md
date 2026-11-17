@@ -1,8 +1,9 @@
 # Spec — Dynamic navigation and the bundled server core
 
+Status: Done. GitHub issues #43-#50 are closed. Later traversal and scroll decisions are recorded in ADR 0019.
+
 ADRs: docs/adr/0008-server-core-bundled-in-framework-package.md, docs/adr/0009-dynamic-navigation.md, docs/adr/0010-encapsulated-route-manifest.md
 Decided in a grilling session (2026-09-23); testing seams confirmed by the maintainer.
-Labels: ready-for-agent
 
 ## Problem Statement
 

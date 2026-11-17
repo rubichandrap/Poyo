@@ -6,6 +6,8 @@
 
 **Status:** done
 
+**Completion:** Done. GitHub issues #43-#50 are closed. Later traversal and scroll decisions are recorded in ADR 0019.
+
 - [x] The framework package declares and ships the server source folder (package files whitelist) under the fixed namespace
 - [x] The template's server compiles the framework source in place; a fresh `dotnet build` succeeds with the folder present
 - [x] The missing-package case fails the build with a clear "run pnpm install" error, not a glob mystery

@@ -2,7 +2,7 @@
 
 ADRs: docs/adr/0008-server-core-bundled-in-framework-package.md, docs/adr/0009-dynamic-navigation.md, docs/adr/0012-unified-page-data-production.md
 Decided in grilling session (2026-09-24); testing seams and architectural invariants confirmed with maintainer.
-Status: implemented in PR #62
+Status: Done. GitHub issues #56-#61 are closed; implemented in PR #62.
 
 ## Problem Statement
 
