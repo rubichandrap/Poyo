@@ -671,6 +671,10 @@ describe("invalid registry rejected by every route command", () => {
  * one as a dot. The name becomes a file path, so a resolved dot segment lands
  * outside `src/pages/` and `Views/` — and, with enough `..`, outside the
  * project. Nothing may be written anywhere before the refusal.
+ *
+ * A backslash is a separator here, because it is one to a browser and to a
+ * developer on Windows: the argument is read the same way either way, and the
+ * route manager never writes a declared path holding one.
  */
 describe("poyo route add refuses dot and empty segments", () => {
 	const refused: [string, string][] = [
@@ -678,6 +682,7 @@ describe("poyo route add refuses dot and empty segments", () => {
 		["/./X", '"." segment'],
 		["/Home//X", "empty segment"],
 		["/%2e%2e/X", '"%2e%2e" segment'],
+		["\\..\\..\\X", '".." segment'],
 	];
 
 	it.each(refused)("refuses '%s' and writes nothing", (argument, segment) => {
@@ -692,6 +697,22 @@ describe("poyo route add refuses dot and empty segments", () => {
 		expect(result.stderr).toContain(argument);
 		expect(tree(fixture.dir)).toEqual(treeBefore);
 		expect(readFixtureFile(fixture, "routes.json")).toBe(registryBefore);
+	});
+
+	it("reads a Windows-style path as separators and registers a normal path", () => {
+		const fixture = makeFixture(starter);
+
+		const result = execInFixture(fixture, ["route", "add", "\\Admin\\Users"]);
+
+		expect(result.status).toBe(0);
+		const route = fixture.routesJson().find((r) => r.path === "/Admin/Users");
+		expect(route).toMatchObject({ name: "Admin/Users" });
+		expect(
+			existsFixtureFile(
+				fixture,
+				"poyo.client/src/pages/Admin/Users/index.page.tsx",
+			),
+		).toBe(true);
 	});
 
 	it("writes nothing outside the project", () => {

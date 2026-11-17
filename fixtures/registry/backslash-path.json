@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A browser reads a backslash as \"/\" in an http(s) path, so the URL a route declares with one is never requested as written: the route is unreachable at the path the registry holds.",
+	"message": ["backslash", "/Admin\\Users"],
+	"registry": [
+		{
+			"path": "/Admin\\Users",
+			"name": "Admin/Users",
+			"files": {
+				"react": "src/pages/Admin/Users/index.page.tsx",
+				"view": "Views/Admin/Users/Index.cshtml"
+			}
+		}
+	]
+}

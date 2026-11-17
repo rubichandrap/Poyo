@@ -119,6 +119,8 @@ public static class RouteIdentity
                 $"'{CanonicalPath(path)}' instead.");
         }
 
+        ValidatePathBackslashes(route, routesJsonPath);
+
         if (path.Length > 1 && path.EndsWith('/'))
         {
             throw new RoutePolicyException(
@@ -128,6 +130,25 @@ public static class RouteIdentity
         }
 
         ValidatePathSegments(route, routesJsonPath);
+    }
+
+    /// <summary>
+    /// A declared path holds no backslash: a browser reads one as "/" in an
+    /// http(s) path, so a route declared with one is never requested at the
+    /// URL it states — `/Admin\..\Login` is the request for `/Login` before it
+    /// is even made. Refused as its own rule rather than through the segment
+    /// check, because the mistake is the separator, not a segment.
+    /// </summary>
+    private static void ValidatePathBackslashes(RouteDefinition route, string routesJsonPath)
+    {
+        if (!route.Path.Contains('\\'))
+        {
+            return;
+        }
+
+        throw new RoutePolicyException(
+            $"{RegistryLabel(routesJsonPath)}: {Describe(route)} declares a backslash — a browser " +
+            "reads a backslash as \"/\" in a URL path, so the route is never requested as declared.");
     }
 
     /// <summary>

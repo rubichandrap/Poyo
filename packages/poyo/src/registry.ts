@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import type { ProjectPaths } from "./config.js";
 import { CliError } from "./error.js";
-import { firstRefusedSegment, segmentRefusal } from "./path-segments.js";
+import { firstPathRefusal, refusalMessage } from "./path-segments.js";
 import { isRouteAccess, type Route } from "./routes.js";
 
 const KNOWN_FIELDS = new Set([
@@ -124,9 +124,9 @@ function validateRouteIdentity(route: unknown, index: number): void {
 		);
 	}
 
-	const refused = firstRefusedSegment(routePath);
+	const refused = firstPathRefusal(routePath);
 	if (refused !== undefined) {
-		throw new CliError(`${label}: "path" ${segmentRefusal(refused)}`);
+		throw new CliError(`${label}: "path" ${refusalMessage(refused)}`);
 	}
 
 	if (typeof entry.name === "string" && entry.name.trim().length > 0) {
