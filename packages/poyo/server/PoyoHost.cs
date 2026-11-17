@@ -7,9 +7,9 @@ namespace Poyo.Framework;
 /// <summary>
 /// The host bootstrap the framework owns: the hosting environment read from
 /// the process before anything else loads, the development-only environment
-/// file, and a content root that follows the application's content rather than
+/// file, a content root that follows the application's content rather than
 /// the directory a host happened to start it in (ADR 0017, ADR 0014 amendment,
-/// ADR 0021).
+/// ADR 0021), and the path base a deployment mounts the application under.
 ///
 /// A generated project keeps only what it owns in <c>Program.cs</c>; fixes to
 /// this behaviour arrive with an update of the framework package.
@@ -86,6 +86,30 @@ public static class PoyoHost
                 ? null
                 : AppContext.BaseDirectory,
         });
+    }
+
+    /// <summary>
+    /// Applies the configured path base, when there is one. A deployment may
+    /// mount the application under a prefix — an IIS virtual directory, a
+    /// reverse-proxy path — and states it once in <c>PathBase</c>. The value
+    /// has one owner: every URL the application emits resolves against the
+    /// same <c>Request.PathBase</c>, so asset tags, navigation, API calls and
+    /// the authentication challenge agree without a second copy of the prefix.
+    ///
+    /// Call it where the base belongs in the pipeline — before static files
+    /// and routing. A value that is unset or blank applies nothing, so a root
+    /// deployment is unchanged.
+    /// </summary>
+    public static WebApplication UsePoyoPathBase(this WebApplication app)
+    {
+        string? pathBase = app.Configuration["PathBase"];
+
+        if (!string.IsNullOrWhiteSpace(pathBase))
+        {
+            app.UsePathBase(pathBase);
+        }
+
+        return app;
     }
 
     /// <summary>

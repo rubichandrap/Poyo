@@ -81,7 +81,7 @@ The server resolves it from `Routes:JsonPath` when the host names a location (a 
 
 ### Hosting under a path base
 
-Set `PathBase` (for example `/Poyo`) when the app is not at the host root — an IIS virtual directory, a reverse-proxy prefix. `Program.cs` calls `UsePathBase` with it once, and every URL the app emits resolves against that one value: asset tags through `Url.Content`, the client's `data-base-path`, dynamic navigation, API calls and the authentication challenge. Leave it unset for a root deployment. The reverse proxy must forward the prefixed path (or strip nothing) — the app answers at `/Poyo/...` and does not guess the prefix from headers.
+Set `PathBase` (for example `/Poyo`) when the app is not at the host root — an IIS virtual directory, a reverse-proxy prefix. `app.UsePoyoPathBase()` applies it once, and every URL the app emits resolves against that one value: asset tags through `Url.Content`, the client's `data-base-path`, dynamic navigation, API calls and the authentication challenge. Leave it unset for a root deployment. The reverse proxy must forward the prefixed path (or strip nothing) — the app answers at `/Poyo/...` and does not guess the prefix from headers.
 
 ### Route identity
 

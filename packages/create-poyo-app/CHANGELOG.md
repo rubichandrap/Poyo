@@ -10,7 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - Scaffolding keeps every framework identifier verbatim by shape rather than by a hand-kept list: a `Poyo` immediately followed by an uppercase letter (`PoyoPage`, `PoyoPageData`, a future `PoyoHost`) survives the rename, alongside `Poyo.Framework`, `AddPoyo` and `X-Poyo-Navigation`. Everything else is still the project's — `Poyo.Server`, `Poyo.Server.Tests` and the client folder are renamed.
-- A generated project's `Program.cs` builds its host through the framework's `PoyoHost.CreateBuilder(args)` (ADR 0021), so hosting-environment and content-root fixes arrive with a package update. The project's own choices — authentication, CORS, services, the Vite integration and its development checks, the OpenAPI document and snapshot export, HTTPS redirection, `PathBase`, `AddPoyo` and `MapPoyoRoutes` — stay in `Program.cs`. The protected-identifier rule already keeps `PoyoHost` verbatim, and the reserved-name list was regenerated from the shipped C#.
+- A generated project's `Program.cs` builds its host through the framework's `PoyoHost.CreateBuilder(args)` and applies the path base through `app.UsePoyoPathBase()` (ADR 0021), so hosting-environment, content-root and path-base fixes arrive with a package update. The project's own choices — authentication, CORS, services, the Vite integration and its development checks, the OpenAPI document and snapshot export, HTTPS redirection, `AddPoyo` and `MapPoyoRoutes` — stay in `Program.cs`. The protected-identifier rule already keeps `PoyoHost` and `UsePoyoPathBase` verbatim, and the reserved-name list was regenerated from the shipped C#.
 
 ## [0.6.0] - 2026-11-17
 

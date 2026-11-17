@@ -82,6 +82,11 @@ describe("create-poyo-app", () => {
 		const program = readFile(cwd, "Shop/Shop.Server/Program.cs");
 		expect(program).toContain("PoyoHost.CreateBuilder(args)");
 		expect(program).not.toContain("ShopHost.CreateBuilder");
+
+		// The framework also applies the path base, so the call that replaces
+		// the template's own UsePathBase block survives the same rename.
+		expect(program).toContain("UsePoyoPathBase()");
+		expect(program).not.toContain("UseShopPathBase");
 	});
 
 	it("keeps every Poyo-prefixed framework identifier verbatim under any name", () => {
