@@ -53,9 +53,10 @@ internal static class TestEnvironment
     /// else. A boot failure reaches the test wrapped in whatever the host adds
     /// on its way out, so the exception under test is somewhere in the chain.
     /// </summary>
-    public static RoutePolicyException? BootFailureFor(string registryPath)
+    public static RoutePolicyException? BootFailureFor(string registryPath, string? landingPath = null)
     {
-        var thrown = Record.Exception(() => CreateServerAndStart(registryPath));
+        var thrown = Record.Exception(() => CreateServer(
+            routesJsonPath: registryPath, startClient: true, landingPath: landingPath));
         Assert.NotNull(thrown);
         return ExceptionChain.Unwrap(thrown).OfType<RoutePolicyException>().FirstOrDefault();
     }
@@ -93,7 +94,8 @@ internal static class TestEnvironment
         string? environment = null,
         Action<Microsoft.AspNetCore.Hosting.IWebHostBuilder>? configureBuilder = null,
         bool startClient = false,
-        string? pathBase = null)
+        string? pathBase = null,
+        string? landingPath = null)
     {
         lock (Gate)
         {
@@ -120,6 +122,7 @@ internal static class TestEnvironment
                 // the configuration reads) and removed once the host is up, so
                 // a parallel fixture cannot inherit another test's base.
                 Environment.SetEnvironmentVariable("PathBase", pathBase);
+                Environment.SetEnvironmentVariable("Routes__LandingPath", landingPath);
                 try
                 {
                     customizedFactory.CreateClient();
@@ -127,6 +130,7 @@ internal static class TestEnvironment
                 finally
                 {
                     Environment.SetEnvironmentVariable("PathBase", null);
+                    Environment.SetEnvironmentVariable("Routes__LandingPath", null);
                 }
             }
 

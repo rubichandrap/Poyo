@@ -17,5 +17,14 @@
 		},
 		"controller": "Custom",
 		"action": "Existing"
+	},
+	{
+		"path": "/Dashboard",
+		"name": "Dashboard",
+		"files": {
+			"react": "src/pages/Dashboard/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "protected"
 	}
 ]
