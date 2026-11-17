@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "Two separators in a row declare an empty segment. A browser keeps `//` in the path, but ASP.NET cannot express it as a route pattern: mapping one throws RoutePatternException during the boot, naming neither the route nor its file, so the registry refuses it first.",
+	"message": ["empty segment", "/Home//Second"],
+	"registry": [
+		{
+			"path": "/Home//Second",
+			"name": "Home/Second",
+			"files": {
+				"react": "src/pages/Home/Second/index.page.tsx",
+				"view": "Views/Home/Second/Index.cshtml"
+			}
+		}
+	]
+}

@@ -1,4 +1,8 @@
+import { assertPathSegments } from "./path-segments.js";
+
 export function toRouteName(rawPath: string): string {
+	assertPathSegments(rawPath);
+
 	const parts = rawPath.split(/[\\/]/).filter(Boolean);
 	return parts
 		.map((part) => part.charAt(0).toUpperCase() + part.slice(1))

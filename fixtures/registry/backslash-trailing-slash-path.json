@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "The backslash is the mistake that decides this path, so both runtimes report it before the trailing slash: a browser reads the backslash as \"/\", so the path is never requested as declared whatever its trailing separator.",
+	"message": ["backslash", "/Admin\\Users/"],
+	"registry": [
+		{
+			"path": "/Admin\\Users/",
+			"name": "Admin/Users",
+			"files": {
+				"react": "src/pages/Admin/Users/index.page.tsx",
+				"view": "Views/Admin/Users/Index.cshtml"
+			}
+		}
+	]
+}

@@ -119,6 +119,8 @@ public static class RouteIdentity
                 $"'{CanonicalPath(path)}' instead.");
         }
 
+        ValidatePathBackslashes(route, routesJsonPath);
+
         if (path.Length > 1 && path.EndsWith('/'))
         {
             throw new RoutePolicyException(
@@ -126,7 +128,80 @@ public static class RouteIdentity
                 $"declare '{CanonicalPath(path)}' instead. A declared path is the URL the client " +
                 "links to and the server matches, so it is stored exactly as written.");
         }
+
+        ValidatePathSegments(route, routesJsonPath);
     }
+
+    /// <summary>
+    /// A declared path holds no backslash: a browser reads one as "/" in an
+    /// http(s) path, so a route declared with one is never requested at the
+    /// URL it states — `/Admin\..\Login` is the request for `/Login` before it
+    /// is even made. Refused as its own rule rather than through the segment
+    /// check, because the mistake is the separator, not a segment.
+    /// </summary>
+    private static void ValidatePathBackslashes(RouteDefinition route, string routesJsonPath)
+    {
+        if (!route.Path.Contains('\\'))
+        {
+            return;
+        }
+
+        throw new RoutePolicyException(
+            $"{RegistryLabel(routesJsonPath)}: {Describe(route)} declares a backslash — a browser " +
+            "reads a backslash as \"/\" in a URL path, so the route is never requested as declared.");
+    }
+
+    /// <summary>
+    /// A declared path carries no segment a request can never reach: no empty
+    /// segment, and no dot segment — a `%2e` spelling counts as a dot, because
+    /// the URL parser reads it as one.
+    ///
+    /// The two are refused for different reasons. A dot segment is normalized
+    /// away by the browser before the page is requested, so the route would be
+    /// unreachable at the URL the registry states. An empty segment cannot be
+    /// expressed as an ASP.NET route pattern at all: mapping one throws a
+    /// RoutePatternException during the boot, naming neither the route nor its
+    /// file, so this rule refuses it earlier with the route beside it.
+    ///
+    /// The leading separator is not a segment, and neither is the one the root
+    /// path is: the trailing slash is judged above, and `/` is canonical.
+    /// </summary>
+    private static void ValidatePathSegments(RouteDefinition route, string routesJsonPath)
+    {
+        var path = route.Path;
+
+        if (path.Length <= 1)
+        {
+            return;
+        }
+
+        var segment = path[1..]
+            .Split('/')
+            .FirstOrDefault(candidate => candidate.Length == 0 || IsDotSegment(candidate));
+
+        if (segment is null)
+        {
+            return;
+        }
+
+        var refusal = segment.Length == 0
+            ? "declares an empty segment — a path with two separators in a row is not an " +
+              "ASP.NET route pattern, so the server could not map it."
+            : $"declares the \"{segment}\" segment — a browser reads it as a dot segment and " +
+              "normalizes it away, so the route could never be reached.";
+
+        throw new RoutePolicyException(
+            $"{RegistryLabel(routesJsonPath)}: {Describe(route)} {refusal}");
+    }
+
+    /// <summary>
+    /// A dot segment as a browser reads it, including the percent-encoded
+    /// spellings: `%2e` is a dot to the URL parser, so `%2e%2e`, `.%2e` and
+    /// `%2e.` are `..` and `%2e` is `.` before a request is ever made.
+    /// </summary>
+    private static bool IsDotSegment(string segment) =>
+        segment
+            .Replace("%2e", ".", StringComparison.OrdinalIgnoreCase) is "." or "..";
 
     private static void ValidateName(RouteDefinition route, string routesJsonPath)
     {

@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	execInFixture,
@@ -661,3 +664,87 @@ describe("invalid registry rejected by every route command", () => {
 		expect(result.stderr).toContain("/Home");
 	});
 });
+
+/**
+ * A path with an empty or dot segment is refused before its name is derived —
+ * the dot segments written with `%2e` included, because the URL parser reads
+ * one as a dot. The name becomes a file path, so a resolved dot segment lands
+ * outside `src/pages/` and `Views/` — and, with enough `..`, outside the
+ * project. Nothing may be written anywhere before the refusal.
+ *
+ * A backslash is a separator here, because it is one to a browser and to a
+ * developer on Windows: the argument is read the same way either way, and the
+ * route manager never writes a declared path holding one.
+ */
+describe("poyo route add refuses dot and empty segments", () => {
+	const refused: [string, string][] = [
+		["../../X", '".." segment'],
+		["/./X", '"." segment'],
+		["/Home//X", "empty segment"],
+		["/%2e%2e/X", '"%2e%2e" segment'],
+		["\\..\\..\\X", '".." segment'],
+	];
+
+	it.each(refused)("refuses '%s' and writes nothing", (argument, segment) => {
+		const fixture = makeFixture(starter);
+		const treeBefore = tree(fixture.dir);
+		const registryBefore = readFixtureFile(fixture, "routes.json");
+
+		const result = execInFixture(fixture, ["route", "add", argument]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain(segment);
+		expect(result.stderr).toContain(argument);
+		expect(tree(fixture.dir)).toEqual(treeBefore);
+		expect(readFixtureFile(fixture, "routes.json")).toBe(registryBefore);
+	});
+
+	it("reads a Windows-style path as separators and registers a normal path", () => {
+		const fixture = makeFixture(starter);
+
+		const result = execInFixture(fixture, ["route", "add", "\\Admin\\Users"]);
+
+		expect(result.status).toBe(0);
+		const route = fixture.routesJson().find((r) => r.path === "/Admin/Users");
+		expect(route).toMatchObject({ name: "Admin/Users" });
+		expect(
+			existsFixtureFile(
+				fixture,
+				"poyo.client/src/pages/Admin/Users/index.page.tsx",
+			),
+		).toBe(true);
+	});
+
+	it("writes nothing outside the project", () => {
+		const fixture = makeFixture(starter);
+		// One argument per side: the page and the view sit at different depths
+		// inside the fixture, and each escapes at its own number of segments.
+		const escapes: [string, string][] = [
+			["../../../poyo-escaped-view", "poyo-escaped-view"],
+			["../../../../poyo-escaped-page", "poyo-escaped-page"],
+		];
+
+		for (const [argument, outsideName] of escapes) {
+			const outside = path.join(os.tmpdir(), outsideName);
+			expect(fs.existsSync(outside)).toBe(false);
+
+			try {
+				const result = execInFixture(fixture, ["route", "add", argument]);
+
+				expect(result.status).toBe(1);
+				expect(result.stderr).toContain('".." segment');
+				expect(fs.existsSync(outside)).toBe(false);
+			} finally {
+				fs.rmSync(outside, { recursive: true, force: true });
+			}
+		}
+	});
+});
+
+/** Every path under the fixture, so a write of any kind shows up as a diff. */
+function tree(root: string): string[] {
+	return fs
+		.readdirSync(root, { recursive: true, encoding: "utf-8" })
+		.map((entry) => String(entry))
+		.sort();
+}
