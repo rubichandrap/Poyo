@@ -1,0 +1,21 @@
+[
+	{
+		"path": "/HeadSection",
+		"name": "HeadSection",
+		"files": {
+			"react": "src/pages/HeadSection/index.page.tsx",
+			"view": "Views/HeadSection/Index.cshtml"
+		},
+		"access": "public",
+		"seo": { "title": "Head section" }
+	},
+	{
+		"path": "/Plain",
+		"name": "Plain",
+		"files": {
+			"react": "src/pages/Plain/index.page.tsx",
+			"view": "Views/Home/Index.cshtml"
+		},
+		"access": "public"
+	}
+]

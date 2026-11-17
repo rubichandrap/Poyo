@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Poyo.Server.Tests.Support;
 
 namespace Poyo.Server.Tests;
@@ -85,6 +86,7 @@ public class PublishedApplicationTests
 
         using var anonymous = server.CreateClient();
         await AssertRoutesServeWith(anonymous, routes, authenticated: false);
+        await AssertStaticAssetsServe(anonymous);
 
         using var signedIn = server.CreateClient();
         using var login = await signedIn.PostAsJsonAsync("/api/auth/login", new
@@ -95,6 +97,30 @@ public class PublishedApplicationTests
         Assert.Equal(HttpStatusCode.OK, login.StatusCode);
         signedIn.DefaultRequestHeaders.Add("Cookie", SessionCookieOf(login));
         await AssertRoutesServeWith(signedIn, routes, authenticated: true);
+    }
+
+    /// <summary>
+    /// A page is only usable with its assets. The published output carries
+    /// wwwroot beside the assembly; an application whose content root is the
+    /// working directory looks for it there instead, and from any other
+    /// directory served every page with its bundle, styles and icon missing.
+    /// </summary>
+    private static async Task AssertStaticAssetsServe(HttpClient client)
+    {
+        var document = await client.GetStringAsync("/Login");
+        var assets = Regex.Matches(document, "(?:src|href)=\"(/[^\"]+\\.(?:js|css|png))\"")
+            .Select(match => match.Groups[1].Value)
+            .Distinct()
+            .ToList();
+        Assert.NotEmpty(assets);
+
+        foreach (var asset in assets)
+        {
+            using var response = await client.GetAsync(asset);
+            Assert.True(
+                response.StatusCode == HttpStatusCode.OK,
+                $"Asset '{asset}' answered {(int)response.StatusCode}.");
+        }
     }
 
     private static string SessionCookieOf(HttpResponseMessage login) =>

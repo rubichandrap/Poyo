@@ -1,4 +1,6 @@
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -45,6 +47,24 @@ public sealed class OpenApiSnapshotExportHostedService : IHostedService
         {
             var document = await _documentProvider.GetOpenApiDocumentAsync(cancellationToken);
 
+            var snapshot = new StringWriter();
+            document.SerializeAsV3(new OpenApiJsonWriter(snapshot, new OpenApiJsonWriterSettings
+            {
+                Terse = false,
+            }));
+            var json = snapshot.ToString();
+
+            // The committed snapshot is formatted by the repository's formatter,
+            // not by this writer, so a byte comparison would rewrite it on every
+            // boot. Only a change to the document itself is written; an
+            // unchanged API leaves the tracked file alone.
+            if (File.Exists(exportPath)
+                && DescribesSameDocument(await File.ReadAllTextAsync(exportPath, cancellationToken), json))
+            {
+                _logger.LogInformation("OpenAPI snapshot at '{ExportPath}' is up to date.", exportPath);
+                return;
+            }
+
             var directory = Path.GetDirectoryName(exportPath);
             if (!string.IsNullOrEmpty(directory))
             {
@@ -52,16 +72,7 @@ public sealed class OpenApiSnapshotExportHostedService : IHostedService
             }
 
             var utf8WithoutBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
-            using (var fileStream = new FileStream(exportPath, FileMode.Create, FileAccess.Write, FileShare.Read))
-            using (var streamWriter = new StreamWriter(fileStream, utf8WithoutBom))
-            {
-                var jsonWriter = new OpenApiJsonWriter(streamWriter, new OpenApiJsonWriterSettings
-                {
-                    Terse = false,
-                });
-                document.SerializeAsV3(jsonWriter);
-                await streamWriter.FlushAsync(cancellationToken);
-            }
+            await File.WriteAllTextAsync(exportPath, json, utf8WithoutBom, cancellationToken);
 
             _logger.LogInformation("Exported OpenAPI snapshot to '{ExportPath}'.", exportPath);
         }
@@ -73,6 +84,22 @@ public sealed class OpenApiSnapshotExportHostedService : IHostedService
     }
 
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    /// <summary>
+    /// Whether two JSON texts describe the same document, ignoring formatting.
+    /// A file that is not JSON is never the same document, so it is replaced.
+    /// </summary>
+    internal static bool DescribesSameDocument(string existing, string exported)
+    {
+        try
+        {
+            return JsonNode.DeepEquals(JsonNode.Parse(existing), JsonNode.Parse(exported));
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
 
     private bool IsExportDisabled()
     {

@@ -277,11 +277,37 @@ describe("create-poyo-app", () => {
 		expect(exists(cwd, "MyApp/myapp.client/.gitignore.template")).toBe(false);
 	});
 
-	it("freshly scaffolded client type-checks without any generate step", () => {
+	// The documented first steps are restore, generate, dev. `generate` writes
+	// the gitignored route manifest, DTOs and Zod schemas offline from the
+	// committed OpenAPI snapshot; the template ships none of them, so a client
+	// type-checks after it and not before. This test passed "without any
+	// generate step" only while a developer's workspace held those ignored
+	// files, and failed on the first clean CI checkout.
+	it("freshly scaffolded client type-checks after the offline generate step", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });
 
-		const clientDir = path.join(cwd, "MyApp", "myapp.client");
+		const projectDir = path.join(cwd, "MyApp");
+		const clientDir = path.join(projectDir, "myapp.client");
+		// The published template ships none of these; a workspace copy may
+		// hold them from a local generate, so remove them to match npm.
+		for (const generated of [
+			"src/schemas/dtos.generated.ts",
+			"src/schemas/validations.generated.ts",
+			"routes.generated.ts",
+		]) {
+			fs.rmSync(path.join(clientDir, generated), { force: true });
+		}
+		const poyoCli = path.resolve(
+			import.meta.dirname,
+			"../../poyo/dist/index.js",
+		);
+		const generate = spawnSync(process.execPath, [poyoCli, "generate"], {
+			cwd: projectDir,
+			encoding: "utf-8",
+		});
+		expect(generate.status, generate.stderr).toBe(0);
+
 		const templateClientModules = path.resolve(
 			import.meta.dirname,
 			"../../poyo-template/poyo.client/node_modules",

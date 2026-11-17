@@ -26,13 +26,14 @@ export interface MockLocation {
 	hash: string;
 	assign: Mock;
 	replace: Mock;
+	reload: Mock;
 }
 
 export interface RouterHarnessOptions {
 	routes?: AppRoute[];
 	fetch?: typeof fetch;
 	document?: Document;
-	location?: Partial<Omit<MockLocation, "assign" | "replace">>;
+	location?: Partial<Omit<MockLocation, "assign" | "replace" | "reload">>;
 	historyState?: unknown;
 	scrollX?: number;
 	scrollY?: number;
@@ -66,6 +67,7 @@ export function createRouterHarness(
 	const pathname = options.location?.pathname ?? "/";
 	const assign = vi.fn();
 	const replaceLocation = vi.fn();
+	const reload = vi.fn();
 	const location: MockLocation = {
 		origin,
 		href: options.location?.href ?? `${origin}${pathname}`,
@@ -74,6 +76,7 @@ export function createRouterHarness(
 		hash: options.location?.hash ?? "",
 		assign,
 		replace: replaceLocation,
+		reload,
 	};
 
 	// A real browser updates the current history entry's state and the address

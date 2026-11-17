@@ -127,6 +127,8 @@ Amendments: ADR 0009 decision 7 (the history operation, and the opt-out reaching
 
 Priority: P1
 
+Status: **Resolved** after 0.5.1. The stale restore frame is guarded by the supersede token (0.5.1); scroll positions are remembered per entry key outside history state, written on every scroll event and read from the viewport at popstate, so an entry left within a frame of the last scroll returns where it was left. Cold entries stay traversable (ADR 0019). ADR 0019 decisions 6–7; model check I3 with no exemption, I4.
+
 Evidence: `router.ts:338-366` records zero scroll for a replacement without moving the viewport. `router.ts:430-436` schedules a restoration frame without checking whether a newer navigation superseded it. `router.ts:393-397` reloads cold entries while browser restoration is manual. Carried from R05: an apply error thrown after the history write lands in `navigate`'s `catch`, so a `push` whose SEO/focus apply throws leaves two entries (the `pushState` write plus the `location.assign` fallback) — the post-commit tail sits inside the history-writing `try`. R05 measured it and left it here.
 
 Decision to grill: Must scroll restoration work for cold entries, or is a cold entry explicitly a plain document navigation with browser-owned restoration?
@@ -138,6 +140,8 @@ Acceptance proof: Push, replace, Back, Forward, cold-entry Back, rapid navigatio
 ### R07 - Programmatic hash navigation
 
 Priority: P1
+
+Status: **Resolved** after 0.5.1, as recommended. A programmatic target that is a fragment of the page on screen is handed to `location.assign`/`replace` — the browser's fragment navigation, as for an in-page anchor. ADR 0019 decision 8; model event `push #x` with invariants FRAGMENT-FETCH and I5; `scripts/platform-facts.test.mjs` pins the browser behavior.
 
 Evidence: `router.ts:240` strips the hash for descriptor fetches, but `router.ts:313-367` still enters the navigation machinery for programmatic `push('#id')` and `replace('#id')`.
 
@@ -163,6 +167,8 @@ Acceptance proof: Startup-failure tests cover every invalid identity, and valid 
 
 Priority: P1
 
+Status: **Resolved** after 0.5.1. Validated at startup only (the value is configuration, fixed for the process): with a guest route in the registry, `Routes:LandingPath` must be an absolute URL or name a non-guest registry route, else the boot fails naming the reason. `PathBase` was already preserved (0.5.0). ADR 0004 amendment; `LandingPathTests`.
+
 Evidence: `packages/poyo/server/RouteAccessFilter.cs:46-49` can redirect to a configured landing path without rejecting self-redirects or preserving `Request.PathBase`.
 
 Decision to grill: Should landing-path configuration be validated at startup, checked per request, or both? What is the supported behavior for a missing or inaccessible landing route?
@@ -186,6 +192,8 @@ Acceptance proof: Document and descriptor tests use the same effective title/des
 ### R11 - View head extension seam
 
 Priority: P2
+
+Status: **Resolved** after 0.5.1, as recommended: an additive SSR-only `@section Head`; its elements are marked `data-poyo-seo` so a navigation away removes them. ADR 0020; `HeadSectionTests`.
 
 Evidence: `_Layout.cshtml` currently owns the document head and has no Razor section for page-specific head additions. ADR 0012 intentionally avoids executing views for descriptors.
 
@@ -247,6 +255,8 @@ Acceptance proof: The chosen scope has a clean generated project, build, and run
 
 Priority: P2
 
+Status: **Resolved** after 0.5.1. `PageResult.For` is internal. The server core compiles into the app's assembly, so this marks it unsupported rather than unreachable; `PoyoPage` is the one authoring seam.
+
 Evidence: `packages/poyo/server/PageResult.cs:52-63` exposes a public page-data construction path alongside `ControllerExtensions.PoyoPage()`.
 
 Decision to grill: Is `PageResult.For` a supported public framework API, or an internal compatibility artifact that should be removed before stable?
@@ -258,6 +268,8 @@ Acceptance proof: Public API documentation and tests expose only the intended au
 ### R17 - Route manifest refresh on no-op route update
 
 Priority: P2
+
+Status: **Resolved** after 0.5.1. Every route command, including a no-op `route update`, re-emits the manifest; `route-update.test.ts` pins the no-op case.
 
 Evidence: The dynamic-navigation manifest requirement says every route command keeps it fresh, but a no-op `route update` currently emits nothing.
 

@@ -1,0 +1,136 @@
+name: CI
+
+# The gates AGENTS.md names, on every pull request and every push to main.
+# Before this workflow the suites ran only on contributors' machines: the
+# release workflow type-checked and ran the packed-tarball fixture, and the
+# unit suites, the navigation model check and the registry and head corpora
+# were enforced by nothing.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Lint, format, types, release checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm run lint
+      - name: Format (Biome and dotnet format)
+        run: pnpm run format
+      # The client imports the route manifest, DTOs and Zod schemas that
+      # `generate` writes offline from the committed OpenAPI snapshot; they
+      # are gitignored, so a clean checkout has to produce them first.
+      - name: Generate client code from the OpenAPI snapshot
+        run: pnpm --filter poyo-template run generate
+      - name: Client type-check, lint and format
+        working-directory: packages/poyo-template/poyo.client
+        run: |
+          pnpm run type-check
+          pnpm run lint
+          pnpm run format
+      - name: Lockstep versions and peer ranges
+        run: pnpm run release:check
+      - name: Release script tests
+        run: node --test scripts/assert-release-version.test.mjs scripts/peer-ranges.test.mjs scripts/assert-peer-compat.test.mjs
+
+  packages:
+    name: Framework and scaffolder suites
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: "@rubichandrap/poyo (incl. navigation model check, depth 5)"
+        run: pnpm --filter @rubichandrap/poyo run test
+      - name: "@rubichandrap/create-poyo-app (incl. reserved-name drift)"
+        run: pnpm --filter @rubichandrap/create-poyo-app run test
+
+  model-deep:
+    name: Navigation model check, depth 7
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # Depth 5 runs with the package suite; races that need a Back, a
+      # commit, a second navigation and a frame (the 0.5.1 stale restore)
+      # first appear at depth 7, which takes minutes rather than seconds.
+      - name: Model check at depth 7
+        working-directory: packages/poyo
+        env:
+          POYO_MODEL_DEPTH: "7"
+        run: npx vitest run test/navigation-model.test.ts
+
+  server:
+    name: Server tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      # The server compiles the framework's C# from node_modules.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # The published-application tests serve real pages, and the layout
+      # renders the gitignored _ReactAssets.cshtml that `poyo build` writes.
+      - name: Generate and build the template
+        run: |
+          pnpm --filter poyo-template run generate
+          pnpm --filter poyo-template run build
+      - name: dotnet test
+        run: dotnet test packages/poyo-template/Poyo.Server.Tests/Poyo.Server.Tests.csproj
+      - name: The suite leaves the tracked tree unchanged
+        run: git diff --exit-code
+
+  e2e:
+    name: Clean checkout and packed-tarball fixture (Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Chromium for the browser check
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Platform facts, clean checkout and pre-publish fixture e2e
+        run: pnpm run test:release:prepublish

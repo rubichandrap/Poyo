@@ -20,19 +20,9 @@ public sealed class RouteAccessFilter : IAsyncResourceFilter
     public RouteAccessFilter(RoutePolicy policy, IConfiguration configuration)
     {
         _policy = policy;
-        _landingPath = AppRelative(configuration["Routes:LandingPath"] ?? "/Dashboard");
+        // Validated against the registry at boot (AddPoyo → LandingPath.Validate).
+        _landingPath = LandingPath.RedirectTarget(configuration);
     }
-
-    /// <summary>
-    /// A root-relative landing path names a page of this application, so it
-    /// resolves under the request's path base ("~/"), the way the registry's
-    /// own paths do: an app hosted at /Poyo lands on /Poyo/Dashboard, not on
-    /// the host's /Dashboard. Absolute URLs and "~/" paths pass through.
-    /// </summary>
-    private static string AppRelative(string landingPath) =>
-        landingPath.StartsWith('/') && !landingPath.StartsWith("//")
-            ? "~" + landingPath
-            : landingPath;
 
     public async Task OnResourceExecutionAsync(
         ResourceExecutingContext context,

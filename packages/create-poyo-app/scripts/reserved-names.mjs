@@ -17,6 +17,7 @@
  * Run `node scripts/reserved-names.mjs --write` after changing shipped C#;
  * `test/reserved-names.test.ts` fails while the committed list is stale.
  */
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,20 +29,31 @@ export const SOURCE_ROOTS = [
 	"packages/poyo-template/Poyo.Server",
 	"packages/poyo-template/Poyo.Server.Tests",
 ];
-const SKIP = new Set(["bin", "obj", "node_modules", "wwwroot"]);
-
+/**
+ * The C# files the derivation reads: those git tracks or would track, under
+ * the source roots. Ignored files are build outputs (a built
+ * `_ReactAssets.cshtml` carries content hashes such as `HbxBlxZ`) and differ
+ * between machines, so a derivation that read them would disagree with CI.
+ */
 function sourceFiles() {
-	const files = [];
-	const walk = (dir) => {
-		for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-			if (SKIP.has(entry.name)) continue;
-			const full = path.join(dir, entry.name);
-			if (entry.isDirectory()) walk(full);
-			else if (/\.(cs|cshtml)$/.test(entry.name)) files.push(full);
-		}
-	};
-	for (const root of SOURCE_ROOTS) walk(path.join(repo, root));
-	return files.sort();
+	const listed = execFileSync(
+		"git",
+		[
+			"ls-files",
+			"--cached",
+			"--others",
+			"--exclude-standard",
+			"--",
+			...SOURCE_ROOTS,
+		],
+		{ cwd: repo, encoding: "utf8" },
+	);
+	return listed
+		.split("\n")
+		.filter((file) => /\.(cs|cshtml)$/.test(file))
+		.map((file) => path.join(repo, file))
+		.filter((file) => fs.existsSync(file))
+		.sort();
 }
 
 /**
@@ -116,8 +128,13 @@ export function stripNonCode(source) {
 				}
 				if (run >= braces) {
 					i += braces;
+					// Each hole is its own code: separated from the next, so
+					// `{Task}{Path}` reads as two names rather than `TaskPath`.
+					out += " ";
 					readCode("}");
-					i += 1;
+					out += " ";
+					// A raw string with `$$` closes its holes with `}}`.
+					i += braces;
 					continue;
 				}
 			}

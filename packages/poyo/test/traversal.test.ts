@@ -60,6 +60,7 @@ describe("Router Traversal — Slice 1: Cold entry traversal", () => {
 				clientNavigated: true,
 				scroll: { x: 0, y: 0 },
 				url: "http://localhost:3000/",
+				key: expect.any(String),
 			},
 		});
 	});
@@ -944,5 +945,107 @@ describe("Router Traversal — a restore frame belongs to its own navigation", (
 		});
 		for (const frame of frames.splice(0)) frame(0);
 		expect(harness.scrollTo).toHaveBeenLastCalledWith(0, 500);
+	});
+});
+
+describe("Router Traversal — scroll memory and the in-place floor", () => {
+	beforeEach(() => {
+		clearActiveRouteTable();
+		resetNavigationStore();
+		setActiveRouter(undefined);
+	});
+
+	afterEach(() => {
+		getActiveRouter()?.destroy?.();
+		setActiveRouter(undefined);
+		vi.unstubAllGlobals();
+	});
+
+	const okFetch = () =>
+		vi.fn(async (url: string) => ({
+			ok: true,
+			status: 200,
+			redirected: false,
+			json: async () => ({
+				name: url.includes("dashboard") ? "Dashboard" : "Home",
+				pageData: null,
+			}),
+		}));
+
+	// 0.5.1 recorded scroll into history state on a frame, so an entry left
+	// before that frame came back at the position before the last scroll —
+	// documented then as a known limit (ADR 0019).
+	it("returns to the position an entry was left at, even within a frame of the last scroll", async () => {
+		const frames: FrameRequestCallback[] = [];
+		const harness = createRouterHarness({
+			routes,
+			fetch: okFetch() as unknown as typeof fetch,
+			location: {
+				pathname: "/dashboard",
+				href: "http://localhost:3000/dashboard",
+			},
+			requestAnimationFrame: (callback) => frames.push(callback),
+			cancelAnimationFrame: vi.fn(),
+		});
+		const landingState = harness.history.state;
+
+		await harness.router.push("/");
+		const homeState = harness.history.state;
+		const scrolled = window as unknown as { scrollY: number };
+
+		// The user scrolls Home to 700 and presses Back before the frame that
+		// would write the record into history state.
+		scrolled.scrollY = 700;
+		harness.scroll();
+		Object.assign(harness.location, {
+			href: "http://localhost:3000/dashboard",
+			pathname: "/dashboard",
+		});
+		harness.history.state = landingState;
+		await harness.popstate(landingState);
+		frames.splice(0).forEach((frame) => frame(0));
+
+		// Forward to Home: its history record still says 0.
+		expect(homeState).toMatchObject({ __poyo: { scroll: { y: 0 } } });
+		Object.assign(harness.location, {
+			href: "http://localhost:3000/",
+			pathname: "/",
+		});
+		harness.history.state = homeState;
+		await harness.popstate(homeState);
+		frames.splice(0).forEach((frame) => frame(0));
+
+		expect(harness.scrollTo).toHaveBeenLastCalledWith(0, 700);
+	});
+
+	it("reloads in place when a traversal to a fragment entry cannot be answered", async () => {
+		const harness = createRouterHarness({
+			routes,
+			fetch: vi.fn(async () => ({
+				ok: false,
+				status: 500,
+				redirected: false,
+			})) as unknown as typeof fetch,
+			location: {
+				pathname: "/dashboard",
+				href: "http://localhost:3000/dashboard",
+			},
+		});
+
+		// Back to "/#team": the browser is already on that entry. replace()
+		// with the same URL and a fragment would be a fragment navigation —
+		// no document load — leaving Dashboard on screen at "/#team".
+		Object.assign(harness.location, {
+			href: "http://localhost:3000/#team",
+			pathname: "/",
+			hash: "#team",
+		});
+		await harness.popstate({
+			__poyo: { clientNavigated: true, scroll: { x: 0, y: 0 }, url: "/#team" },
+		});
+
+		expect(harness.location.reload).toHaveBeenCalledTimes(1);
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
+		expect(harness.assign).not.toHaveBeenCalled();
 	});
 });

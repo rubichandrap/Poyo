@@ -53,9 +53,10 @@ internal static class TestEnvironment
     /// else. A boot failure reaches the test wrapped in whatever the host adds
     /// on its way out, so the exception under test is somewhere in the chain.
     /// </summary>
-    public static RoutePolicyException? BootFailureFor(string registryPath)
+    public static RoutePolicyException? BootFailureFor(string registryPath, string? landingPath = null)
     {
-        var thrown = Record.Exception(() => CreateServerAndStart(registryPath));
+        var thrown = Record.Exception(() => CreateServer(
+            routesJsonPath: registryPath, startClient: true, landingPath: landingPath));
         Assert.NotNull(thrown);
         return ExceptionChain.Unwrap(thrown).OfType<RoutePolicyException>().FirstOrDefault();
     }
@@ -93,7 +94,8 @@ internal static class TestEnvironment
         string? environment = null,
         Action<Microsoft.AspNetCore.Hosting.IWebHostBuilder>? configureBuilder = null,
         bool startClient = false,
-        string? pathBase = null)
+        string? pathBase = null,
+        string? landingPath = null)
     {
         lock (Gate)
         {
@@ -120,6 +122,7 @@ internal static class TestEnvironment
                 // the configuration reads) and removed once the host is up, so
                 // a parallel fixture cannot inherit another test's base.
                 Environment.SetEnvironmentVariable("PathBase", pathBase);
+                Environment.SetEnvironmentVariable("Routes__LandingPath", landingPath);
                 try
                 {
                     customizedFactory.CreateClient();
@@ -127,6 +130,7 @@ internal static class TestEnvironment
                 finally
                 {
                     Environment.SetEnvironmentVariable("PathBase", null);
+                    Environment.SetEnvironmentVariable("Routes__LandingPath", null);
                 }
             }
 
@@ -145,6 +149,21 @@ internal static class TestEnvironment
         Environment.SetEnvironmentVariable("AllowedHosts", "*");
         Environment.SetEnvironmentVariable("Vite__Server__AutoRun", "false");
         Environment.SetEnvironmentVariable("Vite__Server__Port", "5173");
+        // A Development boot exports the OpenAPI snapshot, by default into the
+        // client's committed openapi/openapi.json. A test host must not write
+        // into the source tree: fixtures that add test controllers export a
+        // different document, and the suite left the tracked file rewritten.
+        // A test that checks the export names its own path, which wins.
+        // An in-process host runs from the server project's source directory,
+        // as WebApplicationFactory places it. Naming it is how a host keeps
+        // Program.cs from anchoring a non-development content root to the
+        // assembly directory (the test bin folder).
+        Environment.SetEnvironmentVariable(
+            "ASPNETCORE_CONTENTROOT",
+            Path.Combine(TemplateRoot(), "Poyo.Server"));
+        Environment.SetEnvironmentVariable(
+            "OpenApi__ExportPath",
+            Path.Combine(Path.GetTempPath(), "poyo-tests-openapi", Guid.NewGuid().ToString("N"), "openapi.json"));
         _configured = true;
     }
 }

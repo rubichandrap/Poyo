@@ -7,6 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Views can add SSR-only head elements (canonical, hreflang, preload) with `@section Head`; `_Layout.cshtml` renders it at the end of `<head>`. Mark them `data-poyo-seo` so a dynamic navigation away removes them; a navigation descriptor never runs the view (ADR 0020). Existing projects: add `@await RenderSectionAsync("Head", required: false)` before `</head>` in their layout.
+- CI: `.github/workflows/ci.yml` runs every workspace gate on each pull request and push to `main` — lint and format, client checks, `release:check`, the framework and scaffolder suites, the navigation model check at depth 7, the server tests (which must leave the tracked tree unchanged), and the platform-facts, clean-checkout and packed-tarball checks in Chromium. Before it, only CodeQL ran on pull requests, and the release workflow ran no unit suite; it now runs them before publishing.
+
+### Changed
+
+- **Boot-time check:** `Routes:LandingPath` is validated against the registry when the registry has a guest route (ADR 0004 amendment). A guest route as the landing path redirected a signed-in visitor to itself forever, and a path no route declares — including the `/Dashboard` default in a project that removed its Dashboard — landed on a 404; both now fail the boot with a message naming the setting and the reason. **Upgrading:** a project with guest routes and no `/Dashboard` route must set `Routes:LandingPath` to a non-guest route (or an absolute URL), or it will not start.
+- `PageResult.For` is internal. Controllers author pages through `this.PoyoPage(data)`; the server core compiles into the application's assembly, so existing calls still compile, but the factory is no longer a supported API.
+
+### Fixed
+
+- A published application serves its assets whatever directory the host starts it from. ASP.NET's content root defaults to the working directory, so a host that started the application elsewhere served pages with their bundle, styles and icon answering 404 and read no `appsettings.json`; started from `/` (a service manager's default) it also watched the whole filesystem for configuration changes before listening, and on a CI runner did not answer within a minute. The working directory stays the content root when it holds the application's `appsettings.json` (the publish directory, or the project directory under `dotnet run`); otherwise the application directory is, unless the host names one (ADR 0014 amendment). **Existing projects:** apply the `Program.cs` change (`WebApplicationOptions.ContentRootPath`) from the template.
+- Back/Forward returns to the position an entry was left at even when it was left within a frame of the last scroll. Scroll was recorded into history state on an animation frame, which cannot be written once the address bar has moved past the entry; positions are now also remembered per entry key (`__poyo.key`) in memory, on every scroll event and from the viewport at `popstate` (ADR 0019 decision 7). The model check's exemption for this case, documented as a known limit in 0.5.1, is removed.
+- `router.push("#x")` and `router.replace("#x")` (or `/same-page#x`) are the browser's own fragment navigation, as an in-page anchor is, instead of a descriptor request, a second commit of the page on screen, a history entry and a scroll to the top (ADR 0019 decision 8).
+- A Back/Forward to a fragment entry (`/page#section`) whose descriptor cannot be answered now reloads the entry. Its fallback called `location.replace` with the URL already in the address bar, which the browser treats as a fragment navigation — no request — so the previous page stayed on screen under the new URL. Found by the navigation model check once its simulated browser modelled fragment navigation; `scripts/platform-facts.test.mjs` pins both browser behaviors in Chromium.
+- `poyo route update` re-emits `routes.generated.ts` even when the update changes nothing, as every other route command does.
+- The OpenAPI snapshot export no longer rewrites `poyo.client/openapi/openapi.json` when the API has not changed. The committed file is formatted by the repository's formatter, so every Development boot left a whitespace-only diff; a semantically equal document is now left alone. The server test suite also exports to a temporary path instead of the source tree.
+
 ## [0.5.1] - 2026-11-17
 
 ### Fixed

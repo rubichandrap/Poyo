@@ -60,13 +60,6 @@ interface Entry {
 	doc: number;
 	/** The scroll position the browser leaves this entry at (model truth). */
 	leftAt: number;
-	/**
-	 * Left by a traversal while the router's throttled scroll record for it
-	 * was still waiting for its frame. The entry can no longer be written once
-	 * popstate has moved the address bar, so that last position is lost: a
-	 * documented limit (ADR 0019), excluded from I3 rather than hidden.
-	 */
-	recordLagged?: boolean;
 }
 
 interface Pending {
@@ -76,7 +69,11 @@ interface Pending {
 	resolve: (response: Response) => void;
 }
 
-type Terminal = { kind: "assign" | "replace"; url: string; during: string };
+type Terminal = {
+	kind: "assign" | "replace" | "reload";
+	url: string;
+	during: string;
+};
 
 class SimBrowser {
 	entries: Entry[];
@@ -104,8 +101,6 @@ class SimBrowser {
 	/** Queued animation-frame callbacks, with the store state they saw. */
 	frames = new Map<number, { cb: FrameRequestCallback; queuedAt: unknown }>();
 	private nextFrame = 1;
-	/** Frames the router queued to record a user scroll. */
-	private recordFrames = new Set<number>();
 	/** I3, pending until the traversal's restore frame has run. */
 	restoreCheck: { target: Entry; expected: number } | null = null;
 
@@ -136,6 +131,7 @@ class SimBrowser {
 			},
 			assign: (url: string) => sim.documentLoad("assign", url),
 			replace: (url: string) => sim.documentLoad("replace", url),
+			reload: () => sim.documentLoad("reload", sim.current.url.href),
 		};
 		const history = {
 			get state() {
@@ -156,10 +152,7 @@ class SimBrowser {
 				}
 				// The router records the entry it leaves synchronously before its
 				// own pushState; another library's push gives it no such moment.
-				if (sim.settled) {
-					if (sim.during === "lib") sim.leave(sim.current);
-					else sim.current.leftAt = sim.scrollY;
-				}
+				if (sim.settled) sim.leave(sim.current);
 				sim.entries = sim.entries.slice(0, sim.index + 1);
 				sim.entries.push({
 					url: next,
@@ -226,6 +219,11 @@ class SimBrowser {
 	fetch = (input: string, init?: RequestInit): Promise<Response> => {
 		const url = new URL(input, this.current.url);
 		const headers = (init?.headers ?? {}) as Record<string, string>;
+		if (this.during === "push #x") {
+			this.violations.push(
+				`FRAGMENT-FETCH: push to a fragment of the page on screen requested ${input}`,
+			);
+		}
 		if (headers["X-Poyo-Navigation"] !== "1") {
 			this.violations.push(`descriptor request without header: ${input}`);
 		}
@@ -244,8 +242,35 @@ class SimBrowser {
 		});
 	};
 
-	documentLoad(kind: "assign" | "replace", url: string) {
+	documentLoad(kind: "assign" | "replace" | "reload", url: string) {
 		if (this.terminal) return;
+		if (kind === "reload") {
+			this.terminal = { kind, url, during: this.during };
+			return;
+		}
+		// A URL that differs from the current one only by its fragment is a
+		// fragment navigation, not a document load: `assign` appends an entry
+		// and `replace` rewrites the current one, both with a null state, and
+		// popstate fires.
+		const next = new URL(url, this.current.url);
+		if (
+			next.hash !== "" &&
+			next.origin === this.current.url.origin &&
+			next.pathname === this.current.url.pathname &&
+			next.search === this.current.url.search
+		) {
+			if (kind === "assign") {
+				this.fragment(next.hash);
+			} else {
+				this.current.url = next;
+				this.current.state = null;
+				this.lastNavKind = "hash";
+				for (const fn of this.popListeners) {
+					fn({ state: null } as PopStateEvent);
+				}
+			}
+			return;
+		}
 		this.terminal = { kind, url, during: this.during };
 	}
 
@@ -296,35 +321,26 @@ class SimBrowser {
 	/**
 	 * The browser leaves the current entry without the router writing it (a
 	 * traversal, a fragment, another library's pushState): its true position
-	 * is the screen's, and the router's record lags if its throttled scroll
-	 * record is still waiting for a frame.
+	 * is the screen's. I3 holds the router to it however soon after the last
+	 * scroll the entry is left — including before the router's throttled
+	 * record has had its frame, which 0.5.1 documented as a limit.
 	 */
 	leave(entry: Entry) {
 		entry.leftAt = this.scrollY;
-		entry.recordLagged = [...this.recordFrames].some((id) =>
-			this.frames.has(id),
-		);
 	}
 
 	scroll() {
 		this.scrollY += 100;
-		const queuedBefore = new Set(this.frames.keys());
 		for (const fn of this.scrollListeners) fn();
-		for (const id of this.frames.keys()) {
-			if (!queuedBefore.has(id)) this.recordFrames.add(id);
-		}
 	}
 
 	/** The next frame: every callback queued so far runs, in order. */
 	frame() {
 		const due = [...this.frames.entries()];
 		this.frames.clear();
-		for (const [id, { cb, queuedAt }] of due) {
+		for (const [, { cb, queuedAt }] of due) {
 			const before = this.scrollY;
 			cb(0);
-			if (this.recordFrames.delete(id) && this.settled) {
-				this.current.recordLagged = false;
-			}
 			// I4 — a frame queued before a navigation committed never moves the
 			// page that navigation put on screen.
 			if (
@@ -368,6 +384,7 @@ type Event =
 	| "push /b"
 	| "replace /b"
 	| "frag"
+	| "push #x"
 	| "lib"
 	| "back"
 	| "forward"
@@ -382,6 +399,7 @@ const ALPHABET: Event[] = [
 	"push /b",
 	"replace /b",
 	"frag",
+	"push #x",
 	"lib",
 	"back",
 	"forward",
@@ -457,6 +475,11 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 			sim.epoch++;
 			void router.replace("/b");
 			break;
+		case "push #x":
+			// The programmatic form of an in-page anchor: the browser's own
+			// fragment navigation, never a descriptor request.
+			void router.push("#x");
+			break;
 		case "frag":
 			sim.fragment(sim.current.url.hash === "#x" ? "#y" : "#x");
 			break;
@@ -498,10 +521,18 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 				// the restore frame has run (checked in the "frame" step).
 				const target = sim.traversedTo;
 				const expected = sim.traversedToRecorded ? target.leftAt : 0;
-				sim.restoreCheck = target.recordLagged ? null : { target, expected };
+				sim.restoreCheck = { target, expected };
 			} else if (e === "fail" && sim.terminal) {
-				const expected = p.mode === "push" ? "assign" : "replace";
-				if (sim.terminal.kind !== expected) {
+				// A traversal has already moved the entry, so its floor settles
+				// that entry: replace, or reload when the entry's URL has a
+				// fragment (replace would be a fragment navigation, no load).
+				const allowed =
+					p.mode === "push"
+						? ["assign"]
+						: p.mode === "replace"
+							? ["replace"]
+							: ["replace", "reload"];
+				if (!allowed.includes(sim.terminal.kind)) {
 					sim.violations.push(
 						`HISTORY-OP: failed ${p.mode} fell back through location.${sim.terminal.kind}`,
 					);
@@ -548,6 +579,12 @@ function checkInvariants(sim: SimBrowser, e: Event): void {
 			);
 		}
 	}
+	// I5 — a fragment of the page on screen is never a document load.
+	if (sim.terminal?.during === "push #x") {
+		sim.violations.push(
+			`FRAGMENT-LOAD: push to a fragment of the page on screen loaded ${sim.terminal.url}`,
+		);
+	}
 	if (sim.terminal) return;
 
 	const quiescent = sim.pending.length === 0;
@@ -571,9 +608,18 @@ async function explore(depth: number): Promise<Map<string, Counterexample>> {
 	// Breadth-first, so the first counterexample per invariant is a shortest one.
 	let frontier: Event[][] = [[]];
 	let explored = 0;
+	let sinceYield = 0;
 	for (let d = 0; d < depth; d++) {
 		const next: Event[][] = [];
 		for (const prefix of frontier) {
+			// The checker awaits only microtasks, so a deep run never hands the
+			// event loop back; the test worker then misses its RPC deadline and
+			// vitest fails a run whose checks all passed. Yield a macrotask now
+			// and then.
+			if (++sinceYield >= 200) {
+				sinceYield = 0;
+				await new Promise((resolve) => setTimeout(resolve, 0));
+			}
 			for (const e of ALPHABET) {
 				const trace = [...prefix, e];
 				const run = boot();

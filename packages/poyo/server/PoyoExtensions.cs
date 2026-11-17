@@ -46,9 +46,11 @@ public static class PoyoExtensions
         string? contentRootPath = null)
     {
         // Eager on purpose: a missing or malformed registry must fail the boot
-        // at service-registration time, not on the first request.
-        services.AddSingleton(
-            RoutePolicy.Load(ResolveRegistryPath(registryPath, configuration, contentRootPath)));
+        // at service-registration time, not on the first request. The landing
+        // path is checked against it in the same moment, for the same reason.
+        var policy = RoutePolicy.Load(ResolveRegistryPath(registryPath, configuration, contentRootPath));
+        LandingPath.Validate(policy, configuration);
+        services.AddSingleton(policy);
 
         // PostConfigure runs after the app's AddControllersWithViews options
         // regardless of call order, so the filters attach to the app's MVC.

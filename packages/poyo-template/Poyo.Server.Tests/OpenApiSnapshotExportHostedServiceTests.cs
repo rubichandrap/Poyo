@@ -93,6 +93,69 @@ public class OpenApiSnapshotExportHostedServiceTests : IDisposable
         Assert.Contains("\n", json);
     }
 
+    private OpenApiSnapshotExportHostedService ExporterFor(string targetFile, string title)
+    {
+        var config = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["OPENAPI_EXPORT_PATH"] = targetFile,
+            })
+            .Build();
+        var doc = new OpenApiDocument { Info = new OpenApiInfo { Title = title, Version = "v1" } };
+        return new OpenApiSnapshotExportHostedService(
+            new FakeOpenApiDocumentProvider(doc),
+            config,
+            new FakeHostEnvironment { ContentRootPath = _tempDir },
+            NullLogger<OpenApiSnapshotExportHostedService>.Instance);
+    }
+
+    /// <summary>
+    /// The committed snapshot is formatted by the repository's formatter, so
+    /// its bytes differ from the writer's. A boot whose API has not changed
+    /// must leave it alone; through 0.5.1 every Development boot and every
+    /// server test run rewrote it and left a whitespace-only diff behind.
+    /// </summary>
+    [Fact]
+    public async Task Leaves_a_reformatted_snapshot_of_the_same_document_untouched()
+    {
+        var targetFile = Path.Combine(_tempDir, "openapi.json");
+        await ExporterFor(targetFile, "Test API").StartAsync(CancellationToken.None);
+        var exported = await File.ReadAllTextAsync(targetFile);
+        var reformatted = JsonSerializer.Serialize(
+            JsonDocument.Parse(exported).RootElement,
+            new JsonSerializerOptions { WriteIndented = true, IndentCharacter = '\t', IndentSize = 1 });
+        Assert.NotEqual(exported, reformatted);
+        await File.WriteAllTextAsync(targetFile, reformatted);
+
+        await ExporterFor(targetFile, "Test API").StartAsync(CancellationToken.None);
+
+        Assert.Equal(reformatted, await File.ReadAllTextAsync(targetFile));
+    }
+
+    [Fact]
+    public async Task Rewrites_the_snapshot_when_the_document_changed()
+    {
+        var targetFile = Path.Combine(_tempDir, "openapi.json");
+        await ExporterFor(targetFile, "Old API").StartAsync(CancellationToken.None);
+
+        await ExporterFor(targetFile, "New API").StartAsync(CancellationToken.None);
+
+        using var json = JsonDocument.Parse(await File.ReadAllTextAsync(targetFile));
+        Assert.Equal("New API", json.RootElement.GetProperty("info").GetProperty("title").GetString());
+    }
+
+    [Fact]
+    public async Task Replaces_a_snapshot_that_is_not_json()
+    {
+        var targetFile = Path.Combine(_tempDir, "openapi.json");
+        await File.WriteAllTextAsync(targetFile, "<<<<<<< merge conflict");
+
+        await ExporterFor(targetFile, "Test API").StartAsync(CancellationToken.None);
+
+        using var json = JsonDocument.Parse(await File.ReadAllTextAsync(targetFile));
+        Assert.Equal("Test API", json.RootElement.GetProperty("info").GetProperty("title").GetString());
+    }
+
     [Fact]
     public async Task Skips_export_when_configured_false()
     {
