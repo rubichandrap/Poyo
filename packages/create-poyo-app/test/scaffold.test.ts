@@ -72,6 +72,41 @@ describe("create-poyo-app", () => {
 		expect(viewImports).toContain("@using Poyo.Framework");
 	});
 
+	it("keeps every Poyo-prefixed framework identifier verbatim under any name", () => {
+		const cwd = makeTempDir();
+		runCli(["Shop", "--skip-install"], { cwd });
+
+		// A framework identifier is recognized by its shape — Poyo followed by
+		// an uppercase letter — not by appearing on a hand-kept list, so one no
+		// list names survives the rename too. The build guard is such an
+		// identifier today.
+		const csproj = readFile(cwd, "Shop/Shop.Server/Shop.Server.csproj");
+		expect(csproj).toContain('Name="PoyoServerCoreGuard"');
+		expect(csproj).not.toContain("ShopServerCoreGuard");
+
+		// The dotted namespace and the header literal are protected on their
+		// own spellings.
+		const program = readFile(cwd, "Shop/Shop.Server/Program.cs");
+		expect(program).toContain("using Poyo.Framework;");
+		const pageResultTests = readFile(
+			cwd,
+			"Shop/Shop.Server.Tests/PageResultTests.cs",
+		);
+		expect(pageResultTests).toContain('"X-Poyo-Navigation"');
+
+		// Everything that is the project's own is still renamed: the server and
+		// test projects, their namespaces, and the client folder.
+		expect(exists(cwd, "Shop/Shop.Server")).toBe(true);
+		expect(exists(cwd, "Shop/Poyo.Server")).toBe(false);
+		expect(exists(cwd, "Shop/Shop.Server.Tests/Shop.Server.Tests.csproj")).toBe(
+			true,
+		);
+		expect(exists(cwd, "Shop/Poyo.Server.Tests")).toBe(false);
+		expect(pageResultTests).toContain("namespace Shop.Server.Tests;");
+		expect(exists(cwd, "Shop/shop.client")).toBe(true);
+		expect(exists(cwd, "Shop/poyo.client")).toBe(false);
+	});
+
 	it("keeps the poyo CLI binary name in scripts and renames pnpm filters", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });
