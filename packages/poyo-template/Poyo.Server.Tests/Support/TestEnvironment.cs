@@ -145,6 +145,14 @@ internal static class TestEnvironment
         Environment.SetEnvironmentVariable("AllowedHosts", "*");
         Environment.SetEnvironmentVariable("Vite__Server__AutoRun", "false");
         Environment.SetEnvironmentVariable("Vite__Server__Port", "5173");
+        // A Development boot exports the OpenAPI snapshot, by default into the
+        // client's committed openapi/openapi.json. A test host must not write
+        // into the source tree: fixtures that add test controllers export a
+        // different document, and the suite left the tracked file rewritten.
+        // A test that checks the export names its own path, which wins.
+        Environment.SetEnvironmentVariable(
+            "OpenApi__ExportPath",
+            Path.Combine(Path.GetTempPath(), "poyo-tests-openapi", Guid.NewGuid().ToString("N"), "openapi.json"));
         _configured = true;
     }
 }
