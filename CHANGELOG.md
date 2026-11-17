@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-17
+
 ### Changed
 
 - A route path may no longer declare an empty or dot (`.`/`..`) segment, the percent-encoded `%2e` spellings included, since the URL parser reads those as dots, nor hold a backslash, which a browser reads as `/` (ADR 0015). A dot segment is normalized away before the page is requested, so the route was unreachable at the URL the registry states; an empty segment is not expressible as an ASP.NET route pattern, so the boot failed inside routing with an error naming neither the route nor its file; and a backslash path was never the URL requested, so its route was unreachable too. `poyo route add ../../X` also wrote the page and view outside `src/pages/` and `Views/`. The server refuses such a registry at boot, the route manager refuses it on every read and write, and `poyo route add` refuses the argument before deriving any file path. **Upgrading:** a registry declaring one now fails to start until its path is corrected.

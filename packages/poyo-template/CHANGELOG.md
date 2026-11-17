@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-17
+
 ### Changed
 
 - The framework owns the host bootstrap (ADR 0021). `Program.cs` now starts with `WebApplicationBuilder builder = PoyoHost.CreateBuilder(args);` instead of reading the environment and creating the builder itself; the behaviour moved unchanged into the server core, so fixes to it arrive with `pnpm update @rubichandrap/poyo` rather than as a `Program.cs` edit. **Existing projects keep compiling and behaving as they do.** To adopt the call, make four edits in this order. First, remove the `using DotNetEnv;` directive; keep `using Poyo.Framework;`. Second, remove the hosting-environment block: the `DOTNET_ENVIRONMENT` and `ASPNETCORE_ENVIRONMENT` reads, the `EnvFile` load with `LoadOptions.NoClobber()`, the post-load clear of both names, and the `IsUnsetOrDevelopment` local function. Third, keep `RequireEnv` and the development checks that call it. Fourth, in the body, replace the `hostNamesContentRoot` and `workingDirectoryHoldsTheApplication` checks together with the `WebApplication.CreateBuilder(new WebApplicationOptions { … })` call with `WebApplicationBuilder builder = PoyoHost.CreateBuilder(args);`. Keep the DotNetEnv `PackageReference` in the server project. Authentication and the demo cookie scheme, authorization, application services, the exception handler, CORS, the Vite services and development-variable checks, the OpenAPI document and its snapshot export, HTTPS redirection, `AddPoyo` and `MapPoyoRoutes` stay in the project. The build guard now fails with a message naming the package when the DotNetEnv reference is missing.
