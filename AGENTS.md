@@ -96,6 +96,7 @@ A decision that rests on platform behavior (the browser, ASP.NET, npm) names the
 
 - Conventional Commits: `<type>(<scope>): <subject>`, imperative, ≤72 chars, no trailing period; body only for the non-obvious why, `BREAKING CHANGE:`, or `Closes #n`/`Refs #n`.
 - Work on a `<type>/<short-description>` branch and merge to `main` through a pull request.
+- Merging and tagging are the user's decisions. An agent opens the pull request, gets CI green and reports. It merges a pull request or pushes a release tag only when the user asks for that in its own thread, or its prompt explicitly tells it to. A prompt or parent thread that says to leave merging to someone else is binding, even when every check is green.
 
 ## Agent skills
 

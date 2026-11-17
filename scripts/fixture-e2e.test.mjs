@@ -108,6 +108,88 @@ function run(command, args, cwd, timeout = 600_000) {
 	return { status: result.status, output };
 }
 
+/**
+ * The output a registry fetch prints when the fault is the registry's, not the
+ * dependency graph's: a tarball the registry briefly answers 404 for (seen on
+ * CI for csstype-3.2.4.tgz, which the registry serves), a 5xx, or a dropped
+ * connection. pnpm retries network errors but not an HTTP 404.
+ */
+const TRANSIENT_REGISTRY_ERROR =
+	/ERR_PNPM_FETCH_(?:404|5\d\d)|ERR_PNPM_META_FETCH_FAIL|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up/;
+
+/**
+ * `pnpm install`, retried up to twice when the failure is a transient registry
+ * error. Anything else, such as an unresolvable version, fails on the first
+ * attempt as before, and every retry is logged with the line that caused it.
+ */
+async function installWithRegistryRetry(cwd) {
+	const attempts = 3;
+	for (let attempt = 1; ; attempt++) {
+		const install = run("pnpm", ["install"], cwd, 600_000);
+		const transient = install.output.match(TRANSIENT_REGISTRY_ERROR);
+		if (install.status === 0 || !transient || attempt === attempts) {
+			return install;
+		}
+		const line = install.output
+			.split("\n")
+			.find((text) => TRANSIENT_REGISTRY_ERROR.test(text));
+		console.log(
+			`pnpm install hit a transient registry error (attempt ${attempt} of ${attempts}); retrying: ${line?.trim()}`,
+		);
+		await new Promise((resolve) => setTimeout(resolve, 10_000 * attempt));
+	}
+}
+
+/** How long a fixture server gets to answer, matching the test's boot budget. */
+const SERVER_BOOT_DEADLINE_MS = 120_000;
+
+/**
+ * Waits until a spawned fixture server answers `/Login` with 200. The server's
+ * output is read as it arrives: a piped stream nobody reads fills up and
+ * blocks the server's own logging, which can stall a boot, and the output is
+ * what a failure needs to say why. A server that exits fails at once instead
+ * of at the deadline.
+ */
+async function waitForServer(child, port, label) {
+	const chunks = [];
+	let size = 0;
+	const keep = (data) => {
+		chunks.push(data);
+		size += data.length;
+		while (size > 64_000 && chunks.length > 1) size -= chunks.shift().length;
+	};
+	child.stdout?.on("data", keep);
+	child.stderr?.on("data", keep);
+	const output = () => Buffer.concat(chunks).toString("utf8").trim();
+
+	let exited = null;
+	child.once("exit", (code, signal) => {
+		exited = { code, signal };
+	});
+
+	const deadline = Date.now() + SERVER_BOOT_DEADLINE_MS;
+	while (Date.now() < deadline) {
+		if (exited) {
+			throw new Error(
+				`${label} server exited (code ${exited.code}, signal ${exited.signal}) before it served on port ${port}. Output:\n${output()}`,
+			);
+		}
+		try {
+			const res = await fetch(`http://127.0.0.1:${port}/Login`, {
+				signal: AbortSignal.timeout(5_000),
+			});
+			if (res.status === 200) return;
+		} catch {
+			// Not listening yet.
+		}
+		await new Promise((resolve) => setTimeout(resolve, 250));
+	}
+	child.kill("SIGTERM");
+	throw new Error(
+		`${label} server did not answer /Login on port ${port} within ${SERVER_BOOT_DEADLINE_MS / 1000}s. Output:\n${output()}`,
+	);
+}
+
 function collectFiles(dir, files = []) {
 	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
 		const full = path.join(dir, entry.name);
@@ -356,17 +438,8 @@ async function startServer(fixture, environment, port, extraEnv = {}) {
 			stdio: ["ignore", "pipe", "pipe"],
 		},
 	);
-	for (let attempt = 0; attempt < 50; attempt++) {
-		await new Promise((r) => setTimeout(r, 200));
-		try {
-			const res = await fetch(`http://127.0.0.1:${port}/Login`);
-			if (res.status === 200) return child;
-		} catch {
-			// Server is still starting up
-		}
-	}
-	child.kill("SIGTERM");
-	throw new Error(`${environment} server failed to start on port ${port}`);
+	await waitForServer(child, port, environment);
+	return child;
 }
 
 test(
@@ -594,7 +667,7 @@ test(
 					`${JSON.stringify(manifest, null, 2)}\n`,
 				);
 			}
-			const install = run("pnpm", ["install"], fixture, 600_000);
+			const install = await installWithRegistryRetry(fixture);
 			if (install.status !== 0 && PACK_MODE) {
 				throw new Error(
 					`pnpm install from the packed tarball failed in ${fixture}:\n${install.output}`,
@@ -963,23 +1036,7 @@ test(
 				},
 			);
 
-			let serverReady = false;
-			for (let attempt = 0; attempt < 50; attempt++) {
-				await new Promise((r) => setTimeout(r, 200));
-				try {
-					const res = await fetch(`http://127.0.0.1:${serverPort}/Login`);
-					if (res.status === 200) {
-						serverReady = true;
-						break;
-					}
-				} catch {
-					// Server is still starting up
-				}
-			}
-			assert.ok(
-				serverReady,
-				`Server failed to start and respond on port ${serverPort}`,
-			);
+			await waitForServer(serverProcess, serverPort, "Development");
 
 			// Assert in-process OpenAPI snapshot generation
 			assert.ok(
