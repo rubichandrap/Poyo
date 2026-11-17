@@ -154,6 +154,13 @@ internal static class TestEnvironment
         // into the source tree: fixtures that add test controllers export a
         // different document, and the suite left the tracked file rewritten.
         // A test that checks the export names its own path, which wins.
+        // An in-process host runs from the server project's source directory,
+        // as WebApplicationFactory places it. Naming it is how a host keeps
+        // Program.cs from anchoring a non-development content root to the
+        // assembly directory (the test bin folder).
+        Environment.SetEnvironmentVariable(
+            "ASPNETCORE_CONTENTROOT",
+            Path.Combine(TemplateRoot(), "Poyo.Server"));
         Environment.SetEnvironmentVariable(
             "OpenApi__ExportPath",
             Path.Combine(Path.GetTempPath(), "poyo-tests-openapi", Guid.NewGuid().ToString("N"), "openapi.json"));

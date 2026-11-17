@@ -62,7 +62,30 @@ static void RequireEnv(params string[] keys)
     }
 }
 
-WebApplicationBuilder? builder = WebApplication.CreateBuilder(args);
+// The content root is where appsettings.json and wwwroot are. ASP.NET's
+// default is the working directory, which holds them when the host starts the
+// application in its own directory (a publish output) or in the project
+// directory (`dotnet run`, `dotnet watch`, the build output run from the
+// project). A host that started it anywhere else (a service manager's default
+// is "/") got pages without their bundle, styles or icon, no appsettings.json
+// and, from "/", file watchers across the whole filesystem before it could
+// listen. So the working directory stays the content root when it holds the
+// application's appsettings.json; otherwise the application's own directory
+// is, unless the host names one (ADR 0014 amendment).
+bool hostNamesContentRoot =
+    !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ASPNETCORE_CONTENTROOT"))
+    || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DOTNET_CONTENTROOT"))
+    || args.Any(arg => arg.TrimStart('-', '/').StartsWith("contentRoot", StringComparison.OrdinalIgnoreCase));
+bool workingDirectoryHoldsTheApplication =
+    File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"));
+
+WebApplicationBuilder? builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = hostNamesContentRoot || workingDirectoryHoldsTheApplication
+        ? null
+        : AppContext.BaseDirectory,
+});
 
 // The Vite integration is a development tool, so its requirements are
 // development requirements. Outside development a host owns no client dev

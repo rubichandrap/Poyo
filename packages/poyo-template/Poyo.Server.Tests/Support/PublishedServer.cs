@@ -171,6 +171,10 @@ internal sealed class PublishedServer : IDisposable
         ["Routes__LandingPath"] = null,
         ["PathBase"] = null,
         ["OpenApi__ExportPath"] = null,
+        // A published application finds its own content root; a host that
+        // names none is the case under test.
+        ["ASPNETCORE_CONTENTROOT"] = null,
+        ["DOTNET_CONTENTROOT"] = null,
         ["Vite__Server__AutoRun"] = "false",
         ["Vite__Server__Port"] = "5173",
     };
