@@ -166,6 +166,11 @@ internal sealed class PublishedServer : IDisposable
         ["AllowedHosts"] = "*",
         ["EnvFile"] = null,
         ["Routes__JsonPath"] = null,
+        // Set process-wide by in-process test hosts for the moment they are
+        // created; a child launched by a parallel test must not inherit them.
+        ["Routes__LandingPath"] = null,
+        ["PathBase"] = null,
+        ["OpenApi__ExportPath"] = null,
         ["Vite__Server__AutoRun"] = "false",
         ["Vite__Server__Port"] = "5173",
     };
@@ -225,7 +230,17 @@ internal sealed class PublishedServer : IDisposable
                 return BootOutcome.Undecided;
             }
 
-            await Task.Delay(200, deadline);
+            // The deadline can expire here too. Escaping as a bare
+            // TaskCanceledException would drop the captured output, which is
+            // the only thing that says why the application never served.
+            try
+            {
+                await Task.Delay(200, deadline);
+            }
+            catch (TaskCanceledException) when (deadline.IsCancellationRequested)
+            {
+                return BootOutcome.Undecided;
+            }
         }
     }
 
