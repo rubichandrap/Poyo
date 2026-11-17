@@ -10,19 +10,19 @@ Vocabulary is in `CONTEXT.md`; the reasons behind every rule below are in `docs/
 - View controllers live in `Controllers/`, inherit `Controller`, and return `this.PoyoPage(data)` for a registry page or `View()` for a plain view. They never return JSON.
 - API controllers live in `Controllers/Api/`, inherit `ControllerBase`, carry `[ApiController]` + `[Route("api/[controller]")]`, and return `ActionResult<T>` in JSend format.
 - Registry routes without a `controller` are served by the framework's `PageController.Index` and have no Page data. Map the route to a custom controller (`route:add ... --controller X`, or `controller` + `action` in `routes.json`) when it needs data.
-- `PageResult` is the only result for registry pages: it renders the document, or the JSON descriptor when the request carries `X-Poyo-Navigation: 1`. Reach it through `PoyoPage`; never hand-roll either representation.
+- `PageResult` is the only result for registry pages: it renders the document, or the JSON descriptor when the request carries `X-Poyo-Navigation: 1`. Reach it through `PoyoPage`; never hand-roll either representation. `PageResult.For` is internal — the server core compiles into the app's assembly, so nothing stops a call, but it is not a supported API.
 
 **Page data** (ADR 0012)
 - Controllers are the sole authors. `this.PoyoPage(data)` takes a JSON object or `null`; wrap anything else in a top-level property.
 - `_Layout.cshtml` embeds it with `@Html.PoyoPageData()` only. Document `window.SERVER_DATA` and descriptor `pageData` are structurally equal for one value; a later request re-runs the controller, so time-varying fields can differ.
 
 **Access, SEO and URLs** (ADR 0004, 0013, 0016)
-- `access` in the registry (`public` | `guest` | `protected`, default `protected`) is the only page access policy, enforced by `RouteAccessFilter` before the result runs: protected + anonymous → challenge (redirect for pages, 401 for `/api`); guest + authenticated → `Routes:LandingPath` (default `/Dashboard`, resolved under the path base). `[Authorize]` is available for APIs.
+- `access` in the registry (`public` | `guest` | `protected`, default `protected`) is the only page access policy, enforced by `RouteAccessFilter` before the result runs: protected + anonymous → challenge (redirect for pages, 401 for `/api`); guest + authenticated → `Routes:LandingPath` (default `/Dashboard`, resolved under the path base). When the registry has a guest route, the boot fails unless the landing path is an absolute URL or a registry route that is not `guest` (a guest landing path redirects to itself; an undeclared one lands on a 404). `[Authorize]` is available for APIs.
 - Registry `seo` (`title`, `description`, `meta`, `jsonld`) is applied to every registry route by `SeoPolicyFilter`; the route name is the title when none is given. Put SEO in `routes.json`, not in views.
 - One URL per route: `Program.cs` maps the registry and nothing else. Keep it free of a conventional `{controller}/{action}` route; declare a second registry route when a page needs a second URL.
 - Every Poyo page response carries `Cache-Control: private, no-store` and `Vary: X-Poyo-Navigation`.
 
-**Head parity** — the layout marks every registry-owned head element `data-poyo-seo` and declares its title format once on `<title data-poyo-title-template="%s - Poyo">`; the runtime replaces exactly those after a navigation. Keep both attributes when editing the layout. `fixtures/head/head-parity.json` holds both sides to the same head: a change to either the layout or the runtime lands with a case.
+**Head parity** — the layout marks every registry-owned head element `data-poyo-seo` and declares its title format once on `<title data-poyo-title-template="%s - Poyo">`; the runtime replaces exactly those after a navigation. Keep both attributes when editing the layout. `fixtures/head/head-parity.json` holds both sides to the same head: a change to either the layout or the runtime lands with a case. A view adds SSR-only head elements (canonical, hreflang) with `@section Head`; a descriptor never runs the view, so mark them `data-poyo-seo` and a navigation away removes them (ADR 0020). Anything a client navigation must also show belongs in registry `seo`.
 
 **Descriptor wire contract** — `X-Poyo-Navigation: 1` → `{ v, name, seo, pageData }`. The header literal and the shape are a contract between released servers and clients: add optional fields freely; bump `v` (`PageDescriptor.CurrentVersion` and the runtime's `DESCRIPTOR_VERSION`) only for a change an older client would misread, and note it in the changelog.
 
@@ -46,8 +46,9 @@ Vocabulary is in `CONTEXT.md`; the reasons behind every rule below are in `docs/
 **Dynamic navigation** (ADR 0009, 0019)
 - Explicit only: `Link` (`@rubichandrap/poyo/runtime/link`) and `useRouter`/`createRouter` (`…/runtime/router`). A plain `<a>` is a document load; `data-dynamic-nav="off"` opts a `Link` out.
 - Hrefs are app-relative, like registry paths: the runtime adds the base path exactly once (Next.js `basePath` semantics; `withBasePath()` for full-page redirects). A browser URL is not an input — `/app/x` under base `/app` resolves to `/app/app/x`. Leave the app with an absolute URL or a plain `<a>`.
-- One path: descriptor fetch → shape and version check → route lookup → store commit → history write → head, focus, announcement. Any failure falls back to a document load through the requested operation (`push` → `location.assign`, `replace` → `location.replace`). Rapid navigations are last-write-wins.
-- Every same-document history entry is traversable through the descriptor; hash-only changes and same-URL entries the router did not write are left to the browser. Scroll is recorded per entry only while the screen shows that entry, and restored on return.
+- One path: descriptor fetch → shape and version check → route lookup → store commit → history write → head, focus, announcement. Any failure falls back to a document load through the requested operation (`push` → `location.assign`, `replace` → `location.replace`); when the target is the entry already in the address bar with a fragment (a failed traversal), `location.reload()`, because assign/replace to it is a fragment navigation that loads nothing. Rapid navigations are last-write-wins.
+- A target that is a fragment of the page on screen (`push("#x")`, `push("/same#x")`) is the browser's own fragment navigation, as an in-page anchor is: no descriptor, no commit.
+- Every same-document history entry is traversable through the descriptor; hash-only changes and same-URL entries the router did not write are left to the browser. Scroll is recorded per entry (keyed `__poyo.key`) only while the screen shows that entry — in memory on every scroll event and from the viewport at popstate, in history state on a frame for reloads — and restored on return.
 - `packages/poyo/test/navigation-model.test.ts` model-checks this state machine and `scripts/browser-navigation.mjs` checks it in Chromium. A navigation change keeps both green; a new behavior gets an invariant or an event in the model.
 
 ## Routes registry
@@ -69,6 +70,8 @@ A decision that rests on platform behavior (the browser, ASP.NET, npm) names the
 
 ## Build, generate, deploy
 
+- CI (`.github/workflows/ci.yml`) runs every gate below on each pull request and push to `main`: lint and format, client checks, `release:check`, the framework and scaffolder suites, the model check at depth 7, the server tests (which must leave the tracked tree unchanged), and the platform-facts, clean-checkout and packed-tarball checks in Chromium. A red job blocks the merge.
+
 - `pnpm install` builds both workspace CLIs from `postinstall` (`build:packages`), because `packages/poyo`'s binary lives in a gitignored `dist` — without it a clean clone can install and then run none of the documented template commands. `pnpm run test:clean-checkout` walks that lifecycle against a real clone.
 - `pnpm --filter poyo-template run client:generate` — DTOs and Zod schemas from the committed `openapi/openapi.json` (re-exported by the server on Development/Staging boots), plus the route manifest.
 - `pnpm --filter poyo-template run build` — client build, `poyo build` (syncs manifest assets into `wwwroot/generated` and rewrites `_ReactAssets.cshtml`), server build.
@@ -83,9 +86,10 @@ A decision that rests on platform behavior (the browser, ASP.NET, npm) names the
    pnpm --filter @rubichandrap/poyo run test
    pnpm --filter @rubichandrap/create-poyo-app run test
    dotnet test packages/poyo-template/Poyo.Server.Tests/Poyo.Server.Tests.csproj
-   pnpm run test:release:prepublish   # fixture project from the packed tarball, incl. the browser check
+   pnpm run test:release:prepublish   # platform facts, clean clone, fixture from the packed tarball, browser check
    ```
-4. Push tag `v<version>`. `release.yml` builds, type-checks, asserts versions, runs the pre-publish fixture, publishes with `pnpm publish` (`NPM_TOKEN`), and creates the GitHub Release.
+   CI runs the same gates on the release PR; merge only on green.
+4. Push tag `v<version>`. `release.yml` builds, type-checks, asserts versions, runs the unit suites and the pre-publish fixture, publishes with `pnpm publish` (`NPM_TOKEN`), and creates the GitHub Release.
 5. After publishing, `pnpm run test:release` proves npm resolution; it is red until the version is on npm.
 
 ## Git
