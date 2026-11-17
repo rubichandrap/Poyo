@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import type { ProjectPaths } from "./config.js";
 import { CliError } from "./error.js";
-import { firstPathRefusal, refusalMessage } from "./path-segments.js";
+import {
+	backslashRefusal,
+	firstRefusedSegment,
+	refusalMessage,
+} from "./path-segments.js";
 import { isRouteAccess, type Route } from "./routes.js";
 
 const KNOWN_FIELDS = new Set([
@@ -116,6 +120,11 @@ function validateRouteIdentity(route: unknown, index: number): void {
 		);
 	}
 
+	const backslash = backslashRefusal(routePath);
+	if (backslash !== undefined) {
+		throw new CliError(`${label}: "path" ${refusalMessage(backslash)}`);
+	}
+
 	if (routePath.length > 1 && routePath.endsWith("/")) {
 		throw new CliError(
 			`${label}: "path" declares a trailing slash — declare ` +
@@ -124,7 +133,7 @@ function validateRouteIdentity(route: unknown, index: number): void {
 		);
 	}
 
-	const refused = firstPathRefusal(routePath);
+	const refused = firstRefusedSegment(routePath);
 	if (refused !== undefined) {
 		throw new CliError(`${label}: "path" ${refusalMessage(refused)}`);
 	}

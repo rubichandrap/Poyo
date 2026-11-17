@@ -8,17 +8,16 @@ export interface PathRefusal {
 }
 
 /**
- * The first reason the path may not be registered, in the order both runtimes
- * check them: a backslash first, because the browser reads it as a separator
- * and every segment after it means something else, then an empty or dot
- * segment.
+ * A declared path holding a backslash, which a browser reads as `/`. It is
+ * asked for before the trailing-slash and segment rules, in the order the
+ * server applies them, because the backslash is the mistake that decides what
+ * the path means: `/Admin\Users/` is a backslash path whatever its trailing
+ * separator, and both runtimes must say so.
  */
-export function firstPathRefusal(rawPath: string): PathRefusal | undefined {
-	if (rawPath.includes("\\")) {
-		return { kind: "backslash", written: rawPath };
-	}
-
-	return firstRefusedSegment(rawPath);
+export function backslashRefusal(rawPath: string): PathRefusal | undefined {
+	return rawPath.includes("\\")
+		? { kind: "backslash", written: rawPath }
+		: undefined;
 }
 
 /**
