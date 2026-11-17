@@ -68,6 +68,12 @@ export function rewritePackageJson(
 	pkg.private = true;
 	delete pkg.bin;
 	delete pkg.files;
+	// The template's publishing metadata describes the template package, not
+	// the project made from it. Left in, the rename turned the repository URL
+	// into github.com/rubichandrap/<Project>, a repository that does not exist.
+	for (const field of ["repository", "homepage", "bugs", "keywords"]) {
+		delete pkg[field];
+	}
 	pinPoyoDevDep(pkg, poyoVersion);
 	fs.writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
