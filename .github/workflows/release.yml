@@ -75,6 +75,16 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
+      # The unit suites run here as well as in CI: a tag can be pushed from a
+      # commit CI never saw, and nothing reaches npm without them.
+      - name: Framework and scaffolder suites
+        run: |
+          pnpm --filter @rubichandrap/poyo run test
+          pnpm --filter @rubichandrap/create-poyo-app run test
+
+      - name: Server tests
+        run: dotnet test packages/poyo-template/Poyo.Server.Tests/Poyo.Server.Tests.csproj
+
       - name: Install Chromium for the browser check
         run: pnpm exec playwright install --with-deps chromium
 
