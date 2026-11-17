@@ -116,8 +116,13 @@ export function stripNonCode(source) {
 				}
 				if (run >= braces) {
 					i += braces;
+					// Each hole is its own code: separated from the next, so
+					// `{Task}{Path}` reads as two names rather than `TaskPath`.
+					out += " ";
 					readCode("}");
-					i += 1;
+					out += " ";
+					// A raw string with `$$` closes its holes with `}}`.
+					i += braces;
 					continue;
 				}
 			}

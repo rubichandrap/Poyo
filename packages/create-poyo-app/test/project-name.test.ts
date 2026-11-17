@@ -161,6 +161,10 @@ describe("names the generated server cannot compile under", () => {
 		["// Comment\nCode /* Block */ More", ["Code", "More"]],
 		["c = 'A'; D", ["D"]],
 		['$"{{Escaped}} {Real}"', ["Real"]],
+		// Adjacent holes are separate code, not one merged name.
+		['$"{Task}{Path}" After', ["Task", "Path", "After"]],
+		// A $$ raw string opens and closes its holes with two braces.
+		['$$"""{{Hole}} {Text}""" Z', ["Hole", "Z"]],
 	])("strips string text but keeps interpolation holes: %s", (source, want) => {
 		const got = [...stripNonCode(source).matchAll(/\b[A-Z]\w*\b/g)].map(
 			(match) => match[0],
