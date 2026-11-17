@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-17
+
 ### Changed
 
 - Newly scaffolded projects render a view's `@section Head` into the document head (ADR 0020) refuse to boot with a `Routes:LandingPath` that cannot serve the guest redirect (ADR 0004 amendment), and, published, serve their assets from whatever directory the host starts them in (ADR 0014 amendment).
