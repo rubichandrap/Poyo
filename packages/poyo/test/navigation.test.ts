@@ -1423,7 +1423,8 @@ describe("programmatic navigation to a fragment of the page on screen", () => {
 		expect(harness.history.pushState).not.toHaveBeenCalled();
 		expect(harness.history.replaceState).not.toHaveBeenCalled();
 		expect(harness.scrollTo).not.toHaveBeenCalled();
-		const called = method === "assign" ? harness.assign : harness.replaceLocation;
+		const called =
+			method === "assign" ? harness.assign : harness.replaceLocation;
 		expect(called).toHaveBeenCalledWith(href);
 	});
 
