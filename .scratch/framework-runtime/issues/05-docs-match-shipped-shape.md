@@ -4,7 +4,9 @@
 
 **Blocked by:** ~~#26~~ (done — PR #29)
 
-**Status:** ready-for-agent
+**Status:** done
+
+**Completion:** Done. GitHub issues #23-#28 are closed; implemented in PR #29.
 
 - [x] CONTEXT.md: "Project CLI" → "Framework package"; new "Page data" term; "Generated project" definition adjusted
 - [x] AGENTS.md §3.3 and README describe usePage imported from @rubichandrap/poyo/runtime

@@ -6,6 +6,8 @@
 
 **Status:** done — implemented on feat/01-route-table-runtime (commit 4740359)
 
+**Completion:** Done. Shipped in v0.3.0. ADRs 0006 and 0010 record route-table ownership and the later manifest design.
+
 - [x] writeRouteManifest emits literal unions, routePath map, never unions for empty registry
 - [x] generate splits: manifest always; OpenAPI only with source (no throw when absent)
 - [x] predev/prebuild = poyo generate in the template client

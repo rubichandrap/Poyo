@@ -6,6 +6,8 @@
 
 **Status:** done — implemented in PR #62
 
+**Completion:** Done. GitHub issues #56-#61 are closed; implemented in PR #62.
+
 - [x] `packages/poyo-template/Poyo.Server/Controllers/DashboardController.cs` is created, inheriting from `Microsoft.AspNetCore.Mvc.Controller` and returning `this.PoyoPage(dashboardData)`.
 - [x] `packages/poyo-template/routes.json` maps `/Dashboard` to `"controller": "Dashboard", "action": "Index"`.
 - [x] `packages/poyo-template/Poyo.Server/Views/Dashboard/Index.cshtml` is cleaned up to be a clean Razor view without inline `ViewBag.ServerData` serialization.

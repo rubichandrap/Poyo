@@ -6,6 +6,8 @@
 
 **Status:** done — implemented in PR #62
 
+**Completion:** Done. GitHub issues #56-#61 are closed; implemented in PR #62.
+
 - [x] `README.md` and `AGENTS.md` are updated to state that Page data is strictly controller-authored via `this.PoyoPage(data)` and embedded via `@Html.PoyoPageData()`.
 - [x] Client runtime docstring in `packages/poyo/src/runtime/use-page.ts` is updated to describe the controller-supplied Page data model.
 - [x] `CHANGELOG.md` at root and across all three packages (`packages/poyo`, `packages/poyo-template`, `packages/create-poyo-app`) contains migration notes detailing the removal of view-authored `ViewBag.ServerData`.

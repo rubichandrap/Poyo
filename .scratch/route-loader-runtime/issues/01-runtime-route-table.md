@@ -6,6 +6,8 @@
 
 **Status:** done — implemented on feat/01-route-table-runtime (commit c9d6419)
 
+**Completion:** Done. Shipped in v0.3.0. ADRs 0006 and 0010 record route-table ownership and the later manifest design.
+
 - [x] src/runtime/route-table.ts implements the full contract (ADR 0006)
 - [x] runtime index.ts re-exports createRouteTable + all types (single public face)
 - [x] test/route-table.test.ts covers: warn+skip on missing loader, exact-over-ci priority, onError only in dev, base-path stripping (root/subpath/full URL), ghost detection dev-only, empty manifest, access default

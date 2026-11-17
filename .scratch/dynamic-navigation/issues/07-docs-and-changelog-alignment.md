@@ -6,6 +6,8 @@
 
 **Status:** done
 
+**Completion:** Done. GitHub issues #43-#50 are closed. Later traversal and scroll decisions are recorded in ADR 0019.
+
 - [x] AGENTS.md: controller strategy reflects the bundled page result/controller and the custom-controller helper; route resolution reflects the runtime-owned typed routes and navigation subpaths; route management documents the `dynamic` field
 - [x] Root README: features, core concepts (dynamic navigation section), what's-included list, and project structure match the shipped shape
 - [x] Package READMEs updated (framework package: server core + runtime subpaths; template: no manifest/no index HTML, dev loop unchanged)

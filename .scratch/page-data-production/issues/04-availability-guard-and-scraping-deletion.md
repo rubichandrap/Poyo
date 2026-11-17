@@ -6,6 +6,8 @@
 
 **Status:** done — implemented in PR #62
 
+**Completion:** Done. GitHub issues #56-#61 are closed; implemented in PR #62.
+
 - [x] `PageResult.ExecuteDescriptorAsync` queries `FindView(context)` as its first step; returns HTTP 404 immediately if null.
 - [x] `ExtractServerData` and `PoyoJson.cs` are deleted from the codebase.
 - [x] Throwaway `view.RenderAsync` execution into `StringWriter` is removed from `PageResult`.

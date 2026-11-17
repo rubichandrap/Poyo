@@ -6,6 +6,8 @@
 
 **Status:** done — PR #29
 
+**Completion:** Done. GitHub issues #23-#28 are closed; implemented in PR #29.
+
 - [x] poyo.client declares "@rubichandrap/poyo": "workspace:*" in devDependencies
 - [x] Dashboard imports usePage from @rubichandrap/poyo/runtime and renders server data identically to before
 - [x] src/hooks/ (use-page.ts + barrel) and src/types/window.d.ts are deleted

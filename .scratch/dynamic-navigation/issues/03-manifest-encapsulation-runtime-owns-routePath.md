@@ -4,12 +4,14 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The emitter's output is the augmentation shape only (no exported manifest values); every route command and generate still re-emits it
-- [ ] The runtime exports `RouteName`/`RoutePath` (string fallback pre-augmentation) and a typed `routePath()` resolved from the active route table
-- [ ] Calling `routePath` before the route table registers fails with a clear "route table not initialized" error
-- [ ] Template pages import `routePath` from the runtime; no file under the client's source imports the generated file
-- [ ] The manifest is gitignored again and removed from the committed tree; the generated shape stays valid TypeScript for an empty registry
-- [ ] A stale or wrong route name in app code is a compile error (the typed-route guarantee survives the move)
-- [ ] Runtime tests cover the typed helper and init guard; CLI tests cover the emitter's augmentation output
+**Completion:** Done. GitHub issues #43-#50 are closed. Later traversal and scroll decisions are recorded in ADR 0019.
+
+- [x] The emitter's output is the augmentation shape only (no exported manifest values); every route command and generate still re-emits it
+- [x] The runtime exports `RouteName`/`RoutePath` (string fallback pre-augmentation) and a typed `routePath()` resolved from the active route table
+- [x] Calling `routePath` before the route table registers fails with a clear "route table not initialized" error
+- [x] Template pages import `routePath` from the runtime; no file under the client's source imports the generated file
+- [x] The manifest is gitignored again and removed from the committed tree; the generated shape stays valid TypeScript for an empty registry
+- [x] A stale or wrong route name in app code is a compile error (the typed-route guarantee survives the move)
+- [x] Runtime tests cover the typed helper and init guard; CLI tests cover the emitter's augmentation output

@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-17
+
 ### Changed
 
 - Scaffolding keeps every framework identifier verbatim by shape rather than by a hand-kept list: a `Poyo` immediately followed by an uppercase letter (`PoyoPage`, `PoyoPageData`, a future `PoyoHost`) survives the rename, alongside `Poyo.Framework`, `AddPoyo` and `X-Poyo-Navigation`. Everything else is still the project's — `Poyo.Server`, `Poyo.Server.Tests` and the client folder are renamed.

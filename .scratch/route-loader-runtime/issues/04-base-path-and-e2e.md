@@ -6,6 +6,8 @@
 
 **Status:** done — implemented on feat/01-route-table-runtime
 
+**Completion:** Done. Shipped in v0.3.0. ADRs 0006 and 0010 record route-table ownership and the later manifest design.
+
 - [x] _Layout.cshtml renders data-base-path from Url.Content("~/")
 - [x] Adapter resolves baseUrl: dataset → VITE_BASE_URL → "/" (already landed in issue 02's commit b037015)
 - [x] fixture e2e asserts dist/runtime/route-table.js + [RouteTable] in the bundle (minifier renames createRouteTable; the diagnostic prefix is the stable anchor)

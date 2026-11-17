@@ -4,11 +4,13 @@
 
 **Blocked by:** 02 — The registry learns `dynamic`; 03 — Manifest encapsulation; 04 — Dynamic navigation; 05 — Traversal
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The fixture scaffold's server build succeeds with the framework source compiled from the installed package (no in-tree framework copies)
-- [ ] A descriptor request (navigation header) answers JSON `{name, seo, pageData}` with `Vary: <navigation header>`; the payload matches what the document injects
-- [ ] The opted-out route answers the document for a descriptor request; the field survives the scaffolder's rename untouched
-- [ ] The protected route challenges an anonymous descriptor request (no payload leak)
-- [ ] The built bundle carries the router surface and the runtime route helper; the bundle-anchoring follows the existing minifier-stable proof pattern
-- [ ] The fixture asserts the absence of the committed manifest and the client index HTML in the generated project
+**Completion:** Done. GitHub issues #43-#50 are closed. Later traversal and scroll decisions are recorded in ADR 0019.
+
+- [x] The fixture scaffold's server build succeeds with the framework source compiled from the installed package (no in-tree framework copies)
+- [x] A descriptor request (navigation header) answers JSON `{name, seo, pageData}` with `Vary: <navigation header>`; the payload matches what the document injects
+- [x] The opted-out route answers the document for a descriptor request; the field survives the scaffolder's rename untouched
+- [x] The protected route challenges an anonymous descriptor request (no payload leak)
+- [x] The built bundle carries the router surface and the runtime route helper; the bundle-anchoring follows the existing minifier-stable proof pattern
+- [x] The fixture asserts the absence of the committed manifest and the client index HTML in the generated project

@@ -6,6 +6,8 @@
 
 **Status:** closed
 
+**Completion:** Done. GitHub issues #31-#37 are closed. The original committed-manifest design was later superseded by ADR 0010.
+
 - [x] Create `OpenApiSnapshotExportHostedService` in `Poyo.Server/Hosting/`
 - [x] Export OpenAPI document in-process via `IOpenApiDocumentProvider` and `OpenApiJsonWriter` (no BOM, formatted JSON)
 - [x] Register hosted service in `Program.cs` for Development and Staging environments

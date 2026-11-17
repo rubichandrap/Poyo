@@ -4,14 +4,16 @@
 
 **Blocked by:** 01 — Server core bundles in the framework package; 03 — Manifest encapsulation (typed href for `Link`)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `router.push(url)` swaps the page component without a document reload; client state (providers, query cache) survives
-- [ ] `router.replace(url)` swaps and replaces the history entry; rapid pushes are last-write-wins (a stale response never swaps twice)
-- [ ] The page's `usePage` payload after a swap is the descriptor's page data, byte-consistent with what a document load would have injected
-- [ ] `<Link>` navigates client-side for eligible clicks and keeps native behavior for externals, modifier clicks, non-primary buttons, target/download, and the opt-out attribute
-- [ ] The shell renders the current route reactively from `useRouter` without a provider; an unknown server-declared page name still renders the not-found UI
-- [ ] SEO (title/description) updates from the descriptor; focus moves to the page region; the swap is announced via a live region
-- [ ] Every failure path degrades to a document load of the same URL (the always-correct floor)
-- [ ] Imports split per the decided surface: `Link` from the link subpath, `useRouter`/`createRouter` from the router subpath, both re-exported at the runtime root
-- [ ] Runtime tests cover push/replace commits, descriptor rejection → fallback, Link click rules, store seeding, and the supersede token
+**Completion:** Done. GitHub issues #43-#50 are closed. Later traversal and scroll decisions are recorded in ADR 0019.
+
+- [x] `router.push(url)` swaps the page component without a document reload; client state (providers, query cache) survives
+- [x] `router.replace(url)` swaps and replaces the history entry; rapid pushes are last-write-wins (a stale response never swaps twice)
+- [x] The page's `usePage` payload after a swap is the descriptor's page data, byte-consistent with what a document load would have injected
+- [x] `<Link>` navigates client-side for eligible clicks and keeps native behavior for externals, modifier clicks, non-primary buttons, target/download, and the opt-out attribute
+- [x] The shell renders the current route reactively from `useRouter` without a provider; an unknown server-declared page name still renders the not-found UI
+- [x] SEO (title/description) updates from the descriptor; focus moves to the page region; the swap is announced via a live region
+- [x] Every failure path degrades to a document load of the same URL (the always-correct floor)
+- [x] Imports split per the decided surface: `Link` from the link subpath, `useRouter`/`createRouter` from the router subpath, both re-exported at the runtime root
+- [x] Runtime tests cover push/replace commits, descriptor rejection → fallback, Link click rules, store seeding, and the supersede token

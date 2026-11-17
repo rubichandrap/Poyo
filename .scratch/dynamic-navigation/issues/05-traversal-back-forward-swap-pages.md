@@ -4,11 +4,13 @@
 
 **Blocked by:** 04 — Dynamic navigation: push, replace, Link
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Back/Forward after a client-side navigation swap the page via descriptor without a document load
-- [ ] Back/Forward on a cold entry (never client-navigated) is an ordinary document load, exactly today's behavior
-- [ ] Scroll position is stored per history entry and restored on traversal return; fresh pushes start at the top
-- [ ] Hash-only changes keep native anchor behavior
-- [ ] A failed traversal (unreachable descriptor, unknown page) falls back to a document load of the target URL
-- [ ] Runtime tests cover traversal commits, scroll restore, the hash guard, and the cold-entry document load
+**Completion:** Done. GitHub issues #43-#50 are closed. Later traversal and scroll decisions are recorded in ADR 0019.
+
+- [x] Back/Forward after a client-side navigation swap the page via descriptor without a document load
+- [x] Superseded by ADR 0019: every same-document entry, including a cold entry, is traversable through a descriptor; document fallback remains available.
+- [x] Scroll position is stored per history entry and restored on traversal return; fresh pushes start at the top
+- [x] Hash-only changes keep native anchor behavior
+- [x] A failed traversal (unreachable descriptor, unknown page) falls back to a document load of the target URL
+- [x] Runtime tests cover traversal commits, scroll restore, the hash guard, and the cold-entry document load

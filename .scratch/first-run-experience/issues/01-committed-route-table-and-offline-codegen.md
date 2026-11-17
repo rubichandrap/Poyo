@@ -2,6 +2,8 @@
 
 Type: task
 Status: closed
+
+**Completion:** Done. GitHub issues #31-#37 are closed. The original committed-manifest design was later superseded by ADR 0010.
 Blocked by: (none)
 
 Spec: `.scratch/first-run-experience/spec.md`

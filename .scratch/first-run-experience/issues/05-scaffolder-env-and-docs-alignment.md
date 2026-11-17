@@ -11,6 +11,8 @@
 
 **Status:** closed
 
+**Completion:** Done. GitHub issues #31-#37 are closed. The original committed-manifest design was later superseded by ADR 0010.
+
 - [x] Scaffolder (`packages/create-poyo-app/src/index.ts`) copies `.env.example` to `.env`
 - [x] Root `README.md` updated with `@latest` command and `pnpm run server:watch`
 - [x] `packages/poyo-template/README.md` updated with dev workflow and `@latest` references

@@ -6,6 +6,8 @@
 
 **Status:** done — implemented on feat/01-route-table-runtime (uncommitted at time of writing)
 
+**Completion:** Done. Shipped in v0.3.0. ADRs 0006 and 0010 record route-table ownership and the later manifest design.
+
 - [x] route-loader.ts is a thin adapter re-exporting the legacy API (file name kept)
 - [x] app.tsx uses AppRoute returns; Home fallback removed; "Page not found" on miss
 - [x] Views Dashboard/Login/Home use id="react-root"

@@ -6,9 +6,11 @@
 
 **Status:** done — PR #29
 
-- [ ] scripts/fixture-e2e.test.mjs scaffolds a real project with the local scaffolder
-- [ ] pnpm install resolves @rubichandrap/poyo from npm at the release version (asserted in node_modules)
-- [ ] The built client bundle carries the accessor
-- [ ] test:release runs the fixture; documented as red until the version is published
+**Completion:** Done. GitHub issues #23-#28 are closed; implemented in PR #29.
+
+- [x] scripts/fixture-e2e.test.mjs scaffolds a real project with the local scaffolder
+- [x] pnpm install resolves @rubichandrap/poyo from npm at the release version (asserted in node_modules)
+- [x] The built client bundle carries the accessor
+- [x] test:release runs the fixture; documented as red until the version is published
 
 GitHub: https://github.com/rubichandrap/Poyo/issues/27

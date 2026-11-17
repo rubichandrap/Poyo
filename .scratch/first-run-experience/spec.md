@@ -1,5 +1,7 @@
 # First-run experience: committed client route table + offline codegen
 
+Status: Done. GitHub issues #31-#37 are closed. The original committed-manifest design was later superseded by ADR 0010.
+
 ## Problem Statement
 
 The first run of a freshly scaffolded or freshly cloned Poyo project has critical friction points:

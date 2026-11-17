@@ -6,6 +6,8 @@
 
 **Status:** closed
 
+**Completion:** Done. GitHub issues #31-#37 are closed. The original committed-manifest design was later superseded by ADR 0010.
+
 - [x] OpenAPI source resolution in `poyo generate` reads committed snapshot `openapi/openapi.json` only
 - [x] `VITE_OPENAPI_URL` and ambient network calls removed from `poyo generate`
 - [x] Positional override still works for one-off documents (`poyo generate ./custom-spec.json`)

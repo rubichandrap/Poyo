@@ -6,6 +6,8 @@
 
 **Status:** done
 
+**Completion:** Done. GitHub issues #56-#61 are closed; implemented in PR #62.
+
 - [x] `docs/adr/0012-unified-page-data-production.md` is created following the repository's ADR format.
 - [x] The ADR explicitly records that Page data is controller-authored and object-only.
 - [x] The ADR explicitly supersedes ADR 0005's claim that `ViewBag.ServerData` is the server data channel.

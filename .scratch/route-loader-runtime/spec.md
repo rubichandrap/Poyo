@@ -1,5 +1,7 @@
 # Spec — Route resolution ships in the framework's client runtime
 
+Status: Done. Shipped in v0.3.0. ADRs 0006 and 0010 record route-table ownership and the later manifest design.
+
 ADR: docs/adr/0006-route-resolution-in-client-runtime.md
 Prior art: Pwo ADR-0005 (implemented, published 0.0.5) — same contract, different package model.
 

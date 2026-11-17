@@ -1,5 +1,7 @@
 # Spec — usePage ships in the framework package's client runtime
 
+Status: Done. GitHub issues #23-#28 are closed; implemented in PR #29.
+
 ADR: docs/adr/0005-framework-package-owns-client-runtime.md
 
 ## Problem Statement
