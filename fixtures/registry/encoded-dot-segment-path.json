@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "The URL parser reads %2e as a dot, so an encoded dot segment is a dot segment: a browser normalizes it away before it asks for the page, and the route is unreachable at the URL the registry states.",
+	"message": ["\"%2E%2e\" segment", "/%2E%2e/Admin"],
+	"registry": [
+		{
+			"path": "/%2E%2e/Admin",
+			"name": "Admin",
+			"files": {
+				"react": "src/pages/Admin/index.page.tsx",
+				"view": "Views/Admin/Index.cshtml"
+			}
+		}
+	]
+}

@@ -1,6 +1,6 @@
 {
 	"verdict": "reject",
-	"note": "Two separators in a row declare an empty segment, which a browser normalizes away: the route is unreachable at the URL the registry states.",
+	"note": "Two separators in a row declare an empty segment. A browser keeps `//` in the path, but ASP.NET cannot express it as a route pattern: mapping one throws RoutePatternException during the boot, naming neither the route nor its file, so the registry refuses it first.",
 	"message": ["empty segment", "/Home//Second"],
 	"registry": [
 		{

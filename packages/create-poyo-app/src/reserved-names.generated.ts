@@ -491,6 +491,7 @@ export const RESERVED_TYPE_NAMES: ReadonlySet<string> = new Set([
 	"IsCancellationRequested",
 	"IsDescriptorRequest",
 	"IsDevelopment",
+	"IsDotSegment",
 	"IsEnabled",
 	"IsExportDisabled",
 	"IsNullOrEmpty",

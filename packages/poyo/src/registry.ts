@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import type { ProjectPaths } from "./config.js";
 import { CliError } from "./error.js";
+import { firstRefusedSegment, segmentRefusal } from "./path-segments.js";
 import { isRouteAccess, type Route } from "./routes.js";
 
 const KNOWN_FIELDS = new Set([
@@ -123,13 +124,9 @@ function validateRouteIdentity(route: unknown, index: number): void {
 		);
 	}
 
-	const segment = nonCanonicalSegment(routePath);
-	if (segment !== undefined) {
-		throw new CliError(
-			`${label}: "path" declares ${describeSegment(segment)} segment — declare a path ` +
-				'with no empty, "." or ".." segment. A browser normalizes it away, so the route ' +
-				"could never be reached",
-		);
+	const refused = firstRefusedSegment(routePath);
+	if (refused !== undefined) {
+		throw new CliError(`${label}: "path" ${segmentRefusal(refused)}`);
 	}
 
 	if (typeof entry.name === "string" && entry.name.trim().length > 0) {
@@ -241,27 +238,6 @@ function assertUniqueIdentities(routes: Route[]): void {
 		}
 		seenNames.set(lowerName, index);
 	});
-}
-
-/**
- * The first segment a declared path may not carry, or `undefined` when it has
- * none. A browser normalizes an empty or dot segment away before it asks for
- * the page, so a route declared with one is unreachable at the URL the
- * registry states — which is why this is a refusal rather than a cleanup of
- * the path. The leading separator is not a segment: `/` is canonical, and a
- * trailing slash is judged by its own rule above.
- */
-function nonCanonicalSegment(routePath: string): string | undefined {
-	if (routePath.length <= 1) return undefined;
-
-	return routePath
-		.slice(1)
-		.split("/")
-		.find((segment) => segment === "" || segment === "." || segment === "..");
-}
-
-function describeSegment(segment: string): string {
-	return segment.length === 0 ? "an empty" : `a "${segment}"`;
 }
 
 /**

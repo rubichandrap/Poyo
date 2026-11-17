@@ -666,17 +666,18 @@ describe("invalid registry rejected by every route command", () => {
 });
 
 /**
- * A path with an empty, "." or ".." segment is refused before its name is
- * derived. The name becomes a file path, so a resolved one lands outside
- * `src/pages/` and `Views/` — and, with enough `..`, outside the project —
- * while the URL it declares is one a browser normalizes away. Nothing may be
- * written anywhere before the refusal.
+ * A path with an empty or dot segment is refused before its name is derived —
+ * the dot segments written with `%2e` included, because the URL parser reads
+ * one as a dot. The name becomes a file path, so a resolved dot segment lands
+ * outside `src/pages/` and `Views/` — and, with enough `..`, outside the
+ * project. Nothing may be written anywhere before the refusal.
  */
 describe("poyo route add refuses dot and empty segments", () => {
 	const refused: [string, string][] = [
 		["../../X", '".." segment'],
 		["/./X", '"." segment'],
 		["/Home//X", "empty segment"],
+		["/%2e%2e/X", '"%2e%2e" segment'],
 	];
 
 	it.each(refused)("refuses '%s' and writes nothing", (argument, segment) => {

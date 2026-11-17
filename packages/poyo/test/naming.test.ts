@@ -15,6 +15,28 @@ describe("naming helpers", () => {
 		expect(toRoutePath("Home")).toBe("/Home");
 	});
 
+	it("refuses dot segments, including the percent-encoded spellings a browser reads as dots", () => {
+		// %2e is a dot to the URL parser, so `.%2e`, `%2e.` and `%2e%2e` are
+		// `..` and `%2e` is `.` before the page is ever requested.
+		for (const spelling of [
+			".",
+			"..",
+			".%2e",
+			"%2e.",
+			"%2e%2e",
+			"%2E%2e",
+			"%2e",
+		]) {
+			expect(() => toRouteName(`/Admin/${spelling}/Users`)).toThrow(
+				`"${spelling}" segment`,
+			);
+		}
+	});
+
+	it("refuses an empty segment", () => {
+		expect(() => toRouteName("/Home//Second")).toThrow("empty segment");
+	});
+
 	it("resolves folder-based file paths", () => {
 		expect(resolveRouteFiles("Admin/Users", false)).toEqual({
 			react: "src/pages/Admin/Users/index.page.tsx",
