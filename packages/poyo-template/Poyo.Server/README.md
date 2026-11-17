@@ -121,7 +121,7 @@ The **process environment** is authoritative. The server reads the hosting envir
 **Required in development only** — supplied by the launch profile, so `dotnet run` works on a fresh clone:
 - `Vite__Server__AutoRun`, `Vite__Server__Port`, `Vite__Server__DevServerUrl`
 
-A missing one fails startup immediately and names the variable. `Routes:JsonPath` is optional everywhere: it overrides where the Routes registry is resolved from, which otherwise is `routes.json` beside the application assembly. `PathBase` is optional too: set it (for example `/Poyo`) when the app is served under a path base, and `UsePathBase` applies it once so asset tags, the client's `data-base-path`, navigation, API calls and the authentication challenge all resolve inside it.
+A missing one fails startup immediately and names the variable. `Routes:JsonPath` is optional everywhere: it overrides where the Routes registry is resolved from, which otherwise is `routes.json` beside the application assembly. `PathBase` is optional too: set it (for example `/Poyo`) when the app is served under a path base, and `app.UsePoyoPathBase()` applies it once so asset tags, the client's `data-base-path`, navigation, API calls and the authentication challenge all resolve inside it.
 
 > **Upgrading an existing deployment?** A value an operator added to a hand-edited production `.env` reverts the moment the file stops being read outside development — at exactly the moment they set the environment variable correctly, and *silently*, because the artifact carries its own registry and the deployment then enforces the access model of a different file. The full procedure is in the project README's [Upgrading an existing deployment](../README.md#upgrading-an-existing-deployment).
 

@@ -84,6 +84,52 @@ public class SubpathDeploymentTests : IClassFixture<SubpathServerFixture>
     }
 }
 
+/// <summary>
+/// A blank path base is not a mount: the application stays at the host root,
+/// exactly as it does when the value is unset.
+/// </summary>
+public class BlankPathBaseDeploymentTests : IClassFixture<BlankPathBaseServerFixture>
+{
+    private readonly WebApplicationFactory<Program> _factory;
+
+    public BlankPathBaseDeploymentTests(BlankPathBaseServerFixture fixture)
+    {
+        _factory = fixture.Factory;
+    }
+
+    [Fact]
+    public async Task Blank_path_base_leaves_the_app_at_the_root()
+    {
+        var client = _factory.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost"),
+            AllowAutoRedirect = false,
+        });
+
+        var response = await client.GetAsync("/Public");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+}
+
+public sealed class BlankPathBaseServerFixture : IDisposable
+{
+    public BlankPathBaseServerFixture()
+    {
+        Factory = TestEnvironment.CreateServer(
+            TestEnvironment.FixturePath("routes.access.json"),
+            startClient: true,
+            pathBase: "");
+    }
+
+    public WebApplicationFactory<Program> Factory { get; }
+
+    public void Dispose()
+    {
+        Factory.Dispose();
+    }
+}
+
 public sealed class SubpathServerFixture : IDisposable
 {
     public SubpathServerFixture()
