@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	execInFixture,
+	existsFixtureFile,
 	makeFixture,
 	readFixtureFile,
 	type Route,
@@ -88,6 +89,29 @@ describe("poyo route update", () => {
 		);
 		expect(manifest).toContain('names: "Dashboard" | "Login";');
 		expect(manifest).toContain('paths: "/Dashboard" | "/Login";');
+	});
+
+	it("re-emits the route manifest when the update changes nothing", () => {
+		const fixture = makeFixture(starter);
+		expect(existsFixtureFile(fixture, "poyo.client/routes.generated.ts")).toBe(
+			false,
+		);
+		// Dashboard is already protected: the registry is not rewritten, and
+		// the manifest is still brought up to date.
+		const result = execInFixture(fixture, [
+			"route",
+			"update",
+			"/Dashboard",
+			"--public",
+			"false",
+		]);
+
+		expect(result.status).toBe(0);
+		const manifest = readFixtureFile(
+			fixture,
+			"poyo.client/routes.generated.ts",
+		);
+		expect(manifest).toContain('names: "Dashboard" | "Login";');
 	});
 
 	it("toggles --guest", () => {
