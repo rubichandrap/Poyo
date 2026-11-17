@@ -38,6 +38,8 @@
   <Target Name="PoyoServerCoreGuard" BeforeTargets="CoreCompile;FindRazorFiles">
     <Error Condition="!Exists('../node_modules/@rubichandrap/poyo/server/RoutePolicy.cs')"
            Text="Poyo server core not found at ../node_modules/@rubichandrap/poyo/server. Run 'pnpm install' in the repository root, then build again." />
+    <Error Condition="'$(PoyoDotNetEnvReference)' == ''"
+           Text="The Poyo server core requires the DotNetEnv package. Add a PackageReference for DotNetEnv (Version 3.1.1) to Poyo.Server.csproj, then build again." />
   </Target>
 
   <ItemGroup>
@@ -55,5 +57,13 @@
 
   <ItemGroup>
   </ItemGroup>
+
+  <!-- The server core parses the environment file with DotNetEnv (ADR 0021),
+       so the generated project carries the reference. An existing project that
+       updates the package without it gets the guard's named failure instead of
+       an unexplained compile error inside node_modules. -->
+  <PropertyGroup>
+    <PoyoDotNetEnvReference>@(PackageReference->WithMetadataValue('Identity', 'DotNetEnv'))</PoyoDotNetEnvReference>
+  </PropertyGroup>
 
 </Project>

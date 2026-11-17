@@ -72,6 +72,18 @@ describe("create-poyo-app", () => {
 		expect(viewImports).toContain("@using Poyo.Framework");
 	});
 
+	it("keeps the framework host entry point verbatim under a non-default name", () => {
+		const cwd = makeTempDir();
+		runCli(["Shop", "--skip-install"], { cwd });
+
+		// The framework owns the host bootstrap (ADR 0021); the generated
+		// Program.cs calls it by its fixed name, so the rename must leave it
+		// alone the way it leaves the other framework identifiers alone.
+		const program = readFile(cwd, "Shop/Shop.Server/Program.cs");
+		expect(program).toContain("PoyoHost.CreateBuilder(args)");
+		expect(program).not.toContain("ShopHost.CreateBuilder");
+	});
+
 	it("keeps every Poyo-prefixed framework identifier verbatim under any name", () => {
 		const cwd = makeTempDir();
 		runCli(["Shop", "--skip-install"], { cwd });
