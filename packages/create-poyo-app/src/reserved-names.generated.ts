@@ -395,7 +395,6 @@ export const RESERVED_TYPE_NAMES: ReadonlySet<string> = new Set([
 	"Guest_route_serves_anonymous_users",
 	"Guid",
 	"HasExited",
-	"HbxBlxZ",
 	"Head",
 	"HeadOf",
 	"HeadParityCorpus",

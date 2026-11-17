@@ -38,6 +38,11 @@ jobs:
         run: pnpm run lint
       - name: Format (Biome and dotnet format)
         run: pnpm run format
+      # The client imports the route manifest, DTOs and Zod schemas that
+      # `generate` writes offline from the committed OpenAPI snapshot; they
+      # are gitignored, so a clean checkout has to produce them first.
+      - name: Generate client code from the OpenAPI snapshot
+        run: pnpm --filter poyo-template run generate
       - name: Client type-check, lint and format
         working-directory: packages/poyo-template/poyo.client
         run: |
@@ -100,6 +105,12 @@ jobs:
       # The server compiles the framework's C# from node_modules.
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      # The published-application tests serve real pages, and the layout
+      # renders the gitignored _ReactAssets.cshtml that `poyo build` writes.
+      - name: Generate and build the template
+        run: |
+          pnpm --filter poyo-template run generate
+          pnpm --filter poyo-template run build
       - name: dotnet test
         run: dotnet test packages/poyo-template/Poyo.Server.Tests/Poyo.Server.Tests.csproj
       - name: The suite leaves the tracked tree unchanged

@@ -82,6 +82,13 @@ jobs:
           pnpm --filter @rubichandrap/poyo run test
           pnpm --filter @rubichandrap/create-poyo-app run test
 
+      # The published-application tests render the gitignored _ReactAssets.cshtml
+      # that `poyo build` writes, from client code `generate` writes.
+      - name: Generate and build the template
+        run: |
+          pnpm --filter poyo-template run generate
+          pnpm --filter poyo-template run build
+
       - name: Server tests
         run: dotnet test packages/poyo-template/Poyo.Server.Tests/Poyo.Server.Tests.csproj
 
