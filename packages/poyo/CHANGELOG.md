@@ -7,7 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-17
+
+### Fixed
+
+- A Back/Forward scroll restore no longer lands on a newer page. The restore runs on the next animation frame and was not tied to its navigation, so a `push` whose descriptor answered within one frame of a traversal's commit showed the new page at the previous entry's offset, and the scroll listener then recorded that offset as the new entry's. The frame now does nothing once a newer navigation has started (ADR 0019 decision 6). Found by a TLA+ check of the router with a frame queue; the navigation model check now models animation frames as their own event, with an invariant that a frame never moves a page committed after it was queued.
+- **Behavior change:** under a path base, an app path is prefixed exactly once. `withBasePath` left any href that already started with the base alone, so that `Link` and the router could both apply it; that made an app path whose first segment spells the mount indistinguishable from a resolved URL. Under base `/app`, a `Link` to the route `/App/settings` requested `/App/settings`, which the server's `UsePathBase` strips to `/settings` — another page. `Link` now hands the router the app-relative href, the router resolves it once, and `withBasePath("/App/settings", "/app")` is `/app/App/settings`. Code that passed an already-resolved browser URL (for example `location.pathname`) to `router.push` or `withBasePath` must pass the app path instead, as the contract already said. `test/subpath-contract.test.ts` now checks the round trip — the server routes back the app path it was given — over every mount and every one- and two-segment app path drawn from colliding words.
+
 ## [0.5.0] - 2026-11-17
+
+### Changed
+
+- `poyo build` emits asset tags as `@Url.Content("~/generated/…")` and records `wwwroot/manifest.json` in the same app-relative form. A root-relative tag (`/generated/…`) is unchanged at the host root and wrong under a path base: the browser asks the host for an asset the application owns. `test/subpath-contract.test.ts` checks the emitted form against a containment model over every mount point, so the invariant has a counterexample class rather than a comment.
 
 ## [0.5.0-beta.4] - 2026-11-17
 
@@ -23,7 +34,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- `poyo build` emits asset tags as `@Url.Content("~/generated/…")` and records `wwwroot/manifest.json` in the same app-relative form. A root-relative tag (`/generated/…`) is unchanged at the host root and wrong under a path base: the browser asks the host for an asset the application owns. `test/subpath-contract.test.ts` checks the emitted form against a containment model over every mount point, so the invariant has a counterexample class rather than a comment.
 - **Breaking:** `usePage()` follows React's hook rules now that it subscribes to the store, so it must be called while a component renders. Read Page data elsewhere with `getPageData()`.
 - The template resolves app URLs through the runtime: `Link` takes `routePath()` results directly, full-page redirects use `withBasePath()`, and the build-time `appUrl()` helper (`src/lib/base-url.ts`) is gone. The Dashboard logout no longer redirects to the host root under a base path.
 - **Contract change:** a field has exactly one accepted spelling in the registry, and the server enforces it (ADR 0018). The deserializer's property matching is case-insensitive because that is how a lower camel case registry maps onto a PascalCase model, which meant `{"Path": "/Home"}` and `{"Access": "public"}` booted while the route manager refused them — two spellings for one field across the three runtimes that read the registry. `RoutePolicy` now checks a field's name, a route's required `files` members, and the `access`/`dynamic` values on the raw JSON before the deserializer: a mis-cased member is an unknown member, a route with no `files` or no `files.view` is a startup failure rather than a null reference when the routes are mapped, and an `access` that is not one of the three values is reported against the route rather than a JSON path. A registry that already booted with a mis-cased member now fails to start, and the message names the member and the route. Only presence and type of a file path are checked: a blank one is still the route manager's rule, because a file path is not a route's identity (ADR 0015).

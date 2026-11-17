@@ -7,9 +7,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-17
+
+### Fixed
+
+- (runtime) A Back/Forward scroll restore no longer lands on a newer page. The restore runs on the next animation frame and was not tied to its navigation, so a `push` whose descriptor answered within one frame of a traversal's commit showed the new page at the previous entry's offset, and the scroll listener then recorded that offset as the new entry's. The frame now does nothing once a newer navigation has started (ADR 0019 decision 6). Found by a TLA+ check of the router with a frame queue; the navigation model check now models animation frames as their own event, with an invariant that a frame never moves a page committed after it was queued.
+- (runtime) **Behavior change:** under a path base, an app path is prefixed exactly once. `withBasePath` left any href that already started with the base alone, so that `Link` and the router could both apply it; that made an app path whose first segment spells the mount indistinguishable from a resolved URL. Under base `/app`, a `Link` to the route `/App/settings` requested `/App/settings`, which the server's `UsePathBase` strips to `/settings` — another page. `Link` now hands the router the app-relative href, the router resolves it once, and `withBasePath("/App/settings", "/app")` is `/app/App/settings`. Code that passed an already-resolved browser URL (for example `location.pathname`) to `router.push` or `withBasePath` must pass the app path instead, as the contract already said. `test/subpath-contract.test.ts` now checks the round trip — the server routes back the app path it was given — over every mount and every one- and two-segment app path drawn from colliding words.
+- (0.5.0, recorded in 0.5.1) A production client build no longer carries the development server origin. `VITE_SERVER_URL` is applied in development builds only and defined away in production builds, and the release fixture asserts the dev origin is absent from the built bundle.
+
 ## [0.5.0] - 2026-11-17
 
+### Changed
+
+- Subpath deployment works end to end. Set `PathBase` (for example `/Poyo`) and `Program.cs` applies it once with `UsePathBase`; the layout's `data-base-path`, the client's API base (`src/lib/base-path.ts`), dynamic navigation and the authentication challenge all resolve inside it. Asset tags are emitted through `Url.Content`, so the bundle is fetched from inside the base rather than from the host root.
+- A generated project's API calls follow the app's path base instead of the host root: the client's HTTP base URL comes from the rendered `data-base-path` when no `VITE_SERVER_URL` is configured, so a subpath deployment no longer 404s every request.
+
 ## [0.5.0-beta.4] - 2026-11-17
+
+### Changed
+
+- The client pins TypeScript `5.9.3`, inside `openapi-typescript`'s declared `typescript` peer range. The repo previously pinned `6.0.3` and silenced the conflict with `pnpm.peerDependencyRules.allowedVersions`, so a generated project installed with a peer warning and failed under `--strict-peer-dependencies`.
 
 ## [0.5.0-beta.3] - 2026-11-17
 
@@ -36,9 +53,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `Program.cs` wires the server core with `AddPoyo(builder.Configuration, contentRootPath: builder.Environment.ContentRootPath)`: the registry resolves from `Routes:JsonPath` (a relative value against the content root) or from `routes.json` beside the application; the fallback never consults the process working directory, and a relative `Routes:JsonPath` resolves against the content root, which in ASP.NET *is* the working directory. Deployments that stored the registry path in a hand-edited environment file keep working through `Routes:JsonPath`; deployments that relied on the file sitting in the working directory must ship it with the application.
 - The `README.md` shipped with this template — the README of every generated project — gains an "Upgrading an existing deployment" section: the diff against `.env.example` to run before upgrading, the values to expect in the result, `Routes:JsonPath` called out as the one to check twice, the four supported host mechanisms by name, and why a green boot is not evidence the migration is complete. `Poyo.Server/README.md` carries the hazard alongside its configuration reference.
 - The template resolves app URLs through the runtime: `Link` takes `routePath()` results directly, full-page redirects use `withBasePath()`, and the build-time `appUrl()` helper (`src/lib/base-url.ts`) is gone. A generated project hosted under a base path links and redirects inside it instead of leaving the app for the host root.
-- The client pins TypeScript `5.9.3`, inside `openapi-typescript`'s declared `typescript` peer range. The repo previously pinned `6.0.3` and silenced the conflict with `pnpm.peerDependencyRules.allowedVersions`, so a generated project installed with a peer warning and failed under `--strict-peer-dependencies`.
-- Subpath deployment works end to end. Set `PathBase` (for example `/Poyo`) and `Program.cs` applies it once with `UsePathBase`; the layout's `data-base-path`, the client's API base (`src/lib/base-path.ts`), dynamic navigation and the authentication challenge all resolve inside it. Asset tags are emitted through `Url.Content`, so the bundle is fetched from inside the base rather than from the host root.
-- A generated project's API calls follow the app's path base instead of the host root: the client's HTTP base URL comes from the rendered `data-base-path` when no `VITE_SERVER_URL` is configured, so a subpath deployment no longer 404s every request.
 
 ### Removed
 
