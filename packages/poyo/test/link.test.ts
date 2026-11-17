@@ -357,23 +357,25 @@ describe("<Link /> component click eligibility rules", () => {
 			},
 		});
 
-		// Link inside base path -> intercepted
-		const eventInside = createMockEvent();
-		const renderedInside = renderLink({ href: "/portal/settings" });
-		renderedInside.props.onClick(eventInside);
-		expect(eventInside.preventDefault).toHaveBeenCalled();
-		expect(pushMock).toHaveBeenCalledWith("/portal/settings");
-
-		pushMock.mockClear();
-
 		// An app-relative href (a registry path, a routePath() result) gains
-		// the base path, both in the markup and in the navigation.
+		// the base path in the markup; the router receives the app path and
+		// resolves it itself, so the base is applied exactly once.
 		const eventRelative = createMockEvent();
 		const renderedRelative = renderLink({ href: "/settings" });
 		expect(renderedRelative.props.href).toBe("/portal/settings");
 		renderedRelative.props.onClick(eventRelative);
 		expect(eventRelative.preventDefault).toHaveBeenCalled();
-		expect(pushMock).toHaveBeenCalledWith("/portal/settings");
+		expect(pushMock).toHaveBeenCalledWith("/settings");
+
+		pushMock.mockClear();
+
+		// An app path that starts with the base's text is still an app path.
+		const eventSameText = createMockEvent();
+		const renderedSameText = renderLink({ href: "/Portal/settings" });
+		expect(renderedSameText.props.href).toBe("/portal/Portal/settings");
+		renderedSameText.props.onClick(eventSameText);
+		expect(eventSameText.preventDefault).toHaveBeenCalled();
+		expect(pushMock).toHaveBeenCalledWith("/Portal/settings");
 
 		pushMock.mockClear();
 

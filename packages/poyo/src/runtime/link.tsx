@@ -96,10 +96,12 @@ export const Link = forwardRef<HTMLAnchorElement, LinkProps>(
 
 			if (isEligibleClick(event, resolvedHref, target, download)) {
 				event.preventDefault();
+				// The router resolves the app-relative href itself; handing it
+				// the resolved one would apply the base twice.
 				if (replace) {
-					router.replace(resolvedHref);
+					router.replace(href);
 				} else {
-					router.push(resolvedHref);
+					router.push(href);
 				}
 			}
 		};

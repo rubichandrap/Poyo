@@ -278,8 +278,14 @@ export function isUnderBasePath(pathname: string, basePath: string): boolean {
  * treats `basePath`: registry paths and `routePath()` results are
  * app-relative ("/Dashboard"), and the URL the browser sees carries the base
  * ("/Poyo/Dashboard"). Left untouched: the root base, absolute URLs
- * ("https://…", "//host/…"), hrefs that are not root-relative ("#x", "?q",
- * "docs"), and a path already under the base, so resolving twice is harmless.
+ * ("https://…", "//host/…") and hrefs that are not root-relative ("#x", "?q",
+ * "docs").
+ *
+ * Every root-relative href is prefixed, including one that already starts
+ * with the base's text: under base "/app", the app path "/App/settings" is a
+ * route of its own and resolves to "/app/App/settings". Resolve once, at the
+ * boundary where an app path becomes a browser URL; an href that is already a
+ * browser URL is not an input.
  */
 export function withBasePath(
 	href: string,
@@ -287,8 +293,6 @@ export function withBasePath(
 ): string {
 	if (!basePath || basePath === "/") return href;
 	if (!href.startsWith("/") || href.startsWith("//")) return href;
-	const pathname = href.split(/[?#]/, 1)[0];
-	if (isUnderBasePath(pathname, basePath)) return href;
 	return href === "/" ? basePath : `${basePath}${href}`;
 }
 
