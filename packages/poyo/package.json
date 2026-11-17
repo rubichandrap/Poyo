@@ -3,6 +3,27 @@
 	"version": "0.7.0",
 	"license": "MIT",
 	"description": "The Poyo project CLI, client runtime, and C# server core: route management, build glue, OpenAPI-to-TypeScript codegen, the usePage server-data accessor, and the registry-backed server framework.",
+	"keywords": [
+		"poyo",
+		"react",
+		"dotnet",
+		"aspnetcore",
+		"csharp",
+		"razor",
+		"mpa",
+		"multi-page-application",
+		"framework",
+		"router",
+		"server-rendering",
+		"typescript",
+		"vite",
+		"openapi",
+		"codegen"
+	],
+	"homepage": "https://github.com/rubichandrap/Poyo#readme",
+	"bugs": {
+		"url": "https://github.com/rubichandrap/Poyo/issues"
+	},
 	"private": false,
 	"repository": {
 		"type": "git",

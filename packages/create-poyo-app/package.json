@@ -3,6 +3,24 @@
 	"version": "0.7.0",
 	"license": "MIT",
 	"description": "Scaffold a new Poyo project from the template package.",
+	"keywords": [
+		"poyo",
+		"create-app",
+		"scaffold",
+		"starter",
+		"template",
+		"react",
+		"dotnet",
+		"aspnetcore",
+		"mpa",
+		"multi-page-application",
+		"typescript",
+		"vite"
+	],
+	"homepage": "https://github.com/rubichandrap/Poyo#readme",
+	"bugs": {
+		"url": "https://github.com/rubichandrap/Poyo/issues"
+	},
 	"private": false,
 	"repository": {
 		"type": "git",
