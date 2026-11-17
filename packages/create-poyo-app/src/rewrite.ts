@@ -7,24 +7,34 @@ const FRESH_VERSION = "0.0.1";
 // Framework identifiers are fixed across generated projects: the C# server
 // core ships inside @rubichandrap/poyo (ADR 0008) with the fixed
 // Poyo.Framework namespace and entry points, so template files that call it
-// must keep these tokens verbatim through the rename. Protected by wrapping
-// the token with sentinels no template file contains, then unwrapping after
-// the rename rules run.
-const FRAMEWORK_IDENTIFIERS = [
+// must keep these tokens verbatim through the rename. They are recognized by
+// shape, not by a hand-kept list: `Poyo` immediately followed by an uppercase
+// letter (PoyoPage, PoyoPageData, PoyoHost) is a framework identifier, so a
+// new entry point needs no entry here. Protection wraps the token with
+// sentinels no template file contains, then unwraps after the rename rules run.
+const CAMEL_CASE_FRAMEWORK_IDENTIFIER = /Poyo(?=[A-Z])/g;
+
+// The identifiers the shape rule cannot see: `Poyo.Framework` and
+// `X-Poyo-Navigation` are followed by a dot and a hyphen, and `AddPoyo` ends in
+// `Poyo` rather than starting with it. All three are framework API, so they are
+// protected by their own spellings.
+const EXPLICIT_FRAMEWORK_IDENTIFIERS = [
 	"Poyo.Framework",
 	"AddPoyo",
-	"MapPoyoRoutes",
-	"PoyoPage",
 	"X-Poyo-Navigation",
 ] as const;
 
 const PROTECTED_POYO = "\u0000P\u0000";
 
 export function protectFrameworkIdentifiers(content: string): string {
-	return FRAMEWORK_IDENTIFIERS.reduce(
+	const withExplicit = EXPLICIT_FRAMEWORK_IDENTIFIERS.reduce(
 		(acc, identifier) =>
 			acc.replaceAll(identifier, identifier.replace("Poyo", PROTECTED_POYO)),
 		content,
+	);
+	return withExplicit.replaceAll(
+		CAMEL_CASE_FRAMEWORK_IDENTIFIER,
+		PROTECTED_POYO,
 	);
 }
 

@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The scaffolder protects framework identifiers by rule, not by a hand-kept list: a `Poyo` immediately followed by an uppercase letter (`PoyoPage`, `PoyoPageData`, a future `PoyoHost`) survives the rename verbatim, so adding an entry point to the framework no longer needs a scaffolder change. `Poyo.Framework`, `AddPoyo` and `X-Poyo-Navigation` stay protected explicitly, because the shape rule cannot see them; every other `Poyo` — `Poyo.Server`, `Poyo.Server.Tests`, the solution, documentation text, `VITE_APP_NAME` — is still renamed to the project's. A generated project comes out exactly as before except for one build-guard target name that is now kept.
+
 ## [0.6.0] - 2026-11-17
 
 ### Added
