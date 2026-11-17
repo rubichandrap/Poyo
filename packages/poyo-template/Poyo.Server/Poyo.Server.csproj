@@ -18,6 +18,12 @@
     <Compile Include="../node_modules/@rubichandrap/poyo/server/**/*.cs" LinkBase="Framework" />
   </ItemGroup>
 
+  <!-- The server core's internal factories (PageResult.For) are tested
+       directly; application code authors pages through PoyoPage. -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Poyo.Server.Tests" />
+  </ItemGroup>
+
   <!-- The Routes registry is a required deployment artifact, and the source of
        truth stays the single routes.json at the project root. Copying it beside
        the assembly is what lets a published application resolve it from the

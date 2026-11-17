@@ -49,7 +49,14 @@ public sealed class PageResult : ViewResult
     /// pre-serialized JSON object supplied by custom controllers; when absent,
     /// the descriptor carries no Page data.
     /// </summary>
-    public static PageResult For(
+    /// <remarks>
+    /// Internal: controllers reach a page result through
+    /// <c>this.PoyoPage(data)</c>, the one authoring seam (ADR 0012). The server
+    /// core compiles into the application's own assembly, so this does not
+    /// stop application code from calling it; it says the method is not a
+    /// supported API and may change without notice.
+    /// </remarks>
+    internal static PageResult For(
         Controller controller,
         string? viewPath,
         RouteDefinition? route,
