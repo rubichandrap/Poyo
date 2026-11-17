@@ -1,50 +1,13 @@
-using DotNetEnv;
 using Microsoft.OpenApi;
 using Poyo.Framework;
 using Vite.AspNetCore;
 
-// The process environment owns the hosting environment (ADR 0017), read
-// before anything else loads so the environment file can never decide the
-// environment it is conditional on. A host may name it with either variable
-// and the framework gives DOTNET_ENVIRONMENT precedence, so read them the way
-// the framework reads them — otherwise a host using the general name would
-// still be at the file's mercy.
-string? dotnetEnvironment = Environment.GetEnvironmentVariable("DOTNET_ENVIRONMENT");
-string? aspnetEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-string? hostingEnvironment = dotnetEnvironment ?? aspnetEnvironment;
-
-// The environment file is a development convenience, never a deployment
-// requirement. The loader defaults to overriding, so filling gaps is stated
-// here rather than inherited: a real deployment variable always wins.
-string? envFile = Environment.GetEnvironmentVariable("EnvFile");
-
-if (IsUnsetOrDevelopment(hostingEnvironment)
-    && !string.IsNullOrWhiteSpace(envFile)
-    && File.Exists(envFile))
-{
-    Env.Load(envFile, LoadOptions.NoClobber());
-
-    // Filling gaps would otherwise cover the hosting environment when the
-    // process left it out, which is the one value this file must never supply
-    // however it spells its absence.
-    if (dotnetEnvironment is null)
-    {
-        Environment.SetEnvironmentVariable("DOTNET_ENVIRONMENT", null);
-    }
-
-    if (aspnetEnvironment is null)
-    {
-        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", null);
-    }
-}
-
-// Unset counts as development because an unset environment is production, and
-// a deployment that forgot to name its environment still gets this file's
-// other values. The environment itself stays out of the file's reach either
-// way; the operator-facing fix is to set it on the host.
-static bool IsUnsetOrDevelopment(string? hostingEnvironment) =>
-    string.IsNullOrWhiteSpace(hostingEnvironment)
-    || string.Equals(hostingEnvironment, Environments.Development, StringComparison.OrdinalIgnoreCase);
+// The framework owns the host bootstrap (ADR 0021): the hosting environment is
+// read from the process before anything else loads (ADR 0017), the environment
+// file is a development convenience, and the content root follows the
+// application's content rather than the host's working directory (ADR 0014
+// amendment).
+WebApplicationBuilder builder = PoyoHost.CreateBuilder(args);
 
 static void RequireEnv(params string[] keys)
 {
@@ -61,31 +24,6 @@ static void RequireEnv(params string[] keys)
         );
     }
 }
-
-// The content root is where appsettings.json and wwwroot are. ASP.NET's
-// default is the working directory, which holds them when the host starts the
-// application in its own directory (a publish output) or in the project
-// directory (`dotnet run`, `dotnet watch`, the build output run from the
-// project). A host that started it anywhere else (a service manager's default
-// is "/") got pages without their bundle, styles or icon, no appsettings.json
-// and, from "/", file watchers across the whole filesystem before it could
-// listen. So the working directory stays the content root when it holds the
-// application's appsettings.json; otherwise the application's own directory
-// is, unless the host names one (ADR 0014 amendment).
-bool hostNamesContentRoot =
-    !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("ASPNETCORE_CONTENTROOT"))
-    || !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("DOTNET_CONTENTROOT"))
-    || args.Any(arg => arg.TrimStart('-', '/').StartsWith("contentRoot", StringComparison.OrdinalIgnoreCase));
-bool workingDirectoryHoldsTheApplication =
-    File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "appsettings.json"));
-
-WebApplicationBuilder? builder = WebApplication.CreateBuilder(new WebApplicationOptions
-{
-    Args = args,
-    ContentRootPath = hostNamesContentRoot || workingDirectoryHoldsTheApplication
-        ? null
-        : AppContext.BaseDirectory,
-});
 
 // The Vite integration is a development tool, so its requirements are
 // development requirements. Outside development a host owns no client dev

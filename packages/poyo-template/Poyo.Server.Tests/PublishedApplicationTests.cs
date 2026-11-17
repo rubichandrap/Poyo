@@ -75,6 +75,38 @@ public class PublishedApplicationTests
             ?? throw new InvalidOperationException("The filesystem root could not be determined."));
 
     /// <summary>
+    /// A host that names its content root wins over the framework's choice. The
+    /// bootstrap keeps the working directory only when it holds the
+    /// application's appsettings.json and otherwise anchors to the application
+    /// directory; a host with an unusual layout states its own root, and the
+    /// bootstrap leaves that decision alone (ADR 0014 amendment).
+    ///
+    /// The observable is a file served from the host-named root's wwwroot. The
+    /// publish output carries no copy of it, so an application that ignored the
+    /// host's root answers 404 rather than serving it.
+    /// </summary>
+    [Fact]
+    public async Task A_host_named_content_root_is_honoured()
+    {
+        using var contentRoot = TemporaryDirectory.Create("host-content-root");
+        Directory.CreateDirectory(Path.Combine(contentRoot.Path, "wwwroot"));
+        contentRoot.WriteFile(Path.Combine("wwwroot", "probe.txt"), "host content root");
+
+        using var server = await PublishedServer.Start(
+            PublishedServer.PublishDirectory,
+            new Dictionary<string, string?>
+            {
+                ["ASPNETCORE_CONTENTROOT"] = contentRoot.Path,
+            });
+
+        using var client = server.CreateClient();
+        using var probe = await client.GetAsync("/probe.txt");
+
+        Assert.Equal(HttpStatusCode.OK, probe.StatusCode);
+        Assert.Equal("host content root", await probe.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>
     /// Every declared route answers with the outcome its access model calls
     /// for. An application that booted without its registry has no routes at
     /// all, so it answers 404 to all of them and enforces nothing.

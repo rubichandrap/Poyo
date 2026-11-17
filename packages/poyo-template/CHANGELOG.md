@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- The framework owns the host bootstrap (ADR 0021). `Program.cs` now starts with `WebApplicationBuilder builder = PoyoHost.CreateBuilder(args);` instead of reading the environment and creating the builder itself; the behaviour moved unchanged into the server core, so fixes to it arrive with `pnpm update @rubichandrap/poyo` rather than as a `Program.cs` edit. **Existing projects keep compiling and behaving as they do.** To adopt the call, replace the `using DotNetEnv;` directive and the whole block from the hosting-environment read through the `WebApplication.CreateBuilder(new WebApplicationOptions { … })` call — that is the `DOTNET_ENVIRONMENT`/`ASPNETCORE_ENVIRONMENT` reads, the `EnvFile` load with `LoadOptions.NoClobber()` and the post-load clear of both names, the `IsUnsetOrDevelopment` local function, and the `hostNamesContentRoot`/`workingDirectoryHoldsTheApplication` checks — with the single call. Authentication and the demo cookie scheme, authorization, application services, the exception handler, CORS, the Vite services and development-variable checks, the OpenAPI document and its snapshot export, HTTPS redirection, `PathBase`, `AddPoyo` and `MapPoyoRoutes` stay in the project. The server project must reference DotNetEnv, which this template already does; the build guard now fails with a message naming the package when the reference is missing.
+
 ## [0.6.0] - 2026-11-17
 
 ### Added
