@@ -1011,6 +1011,7 @@ export const RESERVED_TYPE_NAMES: ReadonlySet<string> = new Set([
 	"ValidateFieldNames",
 	"ValidateName",
 	"ValidatePath",
+	"ValidatePathSegments",
 	"ValidateRequiredMembers",
 	"ValidateValue",
 	"Value",

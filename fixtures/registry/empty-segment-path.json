@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "Two separators in a row declare an empty segment, which a browser normalizes away: the route is unreachable at the URL the registry states.",
+	"message": ["empty segment", "/Home//Second"],
+	"registry": [
+		{
+			"path": "/Home//Second",
+			"name": "Home/Second",
+			"files": {
+				"react": "src/pages/Home/Second/index.page.tsx",
+				"view": "Views/Home/Second/Index.cshtml"
+			}
+		}
+	]
+}

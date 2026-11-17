@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	execInFixture,
@@ -661,3 +664,65 @@ describe("invalid registry rejected by every route command", () => {
 		expect(result.stderr).toContain("/Home");
 	});
 });
+
+/**
+ * A path with an empty, "." or ".." segment is refused before its name is
+ * derived. The name becomes a file path, so a resolved one lands outside
+ * `src/pages/` and `Views/` — and, with enough `..`, outside the project —
+ * while the URL it declares is one a browser normalizes away. Nothing may be
+ * written anywhere before the refusal.
+ */
+describe("poyo route add refuses dot and empty segments", () => {
+	const refused: [string, string][] = [
+		["../../X", '".." segment'],
+		["/./X", '"." segment'],
+		["/Home//X", "empty segment"],
+	];
+
+	it.each(refused)("refuses '%s' and writes nothing", (argument, segment) => {
+		const fixture = makeFixture(starter);
+		const treeBefore = tree(fixture.dir);
+		const registryBefore = readFixtureFile(fixture, "routes.json");
+
+		const result = execInFixture(fixture, ["route", "add", argument]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain(segment);
+		expect(result.stderr).toContain(argument);
+		expect(tree(fixture.dir)).toEqual(treeBefore);
+		expect(readFixtureFile(fixture, "routes.json")).toBe(registryBefore);
+	});
+
+	it("writes nothing outside the project", () => {
+		const fixture = makeFixture(starter);
+		// One argument per side: the page and the view sit at different depths
+		// inside the fixture, and each escapes at its own number of segments.
+		const escapes: [string, string][] = [
+			["../../../poyo-escaped-view", "poyo-escaped-view"],
+			["../../../../poyo-escaped-page", "poyo-escaped-page"],
+		];
+
+		for (const [argument, outsideName] of escapes) {
+			const outside = path.join(os.tmpdir(), outsideName);
+			expect(fs.existsSync(outside)).toBe(false);
+
+			try {
+				const result = execInFixture(fixture, ["route", "add", argument]);
+
+				expect(result.status).toBe(1);
+				expect(result.stderr).toContain('".." segment');
+				expect(fs.existsSync(outside)).toBe(false);
+			} finally {
+				fs.rmSync(outside, { recursive: true, force: true });
+			}
+		}
+	});
+});
+
+/** Every path under the fixture, so a write of any kind shows up as a diff. */
+function tree(root: string): string[] {
+	return fs
+		.readdirSync(root, { recursive: true, encoding: "utf-8" })
+		.map((entry) => String(entry))
+		.sort();
+}

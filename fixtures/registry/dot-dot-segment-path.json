@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A browser resolves '..' before it asks for the page, so the URL a declared path describes is one the route can never be reached at.",
+	"message": ["\"..\" segment", "/../Home"],
+	"registry": [
+		{
+			"path": "/../Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

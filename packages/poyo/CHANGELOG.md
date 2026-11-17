@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- A route path may no longer declare an empty, `.` or `..` segment (ADR 0015). A browser normalizes such a segment away before it asks for the page, so the route was unreachable at the URL the registry stated — and `poyo route add ../../X` also wrote the page and view outside `src/pages/` and `Views/`. The server core refuses such a registry at boot, the route manager's registry reader refuses it on every read and write, and `poyo route add` refuses the argument before deriving any file path. Three registry corpus cases pin the rule for both runtimes.
+
 ## [0.6.0] - 2026-11-17
 
 ### Added

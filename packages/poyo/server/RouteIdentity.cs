@@ -126,6 +126,43 @@ public static class RouteIdentity
                 $"declare '{CanonicalPath(path)}' instead. A declared path is the URL the client " +
                 "links to and the server matches, so it is stored exactly as written.");
         }
+
+        ValidatePathSegments(route, routesJsonPath);
+    }
+
+    /// <summary>
+    /// A declared path has no empty, "." or ".." segment: a browser normalizes
+    /// them away before it asks for the page, so a route declared with one is
+    /// unreachable at the URL the registry states. The segment is named in the
+    /// message because the fix is editing the text that declared it.
+    ///
+    /// The leading separator is not a segment, and neither is the one the root
+    /// path is: the trailing slash is judged above, and `/` is canonical.
+    /// </summary>
+    private static void ValidatePathSegments(RouteDefinition route, string routesJsonPath)
+    {
+        var path = route.Path;
+
+        if (path.Length <= 1)
+        {
+            return;
+        }
+
+        var segment = path[1..]
+            .Split('/')
+            .FirstOrDefault(candidate => candidate is "" or "." or "..");
+
+        if (segment is null)
+        {
+            return;
+        }
+
+        var named = segment.Length == 0 ? "an empty" : $"a \"{segment}\"";
+
+        throw new RoutePolicyException(
+            $"{RegistryLabel(routesJsonPath)}: {Describe(route)} declares {named} segment — " +
+            "declare a path with no empty, \".\" or \"..\" segment. A browser normalizes it " +
+            "away, so the route could never be reached.");
     }
 
     private static void ValidateName(RouteDefinition route, string routesJsonPath)
