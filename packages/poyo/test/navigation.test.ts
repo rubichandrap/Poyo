@@ -1278,6 +1278,16 @@ describe("Base path and fragment targets", () => {
 
 		await router.push("/Dashboard?broken=1");
 		expect(assign).toHaveBeenCalledWith("/Poyo/Dashboard?broken=1");
+
+		// An app path whose first segment spells the base is its own route:
+		// the base is applied once, so the server strips it back to /Poyo/x.
+		fetchMock.mockResolvedValueOnce({ ok: false, status: 500 });
+		await router.push("/Poyo/x");
+		expect(fetchMock).toHaveBeenLastCalledWith(
+			"/Poyo/Poyo/x",
+			expect.anything(),
+		);
+		expect(assign).toHaveBeenLastCalledWith("/Poyo/Poyo/x");
 	});
 
 	it("scrolls to the fragment's element once the new page renders it", async () => {

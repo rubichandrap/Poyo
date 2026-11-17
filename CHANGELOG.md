@@ -7,9 +7,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-17
+
+### Fixed
+
+- The scaffolder no longer accepts a project name the generated server cannot compile under. The name becomes the root namespace, and C# resolves a simple name to a namespace before an imported type, so `Task`, `Environment`, `Path` and `Exception` passed the 0.5.0 grammar and produced a project that failed `dotnet build` (`CS0118: 'Task' is a namespace but is used like a type`). Such a name is now refused before any file is written, with a message naming the clash. The list is derived from the C# a generated project compiles (`scripts/reserved-names.mjs`, a small C# lexer that keeps interpolation holes and drops string text) and a test fails while the committed list is stale; it over-collects rather than under-collects, so a few ordinary words that appear in the shipped C# (`Dashboard`, `Login`) are refused too.
+- Windows reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9`, any case) are refused as project names: they scaffolded on Linux and macOS but cannot be a directory on Windows.
+- A Back/Forward scroll restore no longer lands on a newer page. The restore runs on the next animation frame and was not tied to its navigation, so a `push` whose descriptor answered within one frame of a traversal's commit showed the new page at the previous entry's offset, and the scroll listener then recorded that offset as the new entry's. The frame now does nothing once a newer navigation has started (ADR 0019 decision 6). Found by a TLA+ check of the router with a frame queue; the navigation model check now models animation frames as their own event, with an invariant that a frame never moves a page committed after it was queued.
+- **Behavior change:** under a path base, an app path is prefixed exactly once. `withBasePath` left any href that already started with the base alone, so that `Link` and the router could both apply it; that made an app path whose first segment spells the mount indistinguishable from a resolved URL. Under base `/app`, a `Link` to the route `/App/settings` requested `/App/settings`, which the server's `UsePathBase` strips to `/settings` — another page. `Link` now hands the router the app-relative href, the router resolves it once, and `withBasePath("/App/settings", "/app")` is `/app/App/settings`. Code that passed an already-resolved browser URL (for example `location.pathname`) to `router.push` or `withBasePath` must pass the app path instead, as the contract already said. `test/subpath-contract.test.ts` now checks the round trip — the server routes back the app path it was given — over every mount and every one- and two-segment app path drawn from colliding words.
+
+### Changed
+
+- ADR 0011 is amended: TypeScript returned to `5.9.3` in 0.5.0-beta.4 and the peer suppression was removed, which reversed its decisions 1, 3 and 4 without saying so. Decision 2 (no `baseUrl`) stands.
+- The 0.5.0 and 0.5.0-beta.4 changelog sections were empty and their entries filed under 0.5.0-beta.3. The clean-checkout, project-name, TypeScript-pin and license entries now sit under beta.4 and the subpath-deployment entries under 0.5.0.
+
 ## [0.5.0] - 2026-11-17
 
+### Added
+
+- Subpath deployment is supported end to end, and proven as a state model. `poyo build` now emits asset tags as `@Url.Content("~/generated/…")` and records the manifest app-relative, so a host mounted under `/Poyo` serves its own bundle instead of asking the host root; the template applies `PathBase` once through `UsePathBase`, and the client derives its API base from the same `data-base-path` the navigation uses (`src/lib/base-path.ts`). `packages/poyo/test/subpath-contract.test.ts` models URL resolution as a containment invariant over every mount point, emitted form and document URL — root-absolute forms escape a subpath, document-relative forms break on nested routes, app-relative forms hold — and the pre-publish browser check now runs Link/Back/Forward twice, at the root and under `/Poyo`.
+
 ## [0.5.0-beta.4] - 2026-11-17
+
+### Added
+
+- A clean clone can run the documented template commands. `packages/poyo` exposes its binary through a gitignored `dist`, so `pnpm install` used to leave nothing runnable and `pnpm run generate` failed on the first documented command. A root `postinstall` (`build:packages`) now builds both workspace CLIs, and `scripts/clean-checkout.test.mjs` walks the lifecycle as a state machine against a real `git clone` — tracked files only, install, run the binary, generate — so the invariant is checked rather than assumed.
+- The scaffolder accepts a project name only when it can be a C# namespace segment, an npm package name and one directory name at once (`^[A-Za-z][A-Za-z0-9_]{0,63}$`). The grammar is one finite automaton, validated before anything is written, and its model check compares it against an independent three-consumer oracle on every string up to length 4. Names such as `my-app`, `1App`, `app.name` and `..` are refused with the rule they broke.
+- Every TypeScript pin is `5.9.3`, inside `openapi-typescript`'s declared `typescript` peer range; the `pnpm.peerDependencyRules.allowedVersions` suppression that hid the conflict is gone, and `pnpm run release:check` runs a peer gate that reads the versions pnpm actually resolved. The range model lives in `scripts/peer-ranges.mjs`.
+- Every package manifest declares `"license": "MIT"` and carries its own `LICENSE`. npm renders the license from the manifest field, not from the file in the tarball, so the published packages previously showed no license.
 
 ## [0.5.0-beta.3] - 2026-11-17
 
@@ -80,11 +105,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `getPageData()` reads Page data outside a component render (event handlers, utilities, tests). `usePage()` is the hook components call.
 - `pnpm run test:release:prepublish` runs the fixture project against the tarball `pnpm pack` produces, including a real-browser check of Link, Back and Forward (`scripts/browser-navigation.mjs`). The release workflow runs it before publishing, so a broken release is caught before it is public. It needs `playwright` as a root dev dependency and Chromium (`pnpm exec playwright install chromium`).
 - `fixtures/head/head-parity.json`: one corpus both runtimes read, so the head after a dynamic navigation and the head of a document load are held to the same expected head.
-- A clean clone can run the documented template commands. `packages/poyo` exposes its binary through a gitignored `dist`, so `pnpm install` used to leave nothing runnable and `pnpm run generate` failed on the first documented command. A root `postinstall` (`build:packages`) now builds both workspace CLIs, and `scripts/clean-checkout.test.mjs` walks the lifecycle as a state machine against a real `git clone` — tracked files only, install, run the binary, generate — so the invariant is checked rather than assumed.
-- The scaffolder accepts a project name only when it can be a C# namespace segment, an npm package name and one directory name at once (`^[A-Za-z][A-Za-z0-9_]{0,63}$`). The grammar is one finite automaton, validated before anything is written, and its model check compares it against an independent three-consumer oracle on every string up to length 4. Names such as `my-app`, `1App`, `app.name` and `..` are refused with the rule they broke.
-- Every TypeScript pin is `5.9.3`, inside `openapi-typescript`'s declared `typescript` peer range; the `pnpm.peerDependencyRules.allowedVersions` suppression that hid the conflict is gone, and `pnpm run release:check` runs a peer gate that reads the versions pnpm actually resolved. The range model lives in `scripts/peer-ranges.mjs`.
-- Every package manifest declares `"license": "MIT"` and carries its own `LICENSE`. npm renders the license from the manifest field, not from the file in the tarball, so the published packages previously showed no license.
-- Subpath deployment is supported end to end, and proven as a state model. `poyo build` now emits asset tags as `@Url.Content("~/generated/…")` and records the manifest app-relative, so a host mounted under `/Poyo` serves its own bundle instead of asking the host root; the template applies `PathBase` once through `UsePathBase`, and the client derives its API base from the same `data-base-path` the navigation uses (`src/lib/base-path.ts`). `packages/poyo/test/subpath-contract.test.ts` models URL resolution as a containment invariant over every mount point, emitted form and document URL — root-absolute forms escape a subpath, document-relative forms break on nested routes, app-relative forms hold — and the pre-publish browser check now runs Link/Back/Forward twice, at the root and under `/Poyo`.
 
 ## [0.5.0-beta.2] - 2026-09-24
 

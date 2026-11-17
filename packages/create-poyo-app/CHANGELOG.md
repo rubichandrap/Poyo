@@ -7,9 +7,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-17
+
+### Fixed
+
+- The scaffolder no longer accepts a project name the generated server cannot compile under. The name becomes the root namespace, and C# resolves a simple name to a namespace before an imported type, so `Task`, `Environment`, `Path` and `Exception` passed the 0.5.0 grammar and produced a project that failed `dotnet build` (`CS0118: 'Task' is a namespace but is used like a type`). Such a name is now refused before any file is written, with a message naming the clash. The list is derived from the C# a generated project compiles (`scripts/reserved-names.mjs`, a small C# lexer that keeps interpolation holes and drops string text) and a test fails while the committed list is stale; it over-collects rather than under-collects, so a few ordinary words that appear in the shipped C# (`Dashboard`, `Login`) are refused too.
+- Windows reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9`, any case) are refused as project names: they scaffolded on Linux and macOS but cannot be a directory on Windows.
+
 ## [0.5.0] - 2026-11-17
 
 ## [0.5.0-beta.4] - 2026-11-17
+
+### Changed
+
+- The scaffolder accepts a project name only when it can serve as a C# namespace segment, an npm package name and one directory name at once: `^[A-Za-z][A-Za-z0-9_]{0,63}$`. A name such as `my-app`, `1App`, `app.name`, `app name` or `..` is refused before any file is written, and the message names the rule it broke. The grammar is one finite automaton in `src/project-name.ts`, checked against an independent three-consumer oracle on every string up to length 4.
 
 ## [0.5.0-beta.3] - 2026-11-17
 
@@ -21,7 +32,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Newly scaffolded projects hold a route's identity to a canonical form on disk: a `path` must begin with `/` and carry no trailing slash except the root, a `name` must be present and carry no leading or trailing slash, both must be unique ignoring case, and a `controller` and `action` are declared together or not at all. Every violation is a startup failure naming the route and the value, and the `poyo` route manager refuses the same registries when it reads or writes them (ADR 0015).
 - Newly scaffolded projects give the hosting environment to the process. The server reads it from `DOTNET_ENVIRONMENT` or `ASPNETCORE_ENVIRONMENT` before anything else loads, so the `.env` file can never decide the environment it is conditional on; it is read only when the process says development or says nothing, and it fills gaps without ever overriding a value the process has set. `ASPNETCORE_ENVIRONMENT` is deliberately absent from the bootstrapped `.env.example` for that reason, and nothing environment-bearing is copied into publish output. An unset hosting environment is production (ADR 0017).
 - Newly scaffolded projects resolve their app URLs through the runtime's base path instead of a build-time `appUrl()` helper, so a project hosted under a base path links, redirects and logs out inside it. Their `_Layout.cshtml` also declares its title format once (`data-poyo-title-template`) and marks the registry-owned description, meta tags and JSON-LD with `data-poyo-seo`, so a dynamic navigation leaves the head identical to a document load.
-- The scaffolder accepts a project name only when it can serve as a C# namespace segment, an npm package name and one directory name at once: `^[A-Za-z][A-Za-z0-9_]{0,63}$`. A name such as `my-app`, `1App`, `app.name`, `app name` or `..` is refused before any file is written, and the message names the rule it broke. The grammar is one finite automaton in `src/project-name.ts`, checked against an independent three-consumer oracle on every string up to length 4.
 
 
 ## [0.5.0-beta.2] - 2026-09-24

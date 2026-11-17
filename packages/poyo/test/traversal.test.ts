@@ -865,3 +865,84 @@ describe("Router Traversal — replace keeps screen and scroll record in step", 
 		expect(harness.scrollTo).toHaveBeenLastCalledWith(0, 0);
 	});
 });
+
+describe("Router Traversal — a restore frame belongs to its own navigation", () => {
+	beforeEach(() => {
+		clearActiveRouteTable();
+		resetNavigationStore();
+		setActiveRouter(undefined);
+	});
+
+	afterEach(() => {
+		getActiveRouter()?.destroy?.();
+		setActiveRouter(undefined);
+		vi.unstubAllGlobals();
+	});
+
+	// Found by the TLA+ check of the router with a frame queue, and by the
+	// model check at depth 7 (trace: lib → back → ok → push → ok → frame).
+	it("does not scroll a page pushed before the Back restore frame ran", async () => {
+		const frames: FrameRequestCallback[] = [];
+		const fetchMock = vi.fn(async (url: string) => ({
+			ok: true,
+			status: 200,
+			redirected: false,
+			json: async () => ({
+				name: url.includes("dashboard") ? "Dashboard" : "Home",
+				pageData: null,
+			}),
+		}));
+		const harness = createRouterHarness({
+			routes,
+			fetch: fetchMock as unknown as typeof fetch,
+			location: {
+				pathname: "/dashboard",
+				href: "http://localhost:3000/dashboard",
+			},
+			requestAnimationFrame: (callback) => frames.push(callback),
+			cancelAnimationFrame: vi.fn(),
+		});
+
+		// Back to Home, whose entry recorded 500.
+		Object.assign(harness.location, {
+			href: "http://localhost:3000/",
+			pathname: "/",
+		});
+		await harness.popstate({
+			__poyo: { clientNavigated: true, scroll: { x: 0, y: 500 }, url: "/" },
+		});
+		expect(frames).toHaveLength(1);
+
+		// A Link click whose descriptor answers before the next frame.
+		await harness.router.push("/dashboard");
+		expect(getNavigationStore().getRoute()?.pageName).toBe("Dashboard");
+		expect(harness.scrollTo).toHaveBeenLastCalledWith(0, 0);
+
+		for (const frame of frames.splice(0)) frame(0);
+
+		expect(harness.scrollTo).toHaveBeenLastCalledWith(0, 0);
+		expect(harness.scrollTo).not.toHaveBeenCalledWith(0, 500);
+	});
+
+	it("still restores when no navigation follows", async () => {
+		const frames: FrameRequestCallback[] = [];
+		const fetchMock = vi.fn(async () => ({
+			ok: true,
+			status: 200,
+			redirected: false,
+			json: async () => ({ name: "Home", pageData: null }),
+		}));
+		const harness = createRouterHarness({
+			routes,
+			fetch: fetchMock as unknown as typeof fetch,
+			location: { pathname: "/", href: "http://localhost:3000/" },
+			requestAnimationFrame: (callback) => frames.push(callback),
+			cancelAnimationFrame: vi.fn(),
+		});
+		await harness.popstate({
+			__poyo: { clientNavigated: true, scroll: { x: 0, y: 500 }, url: "/" },
+		});
+		for (const frame of frames.splice(0)) frame(0);
+		expect(harness.scrollTo).toHaveBeenLastCalledWith(0, 500);
+	});
+});

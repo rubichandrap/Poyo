@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { isUnderBasePath, withBasePath } from "../src/runtime/route-table.js";
 import {
 	execInFixture,
 	makeFixture,
@@ -187,5 +188,49 @@ describe("poyo build emits the safe form", () => {
 			js: "~/generated/main-abc.js",
 			css: "~/generated/main-abc.css",
 		});
+	});
+});
+
+/**
+ * Round trip, the second half of the contract. Containment says a URL stays
+ * inside the mount; it does not say it names the right page inside it. The
+ * runtime turns an app path into a browser URL (`withBasePath`), and the
+ * server's `UsePathBase` strips the base back off — case-insensitively, on a
+ * segment boundary — before routing. The invariant is that the server routes
+ * the app path the runtime was given. Checked exhaustively over mounts and
+ * app paths of up to two segments drawn from words that collide with the
+ * mounts in and out of case: the 0.5.0 runtime left a path "already under the
+ * base" alone, so under `/app` the route `/App/settings` reached `/settings`
+ * (found by a TLA+ check of the same model).
+ */
+describe("path-base round trip (exhaustive over the finite domain)", () => {
+	const MOUNTS = ["/", "/app", "/Poyo", "/app/nested"];
+	const SEGMENTS = ["app", "App", "poyo", "nested", "x"];
+	const appPaths = ["/"];
+	for (const a of SEGMENTS) {
+		appPaths.push(`/${a}`);
+		for (const b of SEGMENTS) appPaths.push(`/${a}/${b}`);
+	}
+
+	/** ASP.NET `UsePathBase`: strip a matching base, else it is not the app. */
+	const stripPathBase = (url: string, mount: string): string | null => {
+		if (mount === "/") return url;
+		if (!isUnderBasePath(url, mount)) return null;
+		return url.slice(mount.length) || "/";
+	};
+
+	it("routes every app path back to itself under every mount", () => {
+		const broken: string[] = [];
+		for (const mount of MOUNTS) {
+			for (const appPath of appPaths) {
+				const url = withBasePath(appPath, mount);
+				const routed = stripPathBase(url, mount);
+				if (routed !== appPath) {
+					broken.push(`${mount} + ${appPath} -> ${url} -> ${routed}`);
+				}
+			}
+		}
+		expect(appPaths).toHaveLength(31);
+		expect(broken).toEqual([]);
 	});
 });

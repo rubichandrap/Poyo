@@ -25,6 +25,11 @@ A name is accepted only when it can be all three things it becomes:
 
 The grammar is `^[A-Za-z][A-Za-z0-9_]{0,63}$`: start with an ASCII letter, then letters, digits or underscores, at most 64 characters. `my-app`, `1App`, `app.name`, `app name` and `..` are refused before any file is written, and the message names the rule that refused it.
 
+Two more refusals sit on top of the grammar:
+
+- A name the generated server uses as a C# name, such as `Task`, `Path`, `Environment` or `Exception`. The project name becomes the root namespace, and C# finds a namespace before an imported type, so `Task` would turn every `Task` in the server into a reference to the namespace and the project would not compile. The list is derived from the C# the project ships, so it also covers a few ordinary words that appear there (`Dashboard`, `Login`); `MyDashboard` or `DashboardApp` work.
+- A Windows reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9`, in any case), which cannot be a directory on Windows.
+
 ### Options
 
 | Flag | Description |

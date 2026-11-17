@@ -446,9 +446,12 @@ describe("base path resolution", () => {
 		expect(withBasePath("/Dashboard?tab=1#team", "/Poyo")).toBe(
 			"/Poyo/Dashboard?tab=1#team",
 		);
-		// Already resolved: resolving twice is harmless.
-		expect(withBasePath("/poyo/Dashboard", "/Poyo")).toBe("/poyo/Dashboard");
-		expect(withBasePath("/Poyo", "/Poyo")).toBe("/Poyo");
+		// An app path that starts with the base's text is still an app path:
+		// leaving it alone would drop a segment once the server strips the base.
+		expect(withBasePath("/poyo/Dashboard", "/Poyo")).toBe(
+			"/Poyo/poyo/Dashboard",
+		);
+		expect(withBasePath("/Poyo", "/Poyo")).toBe("/Poyo/Poyo");
 		// Root base, absolute and non-root-relative hrefs.
 		expect(withBasePath("/Dashboard", "/")).toBe("/Dashboard");
 		expect(withBasePath("https://example.com/x", "/Poyo")).toBe(

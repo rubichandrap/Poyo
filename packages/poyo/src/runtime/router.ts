@@ -717,7 +717,13 @@ export function createRouter(options?: RouterOptions): Router {
 			screenUrl = currentHref;
 			if (!isPoyoHistoryState(state)) adoptCurrentEntry(win, { x, y });
 			if (typeof win?.requestAnimationFrame === "function") {
-				win.requestAnimationFrame(() => win?.scrollTo?.(x, y));
+				// A navigation that commits before this frame owns the viewport:
+				// restoring now would scroll its page to this entry's offset, and
+				// the scroll listener would then record that offset as its own.
+				win.requestAnimationFrame(() => {
+					if (currentToken !== supersedeToken) return;
+					win?.scrollTo?.(x, y);
+				});
 			} else {
 				win?.scrollTo?.(x, y);
 			}

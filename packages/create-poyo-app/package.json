@@ -1,6 +1,6 @@
 {
 	"name": "@rubichandrap/create-poyo-app",
-	"version": "0.5.0",
+	"version": "0.5.1",
 	"license": "MIT",
 	"description": "Scaffold a new Poyo project from the template package.",
 	"private": false,
@@ -24,10 +24,10 @@
 		"type-check": "tsc -p tsconfig.test.json",
 		"test": "pnpm run type-check && pnpm run build && vitest run",
 		"test:watch": "vitest",
-		"lint": "biome lint src test",
-		"lint:fix": "biome lint src test --write",
-		"format": "biome format src test",
-		"format:fix": "biome format src test --write"
+		"lint": "biome lint src test scripts",
+		"lint:fix": "biome lint src test scripts --write",
+		"format": "biome format src test scripts",
+		"format:fix": "biome format src test scripts --write"
 	},
 	"dependencies": {
 		"@inquirer/prompts": "8.2.0",

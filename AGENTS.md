@@ -45,7 +45,7 @@ Vocabulary is in `CONTEXT.md`; the reasons behind every rule below are in `docs/
 
 **Dynamic navigation** (ADR 0009, 0019)
 - Explicit only: `Link` (`@rubichandrap/poyo/runtime/link`) and `useRouter`/`createRouter` (`…/runtime/router`). A plain `<a>` is a document load; `data-dynamic-nav="off"` opts a `Link` out.
-- Hrefs are app-relative, like registry paths: the runtime adds the base path (Next.js `basePath` semantics; `withBasePath()` for full-page redirects). Leave the app with an absolute URL or a plain `<a>`.
+- Hrefs are app-relative, like registry paths: the runtime adds the base path exactly once (Next.js `basePath` semantics; `withBasePath()` for full-page redirects). A browser URL is not an input — `/app/x` under base `/app` resolves to `/app/app/x`. Leave the app with an absolute URL or a plain `<a>`.
 - One path: descriptor fetch → shape and version check → route lookup → store commit → history write → head, focus, announcement. Any failure falls back to a document load through the requested operation (`push` → `location.assign`, `replace` → `location.replace`). Rapid navigations are last-write-wins.
 - Every same-document history entry is traversable through the descriptor; hash-only changes and same-URL entries the router did not write are left to the browser. Scroll is recorded per entry only while the screen shows that entry, and restored on return.
 - `packages/poyo/test/navigation-model.test.ts` model-checks this state machine and `scripts/browser-navigation.mjs` checks it in Chromium. A navigation change keeps both green; a new behavior gets an invariant or an event in the model.
