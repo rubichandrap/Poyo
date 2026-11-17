@@ -4,10 +4,18 @@ import { describe, expect, it } from "vitest";
 import {
 	MAX_PROJECT_NAME_LENGTH,
 	type NameState,
+	isProjectNameGrammatical,
 	isProjectNameValid,
 	projectNameError,
 	stepName,
 } from "../src/project-name.js";
+import { RESERVED_TYPE_NAMES } from "../src/reserved-names.generated.js";
+import {
+	MODULE_PATH,
+	deriveReservedNames,
+	renderModule,
+	stripNonCode,
+} from "../scripts/reserved-names.mjs";
 import { exists, makeTempDir, runCli } from "./helpers.js";
 
 /**
@@ -67,7 +75,7 @@ describe("project-name automaton (model check)", () => {
 		let checked = 0;
 		for (const candidate of enumerateStrings(4)) {
 			checked += 1;
-			if (isProjectNameValid(candidate) !== oracleAccepts(candidate)) {
+			if (isProjectNameGrammatical(candidate) !== oracleAccepts(candidate)) {
 				disagreements.push(JSON.stringify(candidate));
 			}
 		}
@@ -109,6 +117,85 @@ describe("project-name automaton (model check)", () => {
 	});
 });
 
+describe("names the generated server cannot compile under", () => {
+	// Each of these scaffolded under 0.5.0 and failed `dotnet build`: the root
+	// namespace `<Name>` is found before the `using` import of the type.
+	it.each([
+		"Task",
+		"task",
+		"Environment",
+		"Path",
+		"Exception",
+	])("refuses '%s', which the shipped C# uses as a simple name", (name) => {
+		expect(isProjectNameGrammatical(name)).toBe(true);
+		expect(isProjectNameValid(name)).toBe(false);
+		expect(projectNameError(name)).toContain("would not compile");
+	});
+
+	it("keeps the committed list equal to a fresh derivation from the shipped C#", () => {
+		const committed = fs.readFileSync(MODULE_PATH, "utf-8");
+		expect(committed).toBe(renderModule(deriveReservedNames()));
+		expect([...RESERVED_TYPE_NAMES]).toEqual(deriveReservedNames());
+	});
+
+	it("collects the names a refusal depends on and no string text", () => {
+		const names = new Set(deriveReservedNames());
+		for (const used of [
+			"Task",
+			"Environment",
+			"Path",
+			"Exception",
+			"ViewBag",
+		]) {
+			expect(names.has(used)).toBe(true);
+		}
+		expect(names.has("Poyo")).toBe(false);
+		// Prose inside an interpolated error message is not code.
+		expect(names.has("A")).toBe(false);
+	});
+
+	it.each([
+		['$"route {Describe(route)} is Bad" Next', ["Describe", "Next"]],
+		['@"Verbatim ""Quoted""" After', ["After"]],
+		['$"""Raw {Hole} text""" Z', ["Hole", "Z"]],
+		["// Comment\nCode /* Block */ More", ["Code", "More"]],
+		["c = 'A'; D", ["D"]],
+		['$"{{Escaped}} {Real}"', ["Real"]],
+	])("strips string text but keeps interpolation holes: %s", (source, want) => {
+		const got = [...stripNonCode(source).matchAll(/\b[A-Z]\w*\b/g)].map(
+			(match) => match[0],
+		);
+		expect(got).toEqual(want);
+	});
+});
+
+describe("Windows reserved device names", () => {
+	it.each([
+		"CON",
+		"con",
+		"Con",
+		"PRN",
+		"AUX",
+		"NUL",
+		"COM1",
+		"com9",
+		"LPT1",
+	])("refuses '%s'", (name) => {
+		expect(isProjectNameValid(name)).toBe(false);
+		expect(projectNameError(name)).toContain("reserved device name");
+	});
+
+	it.each([
+		"Console",
+		"Common",
+		"Auxiliary",
+		"Lpt",
+		"Nullable1",
+	])("accepts '%s', which only starts like one", (name) => {
+		expect(isProjectNameValid(name)).toBe(true);
+	});
+});
+
 describe("scaffolder name validation (seam)", () => {
 	it.each([
 		["my-app", "hyphen"],
@@ -117,6 +204,8 @@ describe("scaffolder name validation (seam)", () => {
 		["..", "traversal"],
 		["app/child", "separator"],
 		["app name", "space"],
+		["Task", "shadows a type the server uses"],
+		["con", "Windows device name"],
 	])("refuses '%s' (%s) before creating anything", (name) => {
 		const cwd = makeTempDir();
 		const before = fs.readdirSync(cwd);

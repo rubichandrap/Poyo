@@ -17,7 +17,19 @@
  * The automaton is written out (states, transitions, accept set) so the model
  * check in `test/project-name.test.ts` can exhaustively compare it against an
  * independent oracle, and so the accepted set has one readable source.
+ *
+ * Two refusals sit on top of the automaton, because they are about specific
+ * words rather than characters:
+ *
+ * - a name the generated C# uses as a simple name. The root namespace
+ *   `<Name>` is found before any `using` import, so a project named `Task`
+ *   turns every `Task` in the server into a reference to the namespace and the
+ *   project does not compile. The list is derived from the shipped C#
+ *   (`scripts/reserved-names.mjs`), not written by hand;
+ * - a Windows reserved device name (`CON`, `NUL`, `COM1` …), which cannot be a
+ *   directory there, with or without the `.client` suffix.
  */
+import { RESERVED_TYPE_NAMES } from "./reserved-names.generated.js";
 
 /** Accepted only in the initial state: the C# identifier start class. */
 const IDENTIFIER_START = /^[A-Za-z]$/;
@@ -47,7 +59,7 @@ export function stepName(state: NameState, character: string): NameState {
 }
 
 /** Runs the automaton over a whole name and reports whether it accepts. */
-export function isProjectNameValid(name: string): boolean {
+export function isProjectNameGrammatical(name: string): boolean {
 	if (name.length === 0 || name.length > MAX_PROJECT_NAME_LENGTH) return false;
 	let state: NameState = "start";
 	for (const character of name) {
@@ -55,6 +67,31 @@ export function isProjectNameValid(name: string): boolean {
 		if (state === "reject") return false;
 	}
 	return state === "body";
+}
+
+/** The namespace and project-directory form of a name: first letter upper. */
+export function pascalProjectName(name: string): string {
+	return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+const WINDOWS_DEVICE_NAME = /^(?:CON|PRN|AUX|NUL|COM[0-9]|LPT[0-9])$/i;
+
+/** Whether the generated server compiles under the name's root namespace. */
+export function shadowsGeneratedType(name: string): boolean {
+	return RESERVED_TYPE_NAMES.has(pascalProjectName(name));
+}
+
+export function isWindowsDeviceName(name: string): boolean {
+	return WINDOWS_DEVICE_NAME.test(name);
+}
+
+/** The complete acceptance check the scaffolder runs before writing a file. */
+export function isProjectNameValid(name: string): boolean {
+	return (
+		isProjectNameGrammatical(name) &&
+		!shadowsGeneratedType(name) &&
+		!isWindowsDeviceName(name)
+	);
 }
 
 /**
@@ -78,6 +115,13 @@ export function projectNameError(name: string): string {
 	});
 	if (offending !== undefined) {
 		return `Project name may contain only ASCII letters, digits and underscores; '${name}' contains '${offending}'. It becomes a C# namespace segment and a directory name.`;
+	}
+	if (isWindowsDeviceName(name)) {
+		return `Project name '${name}' is a reserved device name on Windows and cannot be a directory there.`;
+	}
+	if (shadowsGeneratedType(name)) {
+		const pascal = pascalProjectName(name);
+		return `Project name '${name}' would make '${pascal}' the root namespace, and the generated server uses '${pascal}' as a C# name, so it would not compile. Choose another name, for example '${pascal}App'.`;
 	}
 	return `Project name '${name}' is not accepted.`;
 }

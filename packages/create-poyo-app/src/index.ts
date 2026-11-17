@@ -5,7 +5,11 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { Command } from "commander";
 import { CliError } from "./error.js";
-import { isProjectNameValid, projectNameError } from "./project-name.js";
+import {
+	isProjectNameValid,
+	pascalProjectName,
+	projectNameError,
+} from "./project-name.js";
 import {
 	protectFrameworkIdentifiers,
 	rewriteClientPackageJson,
@@ -175,7 +179,7 @@ export function createProject(
 		throw new CliError(projectNameError(projectName));
 	}
 
-	const pascal = projectName.charAt(0).toUpperCase() + projectName.slice(1);
+	const pascal = pascalProjectName(projectName);
 	const lower = projectName.toLowerCase();
 	const targetDir = path.resolve(process.cwd(), projectName);
 	const poyoVersion = ownVersion();
