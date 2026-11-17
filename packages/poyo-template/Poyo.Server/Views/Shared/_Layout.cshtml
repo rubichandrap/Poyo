@@ -38,6 +38,13 @@
             @Html.Raw(ViewBag.JsonLd)
         </script>
     }
+
+    @* SSR-only head additions a view declares with @section Head: canonical,
+       hreflang, a preload. A navigation descriptor never runs the view, so
+       they exist only in a document load. Mark them data-poyo-seo so a
+       dynamic navigation away removes them rather than leaving them on the
+       next page (ADR 0020). *@
+    @await RenderSectionAsync("Head", required: false)
 </head>
 
 <body class="bg-gray-50 font-sans" data-base-path="@Url.Content("~/")">
