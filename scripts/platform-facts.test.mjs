@@ -72,7 +72,11 @@ test("location.reload loads the current entry's document again", async () => {
 
 		assert.equal(requests.length - before, 1, "one document request");
 		assert.equal(await isSameDocument(page), false, "a new document");
-		assert.equal(new URL(page.url()).hash, "#x", "the entry keeps its fragment");
+		assert.equal(
+			new URL(page.url()).hash,
+			"#x",
+			"the entry keeps its fragment",
+		);
 	});
 });
 
@@ -94,8 +98,19 @@ test("location.assign to a fragment of the current page is an in-page navigation
 
 		assert.equal(requests.length - before, 0, "no request");
 		assert.equal(await isSameDocument(page), true, "same document");
-		assert.equal(await page.evaluate(() => history.length), lengthBefore + 1, "a new entry");
-		assert.equal(await page.evaluate(() => window.__popstates), 1, "popstate fired");
-		assert.ok((await page.evaluate(() => window.scrollY)) > 0, "scrolled to the element");
+		assert.equal(
+			await page.evaluate(() => history.length),
+			lengthBefore + 1,
+			"a new entry",
+		);
+		assert.equal(
+			await page.evaluate(() => window.__popstates),
+			1,
+			"popstate fired",
+		);
+		assert.ok(
+			(await page.evaluate(() => window.scrollY)) > 0,
+			"scrolled to the element",
+		);
 	});
 });
