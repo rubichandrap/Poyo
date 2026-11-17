@@ -7,13 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-17
+
 ### Fixed
 
 - A scaffolded project no longer inherits the template's `repository`, `homepage`, `bugs` or `keywords`; the rename had turned the repository URL into `github.com/rubichandrap/<Project>`, which does not exist. **Existing projects:** delete those fields from the root `package.json`.
 
 ### Changed
 
-- The packages declare npm `keywords`, `homepage` and `bugs`, shown on npm from the next release.
+- The packages declare npm `keywords`, `homepage` and `bugs`, so npm search and the package pages show them.
 - Superseded ADR text moved to `docs/adr/archive/` with a pointer in each ADR (0005, 0007, 0009, 0011), and long changelog entries were shortened to what changed and what to do.
 
 ## [0.7.0] - 2026-11-17
