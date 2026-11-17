@@ -29,6 +29,22 @@ describe("create-poyo-app", () => {
 		expect(exists(cwd, "MyApp/MyApp.slnx")).toBe(true);
 	});
 
+	it("drops the template's publishing metadata from the project manifest", () => {
+		const cwd = makeTempDir();
+		runCli(["Shop", "--skip-install"], { cwd });
+
+		const manifest = JSON.parse(readFile(cwd, "Shop/package.json")) as Record<
+			string,
+			unknown
+		>;
+		// Left in, the rename turned the template's repository URL into
+		// github.com/rubichandrap/Shop, a repository that does not exist.
+		for (const field of ["repository", "homepage", "bugs", "keywords"]) {
+			expect(manifest[field], field).toBeUndefined();
+		}
+		expect(manifest.name).toBe("shop");
+	});
+
 	it("renames Poyo to the project name inside file contents", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });

@@ -7,12 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- A scaffolded project no longer inherits the template's `repository`, `homepage`, `bugs` or `keywords`; the rename had turned the repository URL into `github.com/rubichandrap/<Project>`, which does not exist. **Existing projects:** delete those fields from the root `package.json`.
+
 ## [0.7.0] - 2026-11-17
 
 ### Changed
 
 - Scaffolding keeps every framework identifier verbatim by shape rather than by a hand-kept list: a `Poyo` immediately followed by an uppercase letter (`PoyoPage`, `PoyoPageData`, a future `PoyoHost`) survives the rename, alongside `Poyo.Framework`, `AddPoyo` and `X-Poyo-Navigation`. Everything else is still the project's — `Poyo.Server`, `Poyo.Server.Tests` and the client folder are renamed.
-- A generated project's `Program.cs` builds its host through the framework's `PoyoHost.CreateBuilder(args)` and applies the path base through `app.UsePoyoPathBase()` (ADR 0021), so hosting-environment, content-root and path-base fixes arrive with a package update. The project's own choices — authentication, CORS, services, the Vite integration and its development checks, the OpenAPI document and snapshot export, HTTPS redirection, `AddPoyo` and `MapPoyoRoutes` — stay in `Program.cs`. The protected-identifier rule already keeps `PoyoHost` and `UsePoyoPathBase` verbatim, and the reserved-name list was regenerated from the shipped C#.
+- A generated project's `Program.cs` builds its host through the framework's `PoyoHost.CreateBuilder(args)` and applies the path base through `app.UsePoyoPathBase()` (ADR 0021), so hosting-environment, content-root and path-base fixes arrive with a package update.
 
 ## [0.6.0] - 2026-11-17
 
@@ -24,7 +28,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-- The scaffolder no longer accepts a project name the generated server cannot compile under. The name becomes the root namespace, and C# resolves a simple name to a namespace before an imported type, so `Task`, `Environment`, `Path` and `Exception` passed the 0.5.0 grammar and produced a project that failed `dotnet build` (`CS0118: 'Task' is a namespace but is used like a type`). Such a name is now refused before any file is written, with a message naming the clash. The list is derived from the C# a generated project compiles (`scripts/reserved-names.mjs`, a small C# lexer that keeps interpolation holes and drops string text) and a test fails while the committed list is stale; it over-collects rather than under-collects, so a few ordinary words that appear in the shipped C# (`Dashboard`, `Login`) are refused too.
+- The scaffolder no longer accepts a project name the generated server cannot compile under, such as `Task`, `Environment`, `Path` or `Exception`: the name becomes the root namespace and hides the type. The list is derived from the shipped C#, so a few ordinary words (`Dashboard`, `Login`) are refused too.
 - Windows reserved device names (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9`, any case) are refused as project names: they scaffolded on Linux and macOS but cannot be a directory on Windows.
 
 ## [0.5.0] - 2026-11-17
@@ -33,18 +37,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
-- The scaffolder accepts a project name only when it can serve as a C# namespace segment, an npm package name and one directory name at once: `^[A-Za-z][A-Za-z0-9_]{0,63}$`. A name such as `my-app`, `1App`, `app.name`, `app name` or `..` is refused before any file is written, and the message names the rule it broke. The grammar is one finite automaton in `src/project-name.ts`, checked against an independent three-consumer oracle on every string up to length 4.
+- The scaffolder accepts a project name only when it can serve as a C# namespace segment, an npm package name and one directory name at once: `^[A-Za-z][A-Za-z0-9_]{0,63}$`.
 
 ## [0.5.0-beta.3] - 2026-11-17
 
 ### Changed
 
-- Newly scaffolded projects spell every registry field exactly one way, and the server enforces it. The deserializer matched property names case-insensitively, which is how a lower camel case registry maps onto a PascalCase model but also meant `{"Path": "/Home"}` booted; the server now refuses a member it does not recognize, along with a route that declares no `files` or no `files.view`, and names the offending route in each message (ADR 0018).
-- Newly scaffolded projects publish one URL per route. The conventional `{controller}/{action}/{id?}` route is no longer mapped, so a page route is served only at the path `routes.json` declares and a URL outside the registry is answered by routing with a clean 404. Every URL that reaches a page therefore carries the same access, SEO, navigation-descriptor and `private, no-store` policy (ADR 0016). Existing projects upgrading from an earlier release must apply the `Program.cs` change and repoint any link to a conventional URL at the route's declared path; see the `poyo-template` changelog for the migration note.
-- Newly scaffolded projects ship the Routes registry as a required deployment artifact. The csproj copies the project-root `routes.json` beside the application on build and publish, so a `dotnet publish` output serves every registry route from any working directory; a registry that is missing, empty, unreadable, or unparseable fails startup naming which of the four it was, rather than booting an application whose access model, SEO policy and `private, no-store` guarantee were all switched off by the same missing file. `Properties/launchSettings.json` names the project-root registry and the optional `.env`, so `pnpm run dev` works on a fresh clone with no environment file present (ADR 0014).
-- Newly scaffolded projects hold a route's identity to a canonical form on disk: a `path` must begin with `/` and carry no trailing slash except the root, a `name` must be present and carry no leading or trailing slash, both must be unique ignoring case, and a `controller` and `action` are declared together or not at all. Every violation is a startup failure naming the route and the value, and the `poyo` route manager refuses the same registries when it reads or writes them (ADR 0015).
-- Newly scaffolded projects give the hosting environment to the process. The server reads it from `DOTNET_ENVIRONMENT` or `ASPNETCORE_ENVIRONMENT` before anything else loads, so the `.env` file can never decide the environment it is conditional on; it is read only when the process says development or says nothing, and it fills gaps without ever overriding a value the process has set. `ASPNETCORE_ENVIRONMENT` is deliberately absent from the bootstrapped `.env.example` for that reason, and nothing environment-bearing is copied into publish output. An unset hosting environment is production (ADR 0017).
-- Newly scaffolded projects resolve their app URLs through the runtime's base path instead of a build-time `appUrl()` helper, so a project hosted under a base path links, redirects and logs out inside it. Their `_Layout.cshtml` also declares its title format once (`data-poyo-title-template`) and marks the registry-owned description, meta tags and JSON-LD with `data-poyo-seo`, so a dynamic navigation leaves the head identical to a document load.
+- Newly scaffolded projects spell every registry field exactly one way, and the server enforces it (ADR 0018).
+- Newly scaffolded projects publish one URL per route. Existing projects upgrading from an earlier release must apply the `Program.cs` change and repoint any link to a conventional URL at the route's declared path; see the `poyo-template` changelog for the migration note (ADR 0016).
+- Newly scaffolded projects ship the Routes registry as a required deployment artifact (ADR 0014).
+- Newly scaffolded projects hold a route's identity to a canonical form on disk: a `path` must begin with `/` and carry no trailing slash except the root, a `name` must be present and carry no leading or trailing slash, both must be unique ignoring case, and a `controller` and `action` are declared together or not at all (ADR 0015).
+- Newly scaffolded projects give the hosting environment to the process (ADR 0017).
+- Newly scaffolded projects resolve their app URLs through the runtime's base path instead of a build-time `appUrl()` helper, so a project hosted under a base path links, redirects and logs out inside it.
 
 
 ## [0.5.0-beta.2] - 2026-09-24
@@ -57,7 +61,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Removed
 
-- The scaffolded template no longer teaches or ships view-authored `ViewBag.ServerData` and raw layout script embedding. Existing projects must move Page data into a custom controller action that returns `this.PoyoPage(data)`, map the route in `routes.json`, add `@using Poyo.Framework` to `Views/_ViewImports.cshtml`, and replace the raw layout script with `@Html.PoyoPageData()`. Wrap arrays or primitives in a top-level property such as `{ items = values }`.
+- The scaffolded template no longer teaches or ships view-authored `ViewBag.ServerData` and raw layout script embedding. Existing projects must move Page data into a custom controller action that returns `this.PoyoPage(data)`, map the route in `routes.json`, add `@using Poyo.Framework` to `Views/_ViewImports.cshtml`, and replace the raw layout script with `@Html.PoyoPageData()`.
 
 ## [0.5.0-beta.1] - 2026-09-24
 

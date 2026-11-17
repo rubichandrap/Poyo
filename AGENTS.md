@@ -79,7 +79,7 @@ A decision that rests on platform behavior (the browser, ASP.NET, npm) names the
 
 ## Releasing (three packages, one version)
 
-1. Bump `packages/{poyo-template,poyo,create-poyo-app}/package.json` to the same version; add the entry to the root and each package `CHANGELOG.md`; check with `pnpm run release:check`.
+1. Bump `packages/{poyo-template,poyo,create-poyo-app}/package.json` to the same version; add the entry to the root and each package `CHANGELOG.md`; check with `pnpm run release:check`. A changelog entry says what changed and what a user must do (**Upgrading:**), in one or two sentences, under about 400 characters; the why lives in the ADR or the PR, so name the ADR. Step-by-step upgrade instructions are the exception and may run longer. Superseded ADR text moves to `docs/adr/archive/`, leaving a one-line pointer in the ADR.
 2. Every package keeps a `README.md`. The template's README ships with every generated project, so keep it rename-safe (`Poyo`, `Poyo.Server`, `poyo.client` are rewritten).
 3. Workspace gates, green before tagging:
    ```bash
