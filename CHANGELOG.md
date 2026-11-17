@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-17
+
 ### Added
 
 - Views can add SSR-only head elements (canonical, hreflang, preload) with `@section Head`; `_Layout.cshtml` renders it at the end of `<head>`. Mark them `data-poyo-seo` so a dynamic navigation away removes them; a navigation descriptor never runs the view (ADR 0020). Existing projects: add `@await RenderSectionAsync("Head", required: false)` before `</head>` in their layout.
