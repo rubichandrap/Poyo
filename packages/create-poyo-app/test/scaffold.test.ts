@@ -386,11 +386,17 @@ describe("create-poyo-app", () => {
 			path.join(clientDir, "node_modules"),
 			"junction",
 		);
-		const tscBin = path.join(templateClientModules, ".bin", "tsc");
-		const result = spawnSync(tscBin, ["-p", "tsconfig.app.json", "--noEmit"], {
-			cwd: clientDir,
-			encoding: "utf-8",
-		});
+		// `.bin/tsc` is a POSIX shell shim, and a `tsc.cmd` on Windows, so it
+		// is not spawnable by path on both. The compiler's entry point is:
+		const tscBin = path.join(templateClientModules, "typescript", "bin", "tsc");
+		const result = spawnSync(
+			process.execPath,
+			[tscBin, "-p", "tsconfig.app.json", "--noEmit"],
+			{
+				cwd: clientDir,
+				encoding: "utf-8",
+			},
+		);
 		expect(result.status).toBe(0);
 	});
 
