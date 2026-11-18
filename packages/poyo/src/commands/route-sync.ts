@@ -49,7 +49,7 @@ function detect(paths: ProjectPaths): SyncReport {
 			const name = file.split("/").pop() ?? "";
 			return (
 				file.endsWith(".cshtml") &&
-				!file.includes("Shared") &&
+				!file.split("/").includes("Shared") &&
 				!name.startsWith("_")
 			);
 		},
@@ -137,7 +137,7 @@ export function syncCommand(): Command {
 		)
 		.option(
 			"--delete",
-			"Delete untracked files from disk (non-interactive, deletes all)",
+			"Delete untracked React pages from disk (non-interactive, deletes all)",
 		)
 		.action(async (options) => {
 			const paths = getPaths();
@@ -187,7 +187,7 @@ export function syncCommand(): Command {
 										value: "add_untracked",
 									},
 									{
-										name: "Delete: Delete untracked files from disk",
+										name: "Delete: Delete untracked React pages from disk",
 										value: "delete_untracked",
 									},
 								]
@@ -224,6 +224,9 @@ async function runAction(
 					noView: false,
 					controller: route.controller,
 					action: route.action,
+					// The route already owns this action; recreating its missing
+					// files must not fail on state that is already correct.
+					existingAction: "keep",
 				});
 			}
 			break;
@@ -294,18 +297,18 @@ async function runAction(
 		}
 
 		case "delete_untracked": {
-			const filesToDelete = [
-				...report.untrackedReact,
-				...report.untrackedViews,
-			];
-			let selected: string[] = filesToDelete;
+			// Only React pages. A view outside the registry may be the view of
+			// a plain `View()` route, which no registry entry names, so the
+			// command has no evidence the view is orphaned and leaves every
+			// view in place.
+			let selected: string[] = [...report.untrackedReact];
 
-			if (!nonInteractive && filesToDelete.length > 0) {
+			if (!nonInteractive && selected.length > 0) {
 				const { checkbox } = await import("@inquirer/prompts");
 				selected = await checkbox({
-					message: "Select files to PERMANENTLY DELETE:",
-					choices: filesToDelete.map((f) => ({
-						name: paths.toProjectPath(paths.resolveSide(f), f),
+					message: "Select React pages to PERMANENTLY DELETE:",
+					choices: selected.map((f) => ({
+						name: paths.toProjectPath("client", f),
 						value: f,
 						checked: true,
 					})),
@@ -313,11 +316,19 @@ async function runAction(
 			}
 
 			for (const file of selected) {
-				const side = paths.resolveSide(file);
-				const full = projectFilePath(paths, side, file);
+				const full = projectFilePath(paths, "client", file);
 				if (fs.existsSync(full)) {
 					fs.unlinkSync(full);
-					deleteEmptyParents(full, paths.dirOf(side));
+					deleteEmptyParents(full, paths.dirOf("client"));
+				}
+			}
+
+			if (report.untrackedViews.length > 0) {
+				process.stdout.write(
+					"[INFO] Untracked MVC views are left in place (a plain View() route may own one):\n",
+				);
+				for (const view of report.untrackedViews) {
+					process.stdout.write(`  - ${paths.toProjectPath("server", view)}\n`);
 				}
 			}
 			break;

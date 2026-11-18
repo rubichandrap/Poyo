@@ -59,7 +59,7 @@
 		"name": "StaticData",
 		"files": {
 			"react": "src/pages/StaticData/index.page.tsx",
-			"view": "Views/StaticData/Index.cshtml"
+			"view": "Views/Home/Index.cshtml"
 		},
 		"access": "public",
 		"controller": "TestCustom",

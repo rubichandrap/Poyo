@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { getPaths } from "../src/config.js";
-import { scaffoldRouteFiles } from "../src/scaffold.js";
+import { findFiles, scaffoldRouteFiles } from "../src/scaffold.js";
 import {
 	execInFixture,
 	existsFixtureFile,
@@ -24,6 +24,45 @@ const starter: Route[] = [
 		access: "protected",
 	},
 ];
+
+const controllerBacked: Route = {
+	path: "/Dashboard",
+	name: "Dashboard",
+	files: {
+		react: "src/pages/Dashboard/index.page.tsx",
+		view: "Views/Dashboard/Index.cshtml",
+	},
+	access: "protected",
+	controller: "Dashboard",
+	action: "Index",
+};
+
+const CONTROLLER_SOURCE = `using Microsoft.AspNetCore.Mvc;
+using Poyo.Framework;
+
+namespace Poyo.Server.Controllers;
+
+public sealed class DashboardController : Controller
+{
+    public IActionResult Index()
+    {
+        return this.PoyoPage(null);
+    }
+}
+`;
+
+const ACTIONRESULT_CONTROLLER_SOURCE = `using Microsoft.AspNetCore.Mvc;
+
+namespace Poyo.Server.Controllers;
+
+public sealed class DashboardController : Controller
+{
+    public ActionResult Index()
+    {
+        return View();
+    }
+}
+`;
 
 function fixtureWithHomeFiles(): ReturnType<typeof makeFixture> {
 	const fixture = makeFixture(starter);
@@ -48,6 +87,75 @@ describe("poyo route sync", () => {
 		expect(result.stdout).toContain("[OK]");
 	});
 
+	it("does not treat an underscore view beside the route views as untracked", () => {
+		const fixture = fixtureWithHomeFiles();
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Views/_ViewImports.cshtml",
+			"@using Poyo.Framework\n",
+		);
+
+		const result = execInFixture(fixture, ["route", "sync"]);
+
+		expect(result.status, result.stderr).toBe(0);
+		expect(result.stdout).toContain("[OK]");
+	});
+
+	it("treats a view merely named Shared… as untracked", () => {
+		const fixture = fixtureWithHomeFiles();
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Views/SharedReports/Index.cshtml",
+			'<div id="react-root"></div>\n',
+		);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Views/Shared/_Layout.cshtml",
+			"<html></html>\n",
+		);
+
+		const result = execInFixture(fixture, ["route", "sync", "--add"]);
+
+		expect(result.status, result.stderr).toBe(0);
+		expect(result.stdout).toContain("Views/SharedReports/Index.cshtml");
+		expect(result.stdout).not.toContain("Views/Shared/_Layout.cshtml");
+	});
+
+	it("describes --delete as deleting React pages only", () => {
+		const result = execInFixture(makeFixture(), ["route", "sync", "--help"]);
+
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain("Delete untracked React pages from disk");
+	});
+
+	/**
+	 * The collected list is project-relative with "/" separators; the predicate
+	 * decides membership of that list, so it must see the same spelling. A
+	 * native Windows path reaches it in backslashes, and a caller excluding
+	 * partial views by their leading underscore then never matches one.
+	 */
+	it("hands findFiles' predicate the project-relative path it records", () => {
+		const fixture = makeFixture();
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Views/_ViewImports.cshtml",
+			"@using Poyo.Framework\n",
+		);
+		const seen: string[] = [];
+		const found = findFiles(
+			path.join(fixture.dir, "Poyo.Server", "Views"),
+			(file) => {
+				seen.push(file);
+				return file.endsWith(".cshtml");
+			},
+			[],
+			path.join(fixture.dir, "Poyo.Server"),
+		);
+
+		expect(found).toEqual(["Views/_ViewImports.cshtml"]);
+		expect(seen).toEqual(found);
+	});
+
 	it("rescaffolds missing files with --rescaffold", () => {
 		const fixture = makeFixture(starter);
 		const result = execInFixture(fixture, ["route", "sync", "--rescaffold"]);
@@ -59,6 +167,60 @@ describe("poyo route sync", () => {
 		expect(
 			existsFixtureFile(fixture, "Poyo.Server/Views/Home/Index.cshtml"),
 		).toBe(true);
+	});
+
+	it("rescaffolds a controller-backed route without failing on its existing action", () => {
+		const fixture = makeFixture([controllerBacked]);
+		writeFixtureFile(
+			fixture,
+			"poyo.client/src/pages/Dashboard/index.page.tsx",
+			"export default () => null;\n",
+		);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/DashboardController.cs",
+			CONTROLLER_SOURCE,
+		);
+
+		const result = execInFixture(fixture, ["route", "sync", "--rescaffold"]);
+
+		expect(result.status, result.stderr).toBe(0);
+		expect(
+			existsFixtureFile(fixture, "Poyo.Server/Views/Dashboard/Index.cshtml"),
+		).toBe(true);
+		expect(
+			readFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/DashboardController.cs",
+			),
+		).toBe(CONTROLLER_SOURCE);
+	});
+
+	it("keeps an existing action whose return type is not IActionResult", () => {
+		const fixture = makeFixture([controllerBacked]);
+		writeFixtureFile(
+			fixture,
+			"poyo.client/src/pages/Dashboard/index.page.tsx",
+			"export default () => null;\n",
+		);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/DashboardController.cs",
+			ACTIONRESULT_CONTROLLER_SOURCE,
+		);
+
+		const result = execInFixture(fixture, ["route", "sync", "--rescaffold"]);
+
+		expect(result.status, result.stderr).toBe(0);
+		expect(
+			existsFixtureFile(fixture, "Poyo.Server/Views/Dashboard/Index.cshtml"),
+		).toBe(true);
+		expect(
+			readFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/DashboardController.cs",
+			),
+		).toBe(ACTIONRESULT_CONTROLLER_SOURCE);
 	});
 
 	it("prunes routes with missing files with --prune", () => {
@@ -147,7 +309,7 @@ describe("poyo route sync", () => {
 		expect(fixture.routesJson().map((r) => r.path)).toEqual(["/Home"]);
 	});
 
-	it("deletes untracked files with --delete", () => {
+	it("deletes untracked React pages with --delete but keeps plain Razor views", () => {
 		const fixture = fixtureWithHomeFiles();
 		writeFixtureFile(
 			fixture,
@@ -156,19 +318,23 @@ describe("poyo route sync", () => {
 		);
 		writeFixtureFile(
 			fixture,
-			"Poyo.Server/Views/Stale/Index.cshtml",
+			"Poyo.Server/Views/Plain/Index.cshtml",
 			'<div id="react-root"></div>\n',
 		);
 
 		const result = execInFixture(fixture, ["route", "sync", "--delete"]);
 
-		expect(result.status).toBe(0);
+		expect(result.status, result.stderr).toBe(0);
 		expect(
 			existsFixtureFile(fixture, "poyo.client/src/pages/Stale/index.page.tsx"),
 		).toBe(false);
+		// A view outside the registry can belong to a plain `View()` route,
+		// so `--delete` leaves every view in place and names what it kept.
 		expect(
-			existsFixtureFile(fixture, "Poyo.Server/Views/Stale/Index.cshtml"),
-		).toBe(false);
+			existsFixtureFile(fixture, "Poyo.Server/Views/Plain/Index.cshtml"),
+		).toBe(true);
+		expect(result.stdout).toContain("left in place");
+		expect(result.stdout).toContain("Views/Plain/Index.cshtml");
 		expect(fixture.routesJson().map((r) => r.path)).toEqual(["/Home"]);
 	});
 
