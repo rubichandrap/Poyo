@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `poyo build` fails naming the files when the Vite manifest lists assets the client build did not produce, instead of copying whatever is there and shipping a page whose script or stylesheet 404s.
 - `poyo build` emits the stylesheet of every chunk the entry imports statically, not only the entry's first CSS file.
 - The CLI strips only the first `--` in its arguments, the one pnpm forwards before the user's, so a `--` the caller passed later reaches the command.
+- A Poyo page response keeps any `Vary` value already on it (CORS or response compression, for one) and adds `X-Poyo-Navigation` to that value instead of replacing the header. A registry route whose view file is missing answers a descriptor request the way the document does: a logged 500 through the exception handler, not an empty 404. **Upgrading:** none.
 
 ### Changed
 

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -161,8 +160,10 @@ public sealed class PageResult : ViewResult
             PageResponsePolicy.ApplyPrivateNoStore(response);
 
             // The same URL answers two representations (document and
-            // descriptor); caches must key on the distinguishing header.
-            response.Headers.Vary = NavigationHeaderName;
+            // descriptor); caches must key on the distinguishing header. The
+            // application may already vary on something else (CORS,
+            // compression), so add the token to that value.
+            PageResponsePolicy.AddVary(response, NavigationHeaderName);
 
             if (IsDescriptorRequest(context.HttpContext.Request) && _route.Dynamic)
             {
@@ -177,11 +178,20 @@ public sealed class PageResult : ViewResult
     private async Task ExecuteDescriptorAsync(ActionContext context)
     {
         var response = context.HttpContext.Response;
-        var view = FindView(context);
-        if (view is null)
+
+        // The descriptor never runs the view, but the route's view must exist
+        // all the same: the document representation fails on that lookup, and
+        // one registry entry cannot answer 200 here and 500 there. Throwing
+        // sends both representations through the exception handler, which logs
+        // the fault and answers 500; an empty 404 would hide a deployment
+        // mistake as a client error, with no log.
+        var viewResult = FindView(context);
+        if (!viewResult.Success)
         {
-            response.StatusCode = StatusCodes.Status404NotFound;
-            return;
+            throw new InvalidOperationException(
+                $"The view '{ViewName}' was not found. The following locations were searched:"
+                + Environment.NewLine
+                + string.Join(Environment.NewLine, viewResult.SearchedLocations));
         }
 
         var descriptor = new PageDescriptor(
@@ -202,12 +212,12 @@ public sealed class PageResult : ViewResult
         await response.WriteAsync(JsonSerializer.Serialize(descriptor, DescriptorJsonOptions));
     }
 
-    private IView? FindView(ActionContext context)
+    private ViewEngineResult FindView(ActionContext context)
     {
         var viewName = ViewName;
         if (string.IsNullOrEmpty(viewName))
         {
-            return null;
+            return ViewEngineResult.NotFound(viewName ?? string.Empty, []);
         }
 
         var viewEngine = context.HttpContext.RequestServices
@@ -218,7 +228,7 @@ public sealed class PageResult : ViewResult
             found = viewEngine.GetView(executingFilePath: null, viewName, isMainPage: true);
         }
 
-        return found.View;
+        return found;
     }
 }
 
@@ -249,5 +259,31 @@ internal static class PageResponsePolicy
         response.Headers.CacheControl = CacheControlValue;
         response.Headers.Pragma = default;
         response.Headers.Expires = default;
+    }
+
+    /// <summary>
+    /// Adds a token to the response's <c>Vary</c> header without dropping the
+    /// values already there — CORS or response compression may have set one
+    /// before the page result runs.
+    /// </summary>
+    internal static void AddVary(HttpResponse response, string value)
+    {
+        foreach (var headerValue in response.Headers.Vary)
+        {
+            if (headerValue is null)
+            {
+                continue;
+            }
+
+            foreach (var token in headerValue.Split(','))
+            {
+                if (string.Equals(token.Trim(), value, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+            }
+        }
+
+        response.Headers.Append("Vary", value);
     }
 }

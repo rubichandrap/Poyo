@@ -97,6 +97,17 @@
 		"action": "Page"
 	},
 	{
+		"path": "/Vary",
+		"name": "Vary",
+		"files": {
+			"react": "src/pages/Vary/index.page.tsx",
+			"view": "Views/Home/Index.cshtml"
+		},
+		"access": "public",
+		"controller": "TestCustom",
+		"action": "Vary"
+	},
+	{
 		"path": "/Gone",
 		"name": "Gone",
 		"files": {
