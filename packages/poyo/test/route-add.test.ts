@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import {
 	execInFixture,
@@ -23,6 +24,21 @@ const starter: Route[] = [
 		access: "protected",
 	},
 ];
+
+/** Syntax errors TypeScript reports for a scaffolded page, so a test can prove it compiles. */
+function syntacticErrors(source: string): string[] {
+	const { diagnostics } = ts.transpileModule(source, {
+		compilerOptions: {
+			jsx: ts.JsxEmit.ReactJSX,
+			target: ts.ScriptTarget.ES2022,
+		},
+		fileName: "index.page.tsx",
+		reportDiagnostics: true,
+	});
+	return (diagnostics ?? []).map((diagnostic) =>
+		ts.flattenDiagnosticMessageText(diagnostic.messageText, " "),
+	);
+}
 
 describe("poyo route add", () => {
 	it("registers the route, writes routes.json sorted by path, and scaffolds page + view", () => {
@@ -97,6 +113,23 @@ describe("poyo route add", () => {
 			"Poyo.Server/Views/About/Index.cshtml",
 		);
 		expect(view).toContain('data-page-name="About"');
+	});
+
+	it("scaffolds a page component that parses for hyphenated, digit-leading and nested names", () => {
+		const fixture = makeFixture(starter);
+		const cases = [
+			["/user-profile", "poyo.client/src/pages/User-profile/index.page.tsx"],
+			["/123", "poyo.client/src/pages/123/index.page.tsx"],
+			["/a-b/c", "poyo.client/src/pages/A-b/C/index.page.tsx"],
+		] as const;
+
+		for (const [urlPath, pagePath] of cases) {
+			const result = execInFixture(fixture, ["route", "add", urlPath]);
+			expect(result.status, result.stderr).toBe(0);
+
+			const page = readFixtureFile(fixture, pagePath);
+			expect(syntacticErrors(page), urlPath).toEqual([]);
+		}
 	});
 
 	it("honors --public and --guest", () => {

@@ -1,3 +1,5 @@
+import { toComponentName } from "./naming.js";
+
 export function defaultSeo(name: string): {
 	title: string;
 	description: string;
@@ -6,7 +8,7 @@ export function defaultSeo(name: string): {
 }
 
 export function pageTemplate(name: string): string {
-	const component = name.split("/").pop();
+	const component = toComponentName(name);
 	return `import type React from 'react';
 
 const ${component}: React.FC = () => {
