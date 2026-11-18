@@ -64,6 +64,7 @@ Vocabulary is in `CONTEXT.md`; the reasons behind every rule below are in `docs/
 - Each field has one spelling (ADR 0018). The rules exist in C# and TypeScript, held together by `fixtures/registry/`: **a validation rule lands with its corpus case.**
 - `"dynamic": false` makes a route document-only. It has no CLI flag; edit the registry by hand.
 - Manage routes from `packages/poyo-template/`: `pnpm run route:add <Name>` (`--guest`, `--controller X`), `route:remove`, `route:sync`.
+- A route command validates the registry it is about to write before creating or changing any file, and `writeRoutes` replaces `routes.json` through a temp file and a rename. `create-poyo-app` assembles the project in a staging directory and renames it into place, so a failed run leaves no target directory.
 
 ## Decisions and evidence
 

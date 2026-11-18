@@ -202,15 +202,35 @@ export function createProject(
 	const templateDir = resolveTemplateDir();
 	const rules = renameRules(pascal, lower);
 
-	copyRecursive(templateDir, targetDir);
-	ensureEnvFile(targetDir);
-	renameTree(targetDir, rules);
-	// npm/pnpm pack strips .gitignore from published tarballs;
-	// ship it under .template extension and restore it in the generated project.
-	restoreTemplates(targetDir);
-	rewritePackageJson(targetDir, pascal, lower, poyoVersion);
-	rewriteClientPackageJson(targetDir, lower, poyoVersion);
+	// The project is assembled beside its future name and moved into place as
+	// the last step of the copy. A copy that fails halfway therefore leaves no
+	// directory under the project's name, so a re-run is not refused as
+	// "already exists" — and a process killed mid-copy leaves only a staging
+	// directory the operator can delete.
+	const stagingDir = fs.mkdtempSync(`${targetDir}.staging-`);
 
+	try {
+		copyRecursive(templateDir, stagingDir);
+		ensureEnvFile(stagingDir);
+		renameTree(stagingDir, rules);
+		// npm/pnpm pack strips .gitignore from published tarballs;
+		// ship it under .template extension and restore it in the generated project.
+		restoreTemplates(stagingDir);
+		rewritePackageJson(stagingDir, pascal, lower, poyoVersion);
+		rewriteClientPackageJson(stagingDir, lower, poyoVersion);
+
+		// The move happens before the install: pnpm records absolute junction
+		// targets in node_modules on Windows, which a later rename would strand
+		// in the staging path, and renaming a freshly installed tree competes
+		// with virus scanners for its handles.
+		fs.renameSync(stagingDir, targetDir);
+	} catch (error) {
+		fs.rmSync(stagingDir, { recursive: true, force: true });
+		throw error;
+	}
+
+	// An install that fails leaves the complete scaffolded project in place,
+	// as it did before staging: re-running `pnpm install` is the fix.
 	if (!options.skipInstall) {
 		installDependencies(targetDir);
 	}

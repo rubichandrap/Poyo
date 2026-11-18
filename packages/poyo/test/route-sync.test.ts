@@ -172,6 +172,48 @@ describe("poyo route sync", () => {
 		expect(fixture.routesJson().map((r) => r.path)).toEqual(["/Home"]);
 	});
 
+	it("writes no view for an addition that makes the registry invalid", () => {
+		// `/ABOUT` already owns the path `/About` case-insensitively, and the
+		// untracked page's own view does not exist yet: the command used to
+		// write that view and then fail on the duplicate.
+		const fixture = makeFixture([
+			{
+				path: "/ABOUT",
+				name: "ABOUT",
+				files: {
+					react: "src/pages/Home/index.page.tsx",
+					view: "Views/Home/Index.cshtml",
+				},
+				access: "protected",
+			},
+		]);
+		writeFixtureFile(
+			fixture,
+			"poyo.client/src/pages/Home/index.page.tsx",
+			"export default () => null;\n",
+		);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Views/Home/Index.cshtml",
+			'<div id="react-root"></div>\n',
+		);
+		writeFixtureFile(
+			fixture,
+			"poyo.client/src/pages/about/index.page.tsx",
+			"export default () => null;\n",
+		);
+		const registryBefore = readFixtureFile(fixture, "routes.json");
+
+		const result = execInFixture(fixture, ["route", "sync", "--add"]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("Duplicate route path");
+		expect(
+			existsFixtureFile(fixture, "Poyo.Server/Views/About/Index.cshtml"),
+		).toBe(false);
+		expect(readFixtureFile(fixture, "routes.json")).toBe(registryBefore);
+	});
+
 	it("refuses to rescaffold a registry whose page leaves the project", () => {
 		const fixture = makeFixture([
 			{

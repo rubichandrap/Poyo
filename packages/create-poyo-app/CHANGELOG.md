@@ -10,6 +10,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 
 - `create-poyo-app` launches `pnpm install` through a shell only on Windows, so a Windows scaffold no longer fails after copying the template, and no platform sees Node's shell-argument deprecation warning (DEP0190).
+- `create-poyo-app` assembles a project in a staging directory and moves it into place, so a run that fails mid-copy leaves no target directory and a re-run is not refused as "already exists". **Upgrading:** none.
 
 ## [0.7.1] - 2026-11-17
 

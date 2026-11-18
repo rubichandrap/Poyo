@@ -1060,6 +1060,41 @@ describe("poyo route add refuses route-template and URL syntax", () => {
 	});
 });
 
+/**
+ * `route add` validates the registry it is about to write before it touches
+ * anything else. It used to append the action to the controller first, so a
+ * route the registry then refused left a controller file behind that no route
+ * named — a file the next run had to explain.
+ */
+describe("poyo route add validates the resulting registry before writing", () => {
+	it("leaves the project untouched when the new route duplicates an existing name", () => {
+		const fixture = registryWith({ path: "/Home", name: "Reports" });
+		const treeBefore = tree(fixture.dir);
+		const registryBefore = readFixtureFile(fixture, "routes.json");
+
+		const result = execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Reports",
+			"--action",
+			"Index",
+		]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("Duplicate route name");
+		expect(tree(fixture.dir)).toEqual(treeBefore);
+		expect(readFixtureFile(fixture, "routes.json")).toBe(registryBefore);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/ReportsController.cs",
+			),
+		).toBe(false);
+	});
+});
+
 /** Every path under the fixture, so a write of any kind shows up as a diff. */
 function tree(root: string): string[] {
 	return fs

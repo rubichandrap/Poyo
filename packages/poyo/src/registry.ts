@@ -315,10 +315,76 @@ export function readRoutes(paths: ProjectPaths): Route[] {
 export function writeRoutes(paths: ProjectPaths, routes: Route[]): void {
 	validateRoutes(routes);
 	const sorted = [...routes].sort((a, b) => a.path.localeCompare(b.path));
-	fs.writeFileSync(
-		paths.routesJsonPath,
-		`${JSON.stringify(sorted, null, 2)}\n`,
-	);
+	writeFileAtomic(paths.routesJsonPath, `${JSON.stringify(sorted, null, 2)}\n`);
+}
+
+/**
+ * Replaces a file through a temporary one in the same directory and a rename.
+ * The registry is read at boot (ADR 0014) and a deployment is often a live
+ * directory, so a process that stops during the write must not leave half a
+ * `routes.json` for the next start to fail on: until the rename, the previous
+ * file is untouched, and the rename is one filesystem operation.
+ */
+function writeFileAtomic(target: string, content: string): void {
+	const temp = `${target}.${process.pid}.${Date.now()}.tmp`;
+	const mode = targetMode(target);
+
+	try {
+		fs.writeFileSync(temp, content, mode === undefined ? undefined : { mode });
+		renameWithRetry(temp, target);
+	} catch (error) {
+		fs.rmSync(temp, { force: true });
+		throw error;
+	}
+}
+
+/**
+ * The mode of the file being replaced, so the temporary file is created with
+ * the permissions the replacement inherits. A registry that does not exist
+ * yet has none, and the write's own default stands.
+ */
+function targetMode(target: string): number | undefined {
+	try {
+		return fs.statSync(target).mode;
+	} catch {
+		return undefined;
+	}
+}
+
+/**
+ * Windows refuses a rename while a reader holds the file open — an editor, a
+ * virus scanner — with a share violation a plain rewrite never met. Those
+ * codes are retried briefly, the way `graceful-fs` does, because a route
+ * command must not fail on the platform where the atomic step takes a lock.
+ * On every other platform a failed rename is a real failure.
+ */
+const RENAME_RETRY_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
+const RENAME_RETRY_DELAYS_MS = [50, 100, 200, 400, 800];
+
+function renameWithRetry(temp: string, target: string): void {
+	for (let attempt = 0; ; attempt += 1) {
+		try {
+			fs.renameSync(temp, target);
+			return;
+		} catch (error) {
+			if (!retryableRename(error, attempt)) {
+				throw error;
+			}
+			sleepSync(RENAME_RETRY_DELAYS_MS[attempt]);
+		}
+	}
+}
+
+function retryableRename(error: unknown, attempt: number): boolean {
+	if (process.platform !== "win32") return false;
+	if (attempt >= RENAME_RETRY_DELAYS_MS.length) return false;
+	const code = (error as NodeJS.ErrnoException).code;
+	return code !== undefined && RENAME_RETRY_CODES.has(code);
+}
+
+/** A synchronous pause, so the retry loop holds no promise open. */
+function sleepSync(milliseconds: number): void {
+	Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds);
 }
 
 export function findRoute<T extends { path: string }>(
