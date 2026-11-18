@@ -81,6 +81,43 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     }
 
     [Fact]
+    public async Task Document_keeps_a_vary_value_the_application_set()
+    {
+        var response = await CreateClient().GetAsync("/Vary");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        AssertVaryCarriesNavigation(response);
+    }
+
+    [Fact]
+    public async Task Descriptor_keeps_a_vary_value_the_application_set()
+    {
+        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/Vary"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        AssertVaryCarriesNavigation(response);
+    }
+
+    [Fact]
+    public async Task Document_leaves_a_wildcard_vary_alone()
+    {
+        var response = await CreateClient().GetAsync("/VaryAny");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("*", response.Headers.Vary.ToString());
+    }
+
+    [Fact]
+    public async Task Descriptor_leaves_a_wildcard_vary_alone()
+    {
+        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/VaryAny"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("*", response.Headers.Vary.ToString());
+    }
+
+    [Fact]
     public async Task Document_and_descriptor_page_data_are_structurally_equal()
     {
         var (documentBody, pageData) = await GetPageDataRepresentationsAsync(CreateClient());
@@ -157,22 +194,28 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
         Assert.Equal(JsonValueKind.Null, pageData.ValueKind);
     }
 
-    [Fact]
-    public async Task Missing_view_descriptor_is_not_found_not_server_error()
+    [Theory]
+    [InlineData("/MissingView")]
+    [InlineData("/CustomMissingView")]
+    public async Task Missing_view_gives_both_representations_the_same_server_error(string path)
     {
-        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/MissingView"));
+        var client = CreateClient();
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        PageResponseAssertions.AssertPrivateNoStore(response);
-    }
+        var document = await client.GetAsync(path);
+        var descriptor = await client.SendAsync(NavigationRequests.Descriptor(path));
 
-    [Fact]
-    public async Task Missing_view_descriptor_is_not_found_for_custom_controller_routes()
-    {
-        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/CustomMissingView"));
+        var documentError = await PageResponseAssertions.ReadServerErrorAsync(document);
+        var descriptorError = await PageResponseAssertions.ReadServerErrorAsync(descriptor);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        PageResponseAssertions.AssertPrivateNoStore(response);
+        Assert.Equal(
+            documentError.GetProperty("code").GetInt32(),
+            descriptorError.GetProperty("code").GetInt32());
+        Assert.Equal(
+            documentError.GetProperty("data").GetString(),
+            descriptorError.GetProperty("data").GetString());
+
+        PageResponseAssertions.AssertPrivateNoStore(document);
+        PageResponseAssertions.AssertPrivateNoStore(descriptor);
     }
 
     [Fact]
@@ -253,6 +296,14 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
 
         PageResponseAssertions.AssertPrivateNoStore(document);
         PageResponseAssertions.AssertPrivateNoStore(descriptor);
+    }
+
+    private static void AssertVaryCarriesNavigation(HttpResponseMessage response)
+    {
+        // The application's value came first; Poyo adds its token instead of
+        // replacing the header, so both survive.
+        Assert.Contains("Accept-Encoding", response.Headers.Vary);
+        Assert.Contains(PageResult.NavigationHeaderName, response.Headers.Vary);
     }
 
     private static async Task<(string DocumentBody, JsonElement PageData)> GetPageDataRepresentationsAsync(

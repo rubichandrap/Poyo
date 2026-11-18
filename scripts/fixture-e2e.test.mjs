@@ -1157,12 +1157,26 @@ test(
 			assert.match(registerHtml, /<!DOCTYPE html>/);
 			assert.match(registerHtml, /data-page-name="Register"/);
 
+			// A registry route whose view file is missing fails the same view
+			// lookup in both representations: the exception handler logs the
+			// fault and answers the same JSON 500, never an empty 404 for one
+			// and a 500 for the other.
+			const missingDocumentRes = await fetch(
+				`http://127.0.0.1:${serverPort}/MissingView`,
+			);
 			const missingDescriptorRes = await fetch(
 				`http://127.0.0.1:${serverPort}/MissingView`,
 				sameOriginDescriptorInit(navHeaders),
 			);
-			assert.equal(missingDescriptorRes.status, 404);
-			assertPageResponse(missingDescriptorRes);
+			assert.equal(missingDocumentRes.status, 500);
+			assert.equal(missingDescriptorRes.status, missingDocumentRes.status);
+			assertPrivateNoStore(missingDocumentRes);
+			assertPrivateNoStore(missingDescriptorRes);
+			assert.deepEqual(
+				await missingDescriptorRes.json(),
+				await missingDocumentRes.json(),
+				"the missing-view error must not depend on the representation",
+			);
 
 			// The protected route challenges an anonymous descriptor request;
 			// no payload may leak through the challenge.
