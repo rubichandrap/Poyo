@@ -1,4 +1,7 @@
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { CLI_PATH, execInFixture, makeFixture } from "./helpers.js";
 
@@ -25,15 +28,22 @@ describe("poyo CLI entry", () => {
 	});
 
 	it("fails when run outside a Poyo project", () => {
-		const result = spawnSync(
-			process.execPath,
-			[CLI_PATH, "route", "add", "/Foo"],
-			{
-				cwd: "/tmp",
-				encoding: "utf-8",
-			},
-		);
-		expect(result.status).toBe(1);
-		expect(result.stderr).toContain("No routes.json found");
+		// A directory of its own, not "/tmp": the temp root is not portable,
+		// and an ancestor holding a routes.json would make this a project.
+		const outside = fs.mkdtempSync(path.join(os.tmpdir(), "poyo-outside-"));
+		try {
+			const result = spawnSync(
+				process.execPath,
+				[CLI_PATH, "route", "add", "/Foo"],
+				{
+					cwd: outside,
+					encoding: "utf-8",
+				},
+			);
+			expect(result.status).toBe(1);
+			expect(result.stderr).toContain("No routes.json found");
+		} finally {
+			fs.rmSync(outside, { recursive: true, force: true });
+		}
 	});
 });

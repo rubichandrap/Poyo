@@ -70,7 +70,7 @@ A decision that rests on platform behavior (the browser, ASP.NET, npm) names the
 
 ## Build, generate, deploy
 
-- CI (`.github/workflows/ci.yml`) runs every gate below on each pull request and push to `main`: lint and format, client checks, `release:check`, the framework and scaffolder suites, the model check at depth 7, the server tests (which must leave the tracked tree unchanged), and the platform-facts, clean-checkout and packed-tarball checks in Chromium. A red job blocks the merge.
+- CI (`.github/workflows/ci.yml`) runs every gate below on each pull request and push to `main`: lint and format, client checks, `release:check`, the framework and scaffolder suites (on Linux with the newest Node, and again on Windows and on the lowest Node `engines` allows), the model check at depth 7, the server tests (which must leave the tracked tree unchanged), and the platform-facts, clean-checkout and packed-tarball checks in Chromium. A red job blocks the merge.
 
 - `pnpm install` builds both workspace CLIs from `postinstall` (`build:packages`), because `packages/poyo`'s binary lives in a gitignored `dist` — without it a clean clone can install and then run none of the documented template commands. `pnpm run test:clean-checkout` walks that lifecycle against a real clone.
 - `pnpm --filter poyo-template run client:generate` — DTOs and Zod schemas from the committed `openapi/openapi.json` (re-exported by the server on Development/Staging boots), plus the route manifest.

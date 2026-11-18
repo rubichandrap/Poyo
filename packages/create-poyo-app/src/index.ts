@@ -151,10 +151,21 @@ function restoreTemplates(dir: string): void {
 }
 
 function installDependencies(targetDir: string): void {
-	const result = spawnSync("pnpm", ["install"], {
-		cwd: targetDir,
-		stdio: "inherit",
-	});
+	// Windows resolves `pnpm` to `pnpm.cmd`, which CreateProcess cannot launch,
+	// so it needs a shell; elsewhere the executable is launched directly. The
+	// shell gets one constant command line rather than an argument vector,
+	// which Node 24 deprecates (DEP0190).
+	const result =
+		process.platform === "win32"
+			? spawnSync("pnpm install", {
+					cwd: targetDir,
+					stdio: "inherit",
+					shell: true,
+				})
+			: spawnSync("pnpm", ["install"], {
+					cwd: targetDir,
+					stdio: "inherit",
+				});
 	if (result.status !== 0) {
 		throw new CliError(`pnpm install failed in ${targetDir}`);
 	}

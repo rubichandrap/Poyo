@@ -53,6 +53,10 @@ jobs:
         run: pnpm run release:check
       - name: Release script tests
         run: node --test scripts/assert-release-version.test.mjs scripts/peer-ranges.test.mjs scripts/assert-peer-compat.test.mjs
+      # The Windows and lowest-Node jobs below are gates; this keeps a gate
+      # from being dropped from the workflow while every suite stays green.
+      - name: CI workflow guard tests
+        run: node --test scripts/ci-workflow.test.mjs
 
   packages:
     name: Framework and scaffolder suites
@@ -63,6 +67,36 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: "@rubichandrap/poyo (incl. navigation model check, depth 5)"
+        run: pnpm --filter @rubichandrap/poyo run test
+      - name: "@rubichandrap/create-poyo-app (incl. reserved-name drift)"
+        run: pnpm --filter @rubichandrap/create-poyo-app run test
+
+  # The suites above run where they were written: Linux, on the newest Node.
+  # Neither catches a separator that is not "/" or an API the oldest supported
+  # Node lacks, so the same two suites run once more where those differ.
+  packages-platforms:
+    name: Framework and scaffolder suites (${{ matrix.os }}, Node ${{ matrix.node }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # A path-handling bug only shows where the separator is not "/".
+          - os: windows-latest
+            node: "24"
+          # The lowest version `engines` allows: anything newer hides a
+          # compatibility regression.
+          - os: ubuntu-latest
+            node: "20.19.0"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: "@rubichandrap/poyo (incl. navigation model check, depth 5)"
