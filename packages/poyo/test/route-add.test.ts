@@ -225,6 +225,32 @@ describe("poyo route add", () => {
 		expect(controller).toContain('View("~/Views/Reports/Index.cshtml")');
 	});
 
+	it("creates the Controllers directory when the project has none", () => {
+		const fixture = makeFixture(starter);
+		fs.rmSync(path.join(fixture.dir, "Poyo.Server", "Controllers"), {
+			recursive: true,
+			force: true,
+		});
+
+		const result = execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"ReportsController",
+			"--action",
+			"Index",
+		]);
+
+		expect(result.status).toBe(0);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/ReportsController.cs",
+			),
+		).toBe(true);
+	});
+
 	it("injects an action into an existing controller without duplicating the class", () => {
 		const fixture = makeFixture(starter);
 		writeFixtureFile(

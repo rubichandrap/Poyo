@@ -74,4 +74,20 @@ describe("contained project file paths", () => {
 			}
 		},
 	);
+
+	it.skipIf(!symlinksAvailable)("refuses a dangling symbolic link", () => {
+		const fixture = makeFixture();
+		const paths = getPaths(fixture.dir);
+		const link = path.join(paths.serverDir, "Views", "Dangling.cshtml");
+
+		try {
+			fs.symlinkSync(path.join(os.tmpdir(), "poyo-no-such-file"), link, "file");
+
+			expect(() =>
+				containedProjectPath(paths.serverDir, "Views/Dangling.cshtml"),
+			).toThrow(/targets nothing/);
+		} finally {
+			fs.rmSync(link, { force: true });
+		}
+	});
 });

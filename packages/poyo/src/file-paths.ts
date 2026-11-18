@@ -79,8 +79,14 @@ export function containedProjectPath(root: string, declared: string): string {
 		);
 	}
 
-	const realRoot = fs.realpathSync(resolvedRoot);
-	const realTarget = realPathOfNearestExisting(resolved, declared);
+	const realRoot = realPathOfNearestExisting(resolvedRoot) ?? resolvedRoot;
+	const realTarget = realPathOfNearestExisting(resolved);
+
+	if (realTarget === undefined) {
+		throw new CliError(
+			`Refusing route file path "${declared}": it cannot be resolved, because a symbolic link in it targets nothing.`,
+		);
+	}
 
 	if (leavesRoot(path.relative(realRoot, realTarget))) {
 		throw new CliError(
@@ -101,12 +107,13 @@ function leavesRoot(relative: string): boolean {
 
 /**
  * The real path of `target`, following symbolic links for every part of it
- * that exists. The missing tail is appended to the real path of its nearest
- * existing ancestor, so a file that has not been created yet is judged by the
- * directory it would land in. A link that exists but resolves nowhere is
- * refused: writing through it would create its target, which may be outside.
+ * that exists, or `undefined` when a link in it resolves nowhere. The missing
+ * tail is appended to the real path of its nearest existing ancestor, so a
+ * file that has not been created yet is judged by the directory it would land
+ * in — and a root that has not been created yet resolves the same way, which
+ * is what keeps `route add --controller` working before `Controllers/` exists.
  */
-function realPathOfNearestExisting(target: string, declared: string): string {
+function realPathOfNearestExisting(target: string): string | undefined {
 	let existing = target;
 	const missing: string[] = [];
 
@@ -128,9 +135,7 @@ function realPathOfNearestExisting(target: string, declared: string): string {
 	try {
 		real = fs.realpathSync(existing);
 	} catch {
-		throw new CliError(
-			`Refusing route file path "${declared}": it cannot be resolved, because a symbolic link in it targets nothing.`,
-		);
+		return undefined;
 	}
 
 	return missing.length === 0 ? real : path.join(real, ...missing);

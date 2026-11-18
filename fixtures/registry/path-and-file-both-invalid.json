@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A route that breaks both its identity and its file paths reports the identity error first, in both runtimes: the path is not rooted, which is the mistake that stops the route being referable at all. The case pins the order; without it, moving the file-path check ahead of the identity check would answer with the \"..\" segment and neither suite would notice.",
+	"message": ["must begin with \"/\"", "Home"],
+	"registry": [
+		{
+			"path": "Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/../../victim.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}
