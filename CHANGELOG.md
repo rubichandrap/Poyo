@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `create-poyo-app` launches `pnpm install` through a shell only on Windows, so a Windows scaffold no longer fails after copying the template, and no platform sees Node's shell-argument deprecation warning (DEP0190).
 - CI runs the framework and scaffolder suites on Windows and on the lowest Node version `engines` allows; the fixes those runs needed are tests that assumed a POSIX separator, `/tmp`, or a shell shim.
 - A Poyo page response keeps any `Vary` value already on it (CORS or response compression, for one) and adds `X-Poyo-Navigation` to that value instead of replacing the header. A registry route whose view file is missing answers a descriptor request the way the document does: a logged 500 through the exception handler, not an empty 404. **Upgrading:** none.
+- `poyo route add` scaffolds a page that type-checks for any route name: the component identifier is derived separately (`User-profile` becomes `UserProfile`, `123` becomes `Page123`, `React` becomes `ReactPage`) and the heading renders the name as an expression, so hyphens, digits, spaces and `<`/`{` no longer break it. **Upgrading:** delete the page file, then run `route:sync --rescaffold` to regenerate it.
 
 ### Changed
 

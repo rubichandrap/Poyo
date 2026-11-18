@@ -1,3 +1,5 @@
+import { toComponentName } from "./naming.js";
+
 export function defaultSeo(name: string): {
 	title: string;
 	description: string;
@@ -6,13 +8,13 @@ export function defaultSeo(name: string): {
 }
 
 export function pageTemplate(name: string): string {
-	const component = name.split("/").pop();
+	const component = toComponentName(name);
 	return `import type React from 'react';
 
 const ${component}: React.FC = () => {
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold">${name}</h1>
+      <h1 className="text-2xl font-bold">{${JSON.stringify(name)}}</h1>
     </div>
   );
 }

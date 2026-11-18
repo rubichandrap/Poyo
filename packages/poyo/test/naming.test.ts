@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { resolveRouteFiles, toRouteName, toRoutePath } from "../src/naming.js";
+import {
+	resolveRouteFiles,
+	toComponentName,
+	toRouteName,
+	toRoutePath,
+} from "../src/naming.js";
 import { findRoute } from "../src/registry.js";
 
 describe("naming helpers", () => {
@@ -13,6 +18,16 @@ describe("naming helpers", () => {
 	it("derives the route path from the name", () => {
 		expect(toRoutePath("Admin/Users")).toBe("/Admin/Users");
 		expect(toRoutePath("Home")).toBe("/Home");
+	});
+
+	it("derives a component identifier a page can declare", () => {
+		expect(toComponentName("Admin/Users")).toBe("Users");
+		expect(toComponentName("User-profile")).toBe("UserProfile");
+		expect(toComponentName("123")).toBe("Page123");
+		expect(toComponentName("A-b/C")).toBe("C");
+		expect(toComponentName("A b")).toBe("AB");
+		expect(toComponentName("React")).toBe("ReactPage");
+		expect(toComponentName("")).toBe("Page");
 	});
 
 	it("refuses dot segments, including the percent-encoded spellings a browser reads as dots", () => {

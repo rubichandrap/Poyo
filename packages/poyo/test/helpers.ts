@@ -3,11 +3,57 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import ts from "typescript";
 
 export const CLI_PATH = path.resolve(
 	path.dirname(fileURLToPath(import.meta.url)),
 	"../dist/index.js",
 );
+
+const PACKAGE_ROOT = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	"..",
+);
+
+/**
+ * Type errors a page reports against the React types the template client uses.
+ * The page is written under the package's `node_modules` so `react` resolves as
+ * it does for the client, and the diagnostic set is what `tsc` would fail on:
+ * a scaffold is accepted only when the page type-checks.
+ */
+export function typeErrors(pageSource: string): string[] {
+	const dir = fs.mkdtempSync(
+		path.join(PACKAGE_ROOT, "node_modules", ".poyo-type-check-"),
+	);
+	const file = path.join(dir, "index.page.tsx");
+	try {
+		fs.writeFileSync(file, pageSource);
+		const program = ts.createProgram([file], {
+			target: ts.ScriptTarget.ES2022,
+			module: ts.ModuleKind.ESNext,
+			moduleResolution: ts.ModuleResolutionKind.Bundler,
+			jsx: ts.JsxEmit.ReactJSX,
+			strict: true,
+			skipLibCheck: true,
+			noEmit: true,
+			verbatimModuleSyntax: true,
+		});
+		return [
+			...program.getSyntacticDiagnostics(),
+			...program.getSemanticDiagnostics(),
+			...program.getGlobalDiagnostics(),
+		]
+			.filter(
+				(diagnostic) =>
+					diagnostic.file === undefined || diagnostic.file.fileName === file,
+			)
+			.map((diagnostic) =>
+				ts.flattenDiagnosticMessageText(diagnostic.messageText, " "),
+			);
+	} finally {
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+}
 
 export interface RunResult {
 	status: number;

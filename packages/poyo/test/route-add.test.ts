@@ -2,11 +2,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { pageTemplate } from "../src/templates.js";
 import {
 	execInFixture,
 	existsFixtureFile,
 	makeFixture,
 	readFixtureFile,
+	typeErrors,
 	writeFixtureFile,
 	type Fixture,
 	type Route,
@@ -97,6 +99,33 @@ describe("poyo route add", () => {
 			"Poyo.Server/Views/About/Index.cshtml",
 		);
 		expect(view).toContain('data-page-name="About"');
+	});
+
+	it("scaffolds a page component that type-checks for any route name", () => {
+		const fixture = makeFixture(starter);
+		const cases = [
+			["/user-profile", "poyo.client/src/pages/User-profile/index.page.tsx"],
+			["/123", "poyo.client/src/pages/123/index.page.tsx"],
+			["/a-b/c", "poyo.client/src/pages/A-b/C/index.page.tsx"],
+			["/react", "poyo.client/src/pages/React/index.page.tsx"],
+		] as const;
+
+		for (const [urlPath, pagePath] of cases) {
+			const result = execInFixture(fixture, ["route", "add", urlPath]);
+			expect(result.status, result.stderr).toBe(0);
+
+			const page = readFixtureFile(fixture, pagePath);
+			expect(typeErrors(page), urlPath).toEqual([]);
+		}
+	});
+
+	it("renders a route name holding JSX-significant characters as text", () => {
+		// The name cannot reach the CLI on Windows — `<`, `>` and `:` are not
+		// file-name characters there — so the template is checked directly.
+		const page = pageTemplate("A<{b}");
+
+		expect(page).toContain('{"A<{b}"}');
+		expect(typeErrors(page), "A<{b}").toEqual([]);
 	});
 
 	it("honors --public and --guest", () => {
