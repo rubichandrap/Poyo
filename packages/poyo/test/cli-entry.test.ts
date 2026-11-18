@@ -31,15 +31,19 @@ describe("poyo CLI entry", () => {
 		// A directory of its own, not "/tmp": the temp root is not portable,
 		// and an ancestor holding a routes.json would make this a project.
 		const outside = fs.mkdtempSync(path.join(os.tmpdir(), "poyo-outside-"));
-		const result = spawnSync(
-			process.execPath,
-			[CLI_PATH, "route", "add", "/Foo"],
-			{
-				cwd: outside,
-				encoding: "utf-8",
-			},
-		);
-		expect(result.status).toBe(1);
-		expect(result.stderr).toContain("No routes.json found");
+		try {
+			const result = spawnSync(
+				process.execPath,
+				[CLI_PATH, "route", "add", "/Foo"],
+				{
+					cwd: outside,
+					encoding: "utf-8",
+				},
+			);
+			expect(result.status).toBe(1);
+			expect(result.stderr).toContain("No routes.json found");
+		} finally {
+			fs.rmSync(outside, { recursive: true, force: true });
+		}
 	});
 });
