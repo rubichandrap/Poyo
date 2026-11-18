@@ -25,7 +25,29 @@ const dashboardRoute: AppRoute = {
 	...stubPage(),
 };
 
-const routes: AppRoute[] = [homeRoute, dashboardRoute];
+// Paths a traversal reaches only to have its descriptor superseded or to name
+// an unknown page: the table must know them, or the router settles the entry
+// with a document load before any descriptor request.
+const slowRoute: AppRoute = {
+	path: "/slow",
+	pageName: "Slow",
+	access: "protected",
+	...stubPage(),
+};
+
+const unknownPathRoute: AppRoute = {
+	path: "/unknown",
+	pageName: "Unknown",
+	access: "protected",
+	...stubPage(),
+};
+
+const routes: AppRoute[] = [
+	homeRoute,
+	dashboardRoute,
+	slowRoute,
+	unknownPathRoute,
+];
 
 describe("Router Traversal — Slice 1: Cold entry traversal", () => {
 	beforeEach(() => {
@@ -190,6 +212,7 @@ describe("Router Traversal — Slice 2: Client-navigated traversal swaps page vi
 			credentials: "same-origin",
 			headers: { "X-Poyo-Navigation": "1" },
 			redirect: "manual",
+			signal: expect.any(AbortSignal),
 		});
 
 		const store = getNavigationStore();
@@ -511,6 +534,7 @@ describe("Router Traversal — Slice 4: Hash-only changes keep native anchor beh
 			credentials: "same-origin",
 			headers: { "X-Poyo-Navigation": "1" },
 			redirect: "manual",
+			signal: expect.any(AbortSignal),
 		});
 		expect(getNavigationStore().getRoute()).toEqual(homeRoute);
 	});

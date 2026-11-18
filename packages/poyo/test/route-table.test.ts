@@ -143,6 +143,14 @@ describe("createRouteTable", () => {
 		expect(table.routeMap["ServerData"]).toBe(table.routes[1].component);
 	});
 
+	it("carries the registry's dynamic opt-out, defaulting to dynamic", () => {
+		const staticEntry: RouteEntry = { ...dashboardEntry, dynamic: false };
+		const table = makeTable({ manifest: [staticEntry, serverDataEntry] });
+
+		expect(table.routes[0].dynamic).toBe(false);
+		expect(table.routes[1].dynamic).toBe(true);
+	});
+
 	describe("createPage — page module loading", () => {
 		it("suspends until the module is preloaded, then renders it synchronously", async () => {
 			const { promise, resolve } = deferred<{ default: ComponentType }>();

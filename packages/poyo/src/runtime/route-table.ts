@@ -74,6 +74,14 @@ export interface AppRoute {
 	 * load builds a fresh route table (ADR 0009).
 	 */
 	preload?(): Promise<void>;
+	/**
+	 * Whether the registry lets this route swap without a document load
+	 * (`dynamic: false` opts out). Optional: a route built by hand without
+	 * one is dynamic, as every route was before the registry carried the
+	 * flag. The router and `Link` hand a non-dynamic target to the browser
+	 * without a descriptor request (ADR 0009).
+	 */
+	dynamic?: boolean;
 }
 
 export interface RouteTableOptions {
@@ -227,6 +235,7 @@ export function createRouteTable(
 			pageName: entry.name,
 			access: entry.access ?? "protected",
 			preload: page.preload,
+			dynamic: entry.dynamic !== false,
 		};
 		routes.push(route);
 		routeMap[entry.name] = page.component;

@@ -43,7 +43,11 @@ const PAGE_NAMES: Record<string, string> = {
 	"/": "Home",
 	"/a": "A",
 	"/b": "B",
+	"/c": "C",
 };
+
+/** Routes the registry marks `dynamic: false`: a document load, never a swap. */
+const NON_DYNAMIC_PATHS = new Set(["/c"]);
 
 /** A page module the router is waiting for. */
 interface PendingPage {
@@ -70,7 +74,14 @@ interface Pending {
 	path: string;
 	epoch: number;
 	mode: "push" | "replace" | "traverse";
+	/** The controller signal the router handed the transport. */
+	signal: AbortSignal | null | undefined;
+	/** Whether a response was delivered before the request was cancelled. */
+	answered: boolean;
+	/** Whether the router cancelled it — a superseded request must be. */
+	aborted: boolean;
 	resolve: (response: Response) => void;
+	reject: (error: unknown) => void;
 }
 
 type Terminal = {
@@ -86,6 +97,10 @@ class SimBrowser {
 	scrollY = 0;
 	terminal: Terminal | null = null;
 	pending: Pending[] = [];
+	/** Every request the router started, answered or not, for the abort checks. */
+	requests: Pending[] = [];
+	/** Set by the destroy event; the router no longer owns the screen. */
+	destroyed = false;
 	epoch = 0;
 	/** The event currently being dispatched, for classifying document loads. */
 	during = "boot";
@@ -239,6 +254,7 @@ class SimBrowser {
 			access: "public",
 			component: () => null,
 			preload: () => this.preloadPage(path),
+			dynamic: !NON_DYNAMIC_PATHS.has(path),
 		};
 	}
 
@@ -286,8 +302,24 @@ class SimBrowser {
 		if (headers["X-Poyo-Navigation"] !== "1") {
 			this.violations.push(`descriptor request without header: ${input}`);
 		}
-		return new Promise<Response>((resolve) => {
-			this.pending.push({
+		// ABORT — a navigation supersedes whatever came before it; the older
+		// request must be cancelled, not merely ignored.
+		for (const earlier of this.requests) {
+			if (!earlier.answered && !earlier.aborted) {
+				this.violations.push(
+					`ABORT: ${this.during} started ${url.pathname} while ${earlier.path} was still in flight`,
+				);
+			}
+		}
+		// NON-DYNAMIC-FETCH — the route table carries the registry's opt-out,
+		// so the router must hand the target to the browser unrequested.
+		if (NON_DYNAMIC_PATHS.has(url.pathname)) {
+			this.violations.push(
+				`NON-DYNAMIC-FETCH: ${this.during} requested a descriptor for ${url.pathname}`,
+			);
+		}
+		return new Promise<Response>((resolve, reject) => {
+			const record: Pending = {
 				path: url.pathname,
 				epoch: this.epoch,
 				mode:
@@ -296,8 +328,25 @@ class SimBrowser {
 						: this.lastNavKind === "push"
 							? "push"
 							: "traverse",
-				resolve,
+				signal: init?.signal ?? null,
+				answered: false,
+				aborted: false,
+				resolve: (response) => {
+					record.answered = true;
+					resolve(response);
+				},
+				reject,
+			};
+			record.signal?.addEventListener("abort", () => {
+				record.aborted = true;
+				const index = this.pending.indexOf(record);
+				if (index >= 0) this.pending.splice(index, 1);
+				const error = new Error("The operation was aborted.");
+				error.name = "AbortError";
+				reject(error);
 			});
+			this.requests.push(record);
+			this.pending.push(record);
 		});
 	};
 
@@ -440,6 +489,7 @@ function respond(p: Pending, ok: boolean): void {
 type Event =
 	| "push /a"
 	| "push /b"
+	| "push /c"
 	| "replace /b"
 	| "frag"
 	| "push #x"
@@ -452,11 +502,13 @@ type Event =
 	| "pageOk"
 	| "pageFail"
 	| "scroll"
-	| "frame";
+	| "frame"
+	| "destroy";
 
 const ALPHABET: Event[] = [
 	"push /a",
 	"push /b",
+	"push /c",
 	"replace /b",
 	"frag",
 	"push #x",
@@ -470,10 +522,19 @@ const ALPHABET: Event[] = [
 	"pageFail",
 	"scroll",
 	"frame",
+	"destroy",
 ];
 
 function enabled(sim: SimBrowser, e: Event): boolean {
 	if (sim.terminal) return false;
+	// A destroyed router no longer owns the screen: only the results it was
+	// waiting for may arrive, and none of them may change anything.
+	if (sim.destroyed) {
+		return (
+			((e === "pageOk" || e === "pageFail") && sim.pendingPages.length > 0) ||
+			(e === "frame" && sim.frames.size > 0)
+		);
+	}
 	switch (e) {
 		case "back":
 			return sim.index > 0;
@@ -490,6 +551,13 @@ function enabled(sim: SimBrowser, e: Event): boolean {
 			return sim.pending.length === 0;
 		case "frame":
 			return sim.frames.size > 0;
+		case "destroy":
+			// Destroying an idle router proves nothing. The case worth
+			// exploring is a page module already loading: a dynamic import
+			// cannot be aborted, so only the token stops it committing. A
+			// descriptor request and a queued restore frame are cancelled at
+			// the seams the unit tests pin.
+			return sim.pendingPages.length > 0;
 		default:
 			return true;
 	}
@@ -544,9 +612,11 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 		.join(",");
 	const routeBefore = getNavigationStore().getRoute();
 	const stateBefore = getNavigationStore().getState();
+	const scrollBefore = sim.scrollY;
 	switch (e) {
 		case "push /a":
 		case "push /b":
+		case "push /c":
 			sim.traversedTo = null;
 			sim.restoreCheck = null;
 			sim.lastNavKind = "push";
@@ -662,7 +732,7 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 					expected: sim.traversedToRecorded ? target.leftAt : 0,
 				};
 			}
-			if (e === "pageFail") {
+			if (e === "pageFail" && !sim.destroyed) {
 				if (live.length > 0) {
 					// The live navigation must hand the entry to a document
 					// load through the operation it asked for.
@@ -705,6 +775,17 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 		case "scroll":
 			sim.scroll();
 			break;
+		case "destroy":
+			router.destroy?.();
+			sim.destroyed = true;
+			for (const request of sim.requests) {
+				if (!request.answered && !request.aborted) {
+					sim.violations.push(
+						`ABORT: destroy() left the request for ${request.path} in flight`,
+					);
+				}
+			}
+			break;
 		case "frame": {
 			const check = sim.restoreCheck;
 			sim.frame();
@@ -723,6 +804,19 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 	await flush();
 	if (sim.pending.length === 0 && sim.pendingPages.length === 0) {
 		sim.settled = true;
+	}
+	if (sim.destroyed) {
+		const entriesAfter = sim.entries
+			.map((x) => `${x.url.href}|${JSON.stringify(x.state)}`)
+			.join(",");
+		if (
+			sim.terminal ||
+			entriesAfter !== entriesBefore ||
+			getNavigationStore().getState() !== stateBefore ||
+			sim.scrollY !== scrollBefore
+		) {
+			sim.violations.push(`DESTROY: ${e} after destroy() changed the document`);
+		}
 	}
 	checkInvariants(sim, e);
 }
@@ -749,6 +843,15 @@ function checkInvariants(sim: SimBrowser, e: Event): void {
 			`FRAGMENT-LOAD: push to a fragment of the page on screen loaded ${sim.terminal.url}`,
 		);
 	}
+	// I6 — a `dynamic: false` route is a document load, never a request.
+	if (e === "push /c" && sim.terminal?.kind !== "assign") {
+		sim.violations.push(
+			"NON-DYNAMIC-LOAD: push to a non-dynamic route did not load the document",
+		);
+	}
+	// After destroy the router no longer owns the screen, so it makes no
+	// promise that the store describes the address bar.
+	if (sim.destroyed) return;
 	if (sim.terminal) return;
 
 	const quiescent = sim.pending.length === 0 && sim.pendingPages.length === 0;
@@ -827,8 +930,9 @@ describe("dynamic navigation — model check", () => {
 			(c) => `${c.message}\n    trace: ${c.trace.join(" → ")}`,
 		);
 		expect(report).toEqual([]);
-		// Depth 7 explores millions of states in a CPU-bound walk. A shared
-		// runner has taken over ten minutes for it, so a ten-minute cap failed
-		// runs that were slower, not wrong.
+		// Depth 7 explores millions of states in a CPU-bound walk; a shared
+		// runner has taken over ten minutes for it, and the alphabet grew with
+		// the abort, destroy and non-dynamic events. The cap is a resource
+		// bound, not an invariant.
 	}, 900_000);
 });

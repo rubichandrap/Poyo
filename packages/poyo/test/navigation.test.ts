@@ -22,6 +22,7 @@ import {
 	getActiveRouter,
 	isPageDescriptor,
 	setActiveRouter,
+	useRouter,
 } from "../src/runtime/router.js";
 import { type FakeDocument, createFakeDocument, seed } from "./fake-head.js";
 import {
@@ -35,12 +36,27 @@ import { createRouterHarness, stubPage } from "./router-test-helpers.js";
 // snapshot directly; the subscription itself is asserted on its own.
 vi.mock("react", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("react")>();
+	// One component instance's memo cell: React's documented dependency
+	// contract (same deps, same value) is what `useRouter` relies on.
+	let memo: { deps: readonly unknown[]; value: unknown } | undefined;
 	return {
 		...actual,
 		useSyncExternalStore: vi.fn(
 			(_subscribe: () => () => void, getSnapshot: () => unknown) =>
 				getSnapshot(),
 		),
+		useMemo: vi.fn((factory: () => unknown, deps: readonly unknown[]) => {
+			if (
+				memo &&
+				deps.length === memo.deps.length &&
+				deps.every((dep, index) => Object.is(dep, memo?.deps[index]))
+			) {
+				return memo.value;
+			}
+			const value = factory();
+			memo = { deps: [...deps], value };
+			return value;
+		}),
 	};
 });
 
@@ -63,6 +79,11 @@ function deferred<T>() {
 		reject = onReject;
 	});
 	return { promise, resolve, reject };
+}
+
+/** Resolves the microtasks a descriptor response and a preload run through. */
+async function flush(): Promise<void> {
+	for (let i = 0; i < 10; i++) await Promise.resolve();
 }
 
 describe("Navigation Store & usePage", () => {
@@ -291,7 +312,14 @@ describe("Router push, replace, and fallbacks", () => {
 			status: 404,
 			statusText: "Not Found",
 		});
+		const missingRoute: AppRoute = {
+			path: "/missing",
+			pageName: "Missing",
+			access: "public",
+			...stubPage(),
+		};
 		const harness = createRouterHarness({
+			routes: [missingRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 		});
 		const router = harness.router;
@@ -307,7 +335,14 @@ describe("Router push, replace, and fallbacks", () => {
 			ok: false,
 			status: 200,
 		});
+		const dashboardRoute: AppRoute = {
+			path: "/dashboard",
+			pageName: "Dashboard",
+			access: "public",
+			...stubPage(),
+		};
 		const harness = createRouterHarness({
+			routes: [dashboardRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 		});
 
@@ -435,6 +470,7 @@ describe("Router push, replace, and fallbacks", () => {
 			credentials: "same-origin",
 			headers: { "X-Poyo-Navigation": "1" },
 			redirect: "manual",
+			signal: expect.any(AbortSignal),
 		});
 		const crossOriginOptions = fetchMock.mock.calls.find(
 			([url]) => url === crossOriginUrl,
@@ -456,7 +492,14 @@ describe("Router push, replace, and fallbacks", () => {
 			json: async () => [1, 2, 3], // Array is not a descriptor
 		});
 
+		const badShapeRoute: AppRoute = {
+			path: "/bad-shape",
+			pageName: "BadShape",
+			access: "public",
+			...stubPage(),
+		};
 		const harness = createRouterHarness({
+			routes: [badShapeRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 		});
 		const router = harness.router;
@@ -478,7 +521,14 @@ describe("Router push, replace, and fallbacks", () => {
 			}),
 		});
 
+		const ghostRoute: AppRoute = {
+			path: "/ghost",
+			pageName: "Ghost",
+			access: "public",
+			...stubPage(),
+		};
 		const harness = createRouterHarness({
+			routes: [ghostRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 		});
 		const router = harness.router;
@@ -491,7 +541,14 @@ describe("Router push, replace, and fallbacks", () => {
 
 	it("degrades to document load on fetch exception", async () => {
 		const fetchMock = vi.fn().mockRejectedValue(new Error("Network Error"));
+		const offlineRoute: AppRoute = {
+			path: "/offline",
+			pageName: "Offline",
+			access: "public",
+			...stubPage(),
+		};
 		const harness = createRouterHarness({
+			routes: [offlineRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 		});
 		const router = harness.router;
@@ -700,6 +757,12 @@ describe("Router push, replace, and fallbacks", () => {
 			access: "protected",
 			...stubPage(),
 		};
+		const staleRoute: AppRoute = {
+			path: "/stale-slow",
+			pageName: "StaleSlow",
+			access: "protected",
+			...stubPage(),
+		};
 
 		const { promise: slowPromise, reject: rejectSlowFetch } =
 			deferred<unknown>();
@@ -720,7 +783,7 @@ describe("Router push, replace, and fallbacks", () => {
 		});
 
 		const harness = createRouterHarness({
-			routes: [activeRoute],
+			routes: [activeRoute, staleRoute],
 			fetch: fetchMock as unknown as typeof fetch,
 		});
 		const router = harness.router;
@@ -999,6 +1062,212 @@ describe("Router push, replace, and fallbacks", () => {
 	});
 });
 
+describe("Router — no wasted or stale work (ADR 0009)", () => {
+	beforeEach(() => {
+		clearActiveRouteTable();
+		resetNavigationStore();
+		setActiveRouter(undefined);
+	});
+
+	afterEach(() => {
+		getActiveRouter()?.destroy?.();
+		setActiveRouter(undefined);
+		vi.unstubAllGlobals();
+		clearActiveRouteTable();
+		resetNavigationStore();
+	});
+
+	const page = (
+		path: string,
+		pageName: string,
+		extra: Partial<AppRoute> = {},
+	): AppRoute => ({
+		path,
+		pageName,
+		access: "public",
+		...stubPage(),
+		...extra,
+	});
+
+	const abortable = (
+		init: RequestInit | undefined,
+		reject: (reason: unknown) => void,
+	) => {
+		init?.signal?.addEventListener("abort", () => {
+			const error = new Error("The operation was aborted.");
+			error.name = "AbortError";
+			reject(error);
+		});
+	};
+
+	it("aborts the descriptor request a newer navigation supersedes", async () => {
+		const slow = page("/slow", "Slow");
+		const fast = page("/fast", "Fast");
+		const signals: (AbortSignal | undefined)[] = [];
+		const fetchMock = vi.fn((url: string, init?: RequestInit) => {
+			signals.push(init?.signal ?? undefined);
+			if (url === "/slow") {
+				return new Promise((_resolve, reject) => abortable(init, reject));
+			}
+			return Promise.resolve({
+				ok: true,
+				status: 200,
+				json: async () => ({ name: "Fast", pageData: null }),
+			});
+		});
+		const harness = createRouterHarness({
+			routes: [slow, fast],
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		const superseded = harness.router.push("/slow");
+		await harness.router.push("/fast");
+		await superseded;
+
+		expect(signals[0]?.aborted).toBe(true);
+		expect(signals[1]?.aborted).toBe(false);
+		expect(getNavigationStore().getRoute()).toBe(fast);
+		expect(harness.history.pushState).toHaveBeenCalledTimes(1);
+		expect(harness.assign).not.toHaveBeenCalled();
+	});
+
+	it("destroy() cancels an in-flight descriptor request so nothing commits", async () => {
+		const slow = page("/slow", "Slow");
+		let signal: AbortSignal | undefined;
+		const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+			signal = init?.signal ?? undefined;
+			return new Promise((_resolve, reject) => abortable(init, reject));
+		});
+		const harness = createRouterHarness({
+			routes: [slow],
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		const navigation = harness.router.push("/slow");
+		harness.router.destroy?.();
+		await navigation;
+
+		expect(signal?.aborted).toBe(true);
+		expect(getNavigationStore().getRoute()).toBeNull();
+		expect(harness.history.pushState).not.toHaveBeenCalled();
+		expect(harness.assign).not.toHaveBeenCalled();
+		expect(harness.scrollTo).not.toHaveBeenCalled();
+	});
+
+	it("destroy() stops a navigation waiting for its page module", async () => {
+		const module = deferred<void>();
+		const slow = page("/slow", "Slow", { preload: () => module.promise });
+		const harness = createRouterHarness({
+			routes: [slow],
+			fetch: vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ name: "Slow", pageData: { stale: true } }),
+			}) as unknown as typeof fetch,
+		});
+
+		const navigation = harness.router.push("/slow");
+		await flush();
+		// The descriptor has answered; the router is waiting for the module.
+		expect(getNavigationStore().getRoute()).toBeNull();
+
+		harness.router.destroy?.();
+		module.resolve();
+		await navigation;
+
+		expect(getNavigationStore().getRoute()).toBeNull();
+		expect(harness.history.pushState).not.toHaveBeenCalled();
+		expect(harness.assign).not.toHaveBeenCalled();
+		expect(harness.scrollTo).not.toHaveBeenCalled();
+	});
+
+	it("destroy() stops a queued traversal scroll restore", async () => {
+		const frames: FrameRequestCallback[] = [];
+		const home = page("/", "Home");
+		const harness = createRouterHarness({
+			routes: [home],
+			fetch: vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ name: "Home", pageData: null }),
+			}) as unknown as typeof fetch,
+			location: { pathname: "/", href: "http://localhost:3000/" },
+			requestAnimationFrame: (callback) => frames.push(callback),
+			cancelAnimationFrame: vi.fn(),
+		});
+
+		await harness.popstate({
+			__poyo: { clientNavigated: true, scroll: { x: 0, y: 500 }, url: "/" },
+		});
+		expect(frames).toHaveLength(1);
+
+		harness.router.destroy?.();
+		for (const frame of frames.splice(0)) frame(0);
+
+		expect(harness.scrollTo).not.toHaveBeenCalledWith(0, 500);
+	});
+
+	it("loads the document for a dynamic: false route without a descriptor request", async () => {
+		const register = page("/Register", "Register", { dynamic: false });
+		const fetchMock = vi.fn();
+		const harness = createRouterHarness({
+			routes: [register],
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		await harness.router.push("/Register");
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(harness.assign).toHaveBeenCalledWith("/Register");
+		expect(harness.history.pushState).not.toHaveBeenCalled();
+
+		harness.assign.mockClear();
+		await harness.router.replace("/Register");
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).toHaveBeenCalledWith("/Register");
+	});
+
+	it("loads the document for a same-origin path outside the route table", async () => {
+		const home = page("/", "Home");
+		const fetchMock = vi.fn();
+		const harness = createRouterHarness({
+			routes: [home],
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		await harness.router.push("/not-a-route");
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(harness.assign).toHaveBeenCalledWith("/not-a-route");
+	});
+
+	it("settles a traversal to a non-dynamic or unknown entry with a document load", async () => {
+		const register = page("/Register", "Register", { dynamic: false });
+		const fetchMock = vi.fn();
+		const harness = createRouterHarness({
+			routes: [register],
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+		const state = {
+			__poyo: {
+				clientNavigated: true,
+				scroll: { x: 0, y: 0 },
+				url: "/Register",
+			},
+		};
+
+		harness.location.pathname = "/Register";
+		harness.location.href = "http://localhost:3000/Register";
+		await harness.popstate(state);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).toHaveBeenCalledWith("/Register");
+
+		harness.location.pathname = "/gone";
+		harness.location.href = "http://localhost:3000/gone";
+		await harness.popstate(state);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).toHaveBeenCalledWith("/gone");
+	});
+});
+
 describe("useRouter and shell reactivity without a provider", () => {
 	beforeEach(() => {
 		clearActiveRouteTable();
@@ -1154,6 +1423,45 @@ describe("useRouter and shell reactivity without a provider", () => {
 			(store.getState().pageData as { generation: number }).generation,
 		).toBe(2);
 		expect(usePage<{ generation: number }>()?.generation).toBe(2);
+	});
+
+	it("returns the same object across renders while the route is unchanged", async () => {
+		const dashboardRoute: AppRoute = {
+			path: "/dashboard",
+			pageName: "Dashboard",
+			access: "protected",
+			...stubPage(),
+		};
+		const settingsRoute: AppRoute = {
+			path: "/settings",
+			pageName: "Settings",
+			access: "protected",
+			...stubPage(),
+		};
+		const harness = createRouterHarness({
+			routes: [dashboardRoute, settingsRoute],
+			fetch: vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ name: "Dashboard", pageData: null }),
+			}) as unknown as typeof fetch,
+		});
+		await harness.router.push("/dashboard");
+
+		const first = useRouter();
+		expect(useRouter()).toBe(first);
+		expect(first.route).toBe(dashboardRoute);
+
+		// A same-route commit re-renders the shell for fresh Page data; the
+		// router object consumers hold must not change with it.
+		commitNavigation({ route: dashboardRoute, pageData: { generation: 2 } });
+		expect(useRouter()).toBe(first);
+
+		// A different route is a different object.
+		commitNavigation({ route: settingsRoute, pageData: null });
+		const afterRouteChange = useRouter();
+		expect(afterRouteChange).not.toBe(first);
+		expect(afterRouteChange.route).toBe(settingsRoute);
 	});
 });
 
@@ -1312,13 +1620,27 @@ describe("Base path and fragment targets", () => {
 				json: async () => ({ name: "Dashboard", seo: null, pageData: null }),
 			})
 			.mockResolvedValueOnce({ ok: false, status: 500 });
+		const poyoX: AppRoute = {
+			path: "/Poyo/x",
+			pageName: "PoyoX",
+			access: "public",
+			...stubPage(),
+		};
 		const routeTable = {
 			basePath: "/Poyo",
-			routes: [dashboard],
-			routeMap: { Dashboard: dashboard.component },
+			routes: [dashboard, poyoX],
+			routeMap: {
+				Dashboard: dashboard.component,
+				PoyoX: poyoX.component,
+			},
 			findRouteByName: (name: string) =>
 				name === "Dashboard" ? dashboard : undefined,
-			findRouteGeneric: () => undefined,
+			findRouteGeneric: (pathname: string) => {
+				const relative = pathname.startsWith("/Poyo/")
+					? pathname.slice("/Poyo".length)
+					: pathname;
+				return [dashboard, poyoX].find((route) => route.path === relative);
+			},
 			detectGhostRoutes: () => undefined,
 		};
 		const assign = vi.fn();

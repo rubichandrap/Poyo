@@ -21,12 +21,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A dynamic navigation loads the page's module before committing the route, and `AppRoute.preload` is optional: a route without one is treated as already loaded and commits as before, while a preload that rejects takes the document-load fallback (ADR 0009).
 - The runtime formats `<title>` through the layout's template at every `%s` and literally, so registry titles holding `$&`, `$$` or `%s` match a document load; focus moves to the incoming page's `[data-page-region]` or `<main>` after React renders it. **Upgrading:** render `data-page-region` (or `<main>`) in a page for focus to land there; otherwise focus stays on the mount root.
 - `poyo route sync` no longer aborts on a controller-backed route whose view was deleted: `--rescaffold` keeps its existing action, and `--delete` removes untracked React pages but never a Razor view a plain `View()` route may own. A Windows scaffold now syncs clean. **Upgrading:** `--delete` no longer removes views; delete a view by hand if you relied on that.
+- A superseded descriptor request is aborted, and `router.destroy()` cancels in-flight work, so nothing commits, writes history or scrolls after it. `Link` and the router send a `dynamic: false` route, or a same-origin path outside the route table, straight to a document load without a descriptor request, and `useRouter` returns the same object while the route is unchanged (ADR 0009).
 
 ### Changed
 
 - `wwwroot/manifest.json` records `css` as an array, not a string or `null`. **Upgrading:** a consumer that reads that field as a string must read an array.
 - A route path may no longer declare route-template or URL syntax — `{`, `}`, `*`, `?`, `#`, or a `%` other than `%2F` (ADR 0015). It was mapped as an ASP.NET route template but resolved literally, so `/Users/{id}` served `/Users/42` and skipped access, SEO and `no-store`. The route manager and `poyo route add` refuse it as well. **Upgrading:** correct such a registry or it will not boot.
 - A route's `files.react` and `files.view` must stay inside the project: both validators refuse a `..` segment, an absolute path or a drive-rooted path, and every route command resolves and checks a file before writing or deleting it (ADR 0022). **Upgrading:** a registry declaring one now fails to start until the path is corrected.
+- `AppRoute` carries the registry's `dynamic` flag as an optional member; `createRouteTable` fills it, and a hand-built route without one is dynamic, as before. **Upgrading:** none.
 
 ## [0.7.1] - 2026-11-17
 

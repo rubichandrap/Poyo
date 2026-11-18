@@ -27,12 +27,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A generated project's demo cookie is `SameSite=None` and the credentialed `AllowClient` CORS policy is registered only in Development; every other environment uses `SameSite=Lax` and no CORS policy, so no response grants a cross-origin credential. **Upgrading:** gate the cookie's `SameSite` and the `AddCors`/`UseCors` blocks on `builder.Environment.IsDevelopment()`.
 - `poyo route sync` is safe on a fresh project: `--rescaffold` recreates a controller-backed route's files without failing on its existing action, `--delete` removes untracked React pages but leaves every Razor view (a plain `View()` route may own one), and a Windows scaffold now syncs clean. **Upgrading:** `--delete` no longer removes views; delete one by hand if you relied on that.
 - The template no longer ships the test-only `StaticData` view, so a generated project's first `route sync` reports nothing to sync. **Upgrading:** delete `Views/StaticData/Index.cshtml` if nothing serves it.
+- A superseded descriptor request is aborted, and `router.destroy()` cancels in-flight work, so nothing commits, writes history or scrolls after it. `Link` and the router send a `dynamic: false` route, or a same-origin path outside the route table, straight to a document load without a descriptor request, and `useRouter` returns the same object while the route is unchanged (ADR 0009).
 
 ### Changed
 
 - `wwwroot/manifest.json` records `css` as an array, not a string or `null`. **Upgrading:** a consumer that reads that field as a string must read an array.
 - A route path may no longer declare route-template or URL syntax — `{`, `}`, `*`, `?`, `#`, or a `%` other than `%2F` (ADR 0015). Such a path was mapped as an ASP.NET route template but resolved literally, so `/Users/{id}` served `/Users/42` and skipped access, SEO and `no-store`. **Upgrading:** correct such a registry or it will not boot.
 - A route's `files.react` and `files.view` must stay inside the project: a `..` segment, an absolute path or a drive-rooted path is refused by the server and every route command, and the route manager resolves and checks each file before it writes or deletes one (ADR 0022). **Upgrading:** a registry declaring one now fails to start until the path is corrected.
+- `AppRoute` carries the registry's `dynamic` flag as an optional member; `createRouteTable` fills it, and a hand-built route without one is dynamic, as before. **Upgrading:** none.
 
 ## [0.7.1] - 2026-11-17
 
