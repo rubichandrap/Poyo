@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-- The logout redirect resolves the app root through the client base path, so a project mounted under `PathBase` lands on its own root instead of the host's. **Upgrading:** in `providers/auth-provider.tsx`, redirect to `withBasePath("/")` instead of `"/"`.
+- The logout resolves the app root through the client base path, so a project mounted under `PathBase` lands on its own root, and Dashboard now calls the auth provider's `logout()` (clearing `ui-token` and the user state) instead of duplicating the redirect. **Upgrading:** in `providers/auth-provider.tsx`, redirect to `withBasePath("/")` instead of `"/"`.
 - The demo cookie is `SameSite=None` and the credentialed `AllowClient` CORS policy is registered only in Development; every other environment uses `SameSite=Lax` and no CORS policy, so no response grants a cross-origin credential. **Upgrading:** gate the cookie's `SameSite` and the `AddCors`/`UseCors` blocks on `builder.Environment.IsDevelopment()`.
 
 ## [0.7.1] - 2026-11-17
