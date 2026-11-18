@@ -726,6 +726,24 @@ export function createRouter(options?: RouterOptions): Router {
 				return;
 			}
 
+			// Load the page's module before committing the store or writing
+			// history. A chunk that no longer exists (a tab open across a
+			// deploy) must hand the navigation to a document load, not unmount
+			// the shell over a blank screen; and a route whose module is already
+			// in memory renders synchronously, with no Suspense flash
+			// (ADR 0009, decision 7). A route without a preload is already
+			// loaded: it commits as before, and only a rejecting preload takes
+			// the document-load floor.
+			try {
+				await result.route.preload?.();
+			} catch {
+				if (currentToken === supersedeToken) {
+					fallback(url, currentToken, mode === "replace");
+				}
+				return;
+			}
+			if (currentToken !== supersedeToken) return;
+
 			// Save current scroll of the entry we are leaving BEFORE committing new route
 			rememberScroll();
 			recordScroll();
@@ -861,6 +879,20 @@ export function createRouter(options?: RouterOptions): Router {
 				fallback(targetUrl, currentToken, true);
 				return;
 			}
+
+			// Same seam as a push or replace: the entry the browser moved to is
+			// settled only when its page module has loaded. A rejection hands
+			// the entry to a document load; a route without a preload is
+			// already loaded.
+			try {
+				await result.route.preload?.();
+			} catch {
+				if (currentToken === supersedeToken) {
+					fallback(targetUrl, currentToken, true);
+				}
+				return;
+			}
+			if (currentToken !== supersedeToken) return;
 
 			// Atomic commit to navigation store
 			store.commit({

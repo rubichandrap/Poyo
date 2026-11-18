@@ -21,6 +21,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `poyo route remove` compares controller names as MVC matches them, so a legacy `ReportsController` and `Reports` count as one controller, and reports `Controller not found: …` when the file is missing. **Upgrading:** none.
 - A route command validates the registry it is about to write before creating or changing a file, and `routes.json` is replaced through a temporary file and a rename. A refused command therefore changes nothing, and an interrupted write cannot leave a truncated registry. **Upgrading:** none.
 - `create-poyo-app` assembles a project in a staging directory and moves it into place, so a run that fails mid-copy leaves no target directory and a re-run is not refused as "already exists". **Upgrading:** none.
+- A dynamic navigation loads the page's module before committing the route, so a chunk that no longer exists (a tab open across a deploy) takes the document load instead of leaving the shell over a blank screen. `AppRoute.preload` is optional: a route without one commits as before, and only a preload that rejects takes the fallback (ADR 0009).
 
 ### Changed
 

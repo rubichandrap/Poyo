@@ -9,20 +9,20 @@ import {
 	clearActiveRouteTable,
 	type AppRoute,
 } from "../src/runtime/route-table.js";
-import { createRouterHarness, stubComponent } from "./router-test-helpers.js";
+import { createRouterHarness, stubPage } from "./router-test-helpers.js";
 
 const homeRoute: AppRoute = {
 	path: "/",
 	pageName: "Home",
 	access: "public",
-	component: stubComponent(),
+	...stubPage(),
 };
 
 const dashboardRoute: AppRoute = {
 	path: "/dashboard",
 	pageName: "Dashboard",
 	access: "protected",
-	component: stubComponent(),
+	...stubPage(),
 };
 
 const routes: AppRoute[] = [homeRoute, dashboardRoute];

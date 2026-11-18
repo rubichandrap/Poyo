@@ -35,24 +35,28 @@ import {
 	type RouteTable,
 	clearActiveRouteTable,
 } from "../src/runtime/route-table.js";
-import { stubComponent } from "./router-test-helpers.js";
 
 const ORIGIN = "http://poyo.test";
 
-const ROUTES: AppRoute[] = [
-	{ path: "/", pageName: "Home", access: "public", component: stubComponent() },
-	{ path: "/a", pageName: "A", access: "public", component: stubComponent() },
-	{ path: "/b", pageName: "B", access: "public", component: stubComponent() },
-];
-
-const routeTable: RouteTable = {
-	basePath: "/",
-	routes: ROUTES,
-	routeMap: Object.fromEntries(ROUTES.map((r) => [r.pageName, r.component])),
-	findRouteByName: (name) => ROUTES.find((r) => r.pageName === name),
-	findRouteGeneric: (path) => ROUTES.find((r) => r.path === path),
-	detectGhostRoutes: () => undefined,
+/** The registry the model's browser serves, by path. */
+const PAGE_NAMES: Record<string, string> = {
+	"/": "Home",
+	"/a": "A",
+	"/b": "B",
 };
+
+/** A page module the router is waiting for. */
+interface PendingPage {
+	path: string;
+	mode: "push" | "replace" | "traverse";
+	/**
+	 * The descriptor-request generation that asked for it. A newer request
+	 * (any push, replace or traversing popstate) supersedes the page load.
+	 */
+	request: number;
+	resolve: () => void;
+	reject: (error: unknown) => void;
+}
 
 interface Entry {
 	url: URL;
@@ -103,6 +107,16 @@ class SimBrowser {
 	private nextFrame = 1;
 	/** I3, pending until the traversal's restore frame has run. */
 	restoreCheck: { target: Entry; expected: number } | null = null;
+	/** Page modules already in memory, keyed by route path. */
+	readonly pagesLoaded = new Set<string>();
+	/** Page modules the router is waiting for, oldest first. */
+	pendingPages: PendingPage[] = [];
+	/** Descriptor requests started: the router's supersede counter, observed. */
+	descriptorRequests = 0;
+	/** The operation of the descriptor response being consumed, for page loads. */
+	pageMode: PendingPage["mode"] | null = null;
+	readonly routes: AppRoute[];
+	readonly routeTable: RouteTable;
 
 	private popListeners = new Set<(e: PopStateEvent) => void>();
 	private scrollListeners = new Set<() => void>();
@@ -203,6 +217,50 @@ class SimBrowser {
 				if (type === "scroll") sim.scrollListeners.delete(fn);
 			},
 		} as unknown as Window;
+		this.routes = Object.entries(PAGE_NAMES).map(([path, pageName]) =>
+			this.makeRoute(path, pageName),
+		);
+		this.routeTable = {
+			basePath: "/",
+			routes: this.routes,
+			routeMap: Object.fromEntries(
+				this.routes.map((r) => [r.pageName, r.component]),
+			),
+			findRouteByName: (name) => this.routes.find((r) => r.pageName === name),
+			findRouteGeneric: (path) => this.routes.find((r) => r.path === path),
+			detectGhostRoutes: () => undefined,
+		};
+	}
+
+	private makeRoute(path: string, pageName: string): AppRoute {
+		return {
+			path,
+			pageName,
+			access: "public",
+			component: () => null,
+			preload: () => this.preloadPage(path),
+		};
+	}
+
+	/**
+	 * A page module load: instant once the module is in memory, otherwise a
+	 * request the checker answers with `pageOk` or `pageFail`. The real route
+	 * table shares one promise per route; per-navigation pending records are
+	 * behaviourally equivalent here, because a single result settles them all.
+	 */
+	private preloadPage(path: string): Promise<void> {
+		if (this.pagesLoaded.has(path)) return Promise.resolve();
+		const mode = this.pageMode ?? "traverse";
+		this.pageMode = null;
+		return new Promise<void>((resolve, reject) => {
+			this.pendingPages.push({
+				path,
+				mode,
+				request: this.descriptorRequests,
+				resolve,
+				reject,
+			});
+		});
 	}
 
 	/**
@@ -219,6 +277,7 @@ class SimBrowser {
 	fetch = (input: string, init?: RequestInit): Promise<Response> => {
 		const url = new URL(input, this.current.url);
 		const headers = (init?.headers ?? {}) as Record<string, string>;
+		this.descriptorRequests += 1;
 		if (this.during === "push #x") {
 			this.violations.push(
 				`FRAGMENT-FETCH: push to a fragment of the page on screen requested ${input}`,
@@ -355,8 +414,7 @@ class SimBrowser {
 	}
 }
 
-const pageNameFor = (path: string) =>
-	ROUTES.find((r) => r.path === path)?.pageName;
+const pageNameFor = (path: string) => PAGE_NAMES[path];
 
 function respond(p: Pending, ok: boolean): void {
 	const name = pageNameFor(p.path);
@@ -391,6 +449,8 @@ type Event =
 	| "ok"
 	| "okLast"
 	| "fail"
+	| "pageOk"
+	| "pageFail"
 	| "scroll"
 	| "frame";
 
@@ -406,6 +466,8 @@ const ALPHABET: Event[] = [
 	"ok",
 	"okLast",
 	"fail",
+	"pageOk",
+	"pageFail",
 	"scroll",
 	"frame",
 ];
@@ -421,6 +483,9 @@ function enabled(sim: SimBrowser, e: Event): boolean {
 		case "fail":
 		case "okLast":
 			return sim.pending.length > 0;
+		case "pageOk":
+		case "pageFail":
+			return sim.pendingPages.length > 0;
 		case "lib":
 			return sim.pending.length === 0;
 		case "frame":
@@ -445,8 +510,27 @@ function boot(): Run {
 	setActiveRouter(undefined);
 	const sim = new SimBrowser("/a");
 	vi.stubGlobal("window", sim.window);
+	// PAGE-COMMIT — the store never shows a route whose page module is still
+	// loading. Subscribed before the router installs, so its first commit is
+	// observed too.
+	const store = getNavigationStore();
+	let lastState = store.getState();
+	store.subscribe(() => {
+		const next = store.getState();
+		const path = next.route?.path;
+		if (
+			next !== lastState &&
+			path &&
+			sim.pendingPages.some((page) => page.path === path)
+		) {
+			sim.violations.push(
+				`PAGE-COMMIT: committed ${path} before its page module loaded`,
+			);
+		}
+		lastState = next;
+	});
 	const router = createRouter({
-		routeTable,
+		routeTable: sim.routeTable,
 		window: sim.window,
 		fetch: sim.fetch as unknown as typeof fetch,
 	});
@@ -459,6 +543,7 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 		.map((x) => `${x.url.href}|${JSON.stringify(x.state)}`)
 		.join(",");
 	const routeBefore = getNavigationStore().getRoute();
+	const stateBefore = getNavigationStore().getState();
 	switch (e) {
 		case "push /a":
 		case "push /b":
@@ -500,6 +585,7 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 			const p = e === "okLast" ? sim.pending.pop() : sim.pending.shift();
 			if (!p) break;
 			const stale = p.epoch < sim.epoch;
+			if (!stale && e !== "fail") sim.pageMode = p.mode;
 			respond(p, e !== "fail");
 			await flush();
 			if (stale) {
@@ -516,12 +602,15 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 					);
 				}
 			} else if (e !== "fail" && p.mode === "traverse" && sim.traversedTo) {
-				// I3 — when a cross-path traversal's own descriptor arrives, the
-				// scroll position its entry was left at is back on screen once
-				// the restore frame has run (checked in the "frame" step).
-				const target = sim.traversedTo;
-				const expected = sim.traversedToRecorded ? target.leftAt : 0;
-				sim.restoreCheck = { target, expected };
+				// I3 — a cross-path traversal arms its scroll check once it
+				// commits. When the page module was already in memory the
+				// commit happened in this step; otherwise the pageOk step arms
+				// it, because the traversal waits for the module.
+				if (getNavigationStore().getState() !== stateBefore) {
+					const target = sim.traversedTo;
+					const expected = sim.traversedToRecorded ? target.leftAt : 0;
+					sim.restoreCheck = { target, expected };
+				}
 			} else if (e === "fail" && sim.terminal) {
 				// A traversal has already moved the entry, so its floor settles
 				// that entry: replace, or reload when the entry's URL has a
@@ -536,6 +625,79 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 					sim.violations.push(
 						`HISTORY-OP: failed ${p.mode} fell back through location.${sim.terminal.kind}`,
 					);
+				}
+			}
+			break;
+		}
+		case "pageOk":
+		case "pageFail": {
+			// One page module result settles every navigation waiting for it;
+			// only the newest generation is still live.
+			const pages = sim.pendingPages.splice(0);
+			const live = pages.filter(
+				(page) => page.request === sim.descriptorRequests,
+			);
+			if (e === "pageOk") {
+				for (const page of pages) {
+					sim.pagesLoaded.add(page.path);
+					page.resolve();
+				}
+			} else {
+				for (const page of pages) {
+					page.reject(new Error("Failed to fetch dynamically imported module"));
+				}
+			}
+			await flush();
+			if (
+				e === "pageOk" &&
+				sim.traversedTo &&
+				live.some((page) => page.mode === "traverse") &&
+				getNavigationStore().getState() !== stateBefore
+			) {
+				// The delayed traversal has now committed; its restore frame is
+				// queued, so I3 becomes checkable on the next frame.
+				const target = sim.traversedTo;
+				sim.restoreCheck = {
+					target,
+					expected: sim.traversedToRecorded ? target.leftAt : 0,
+				};
+			}
+			if (e === "pageFail") {
+				if (live.length > 0) {
+					// The live navigation must hand the entry to a document
+					// load through the operation it asked for.
+					if (!sim.terminal) {
+						sim.violations.push(
+							"PAGE-FALLBACK: a failed page module was not answered with a document load",
+						);
+					} else {
+						const allowed = (mode: PendingPage["mode"]) =>
+							mode === "push"
+								? ["assign"]
+								: mode === "replace"
+									? ["replace"]
+									: ["replace", "reload"];
+						for (const page of live) {
+							if (!allowed(page.mode).includes(sim.terminal.kind)) {
+								sim.violations.push(
+									`HISTORY-OP: failed ${page.mode} page module fell back through location.${sim.terminal.kind}`,
+								);
+							}
+						}
+					}
+				} else {
+					const entriesAfter = sim.entries
+						.map((x) => `${x.url.href}|${JSON.stringify(x.state)}`)
+						.join(",");
+					if (
+						sim.terminal ||
+						entriesAfter !== entriesBefore ||
+						getNavigationStore().getRoute() !== routeBefore
+					) {
+						sim.violations.push(
+							"SUPERSEDED-PAGE: a stale page module failure changed state",
+						);
+					}
 				}
 			}
 			break;
@@ -559,7 +721,9 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 		}
 	}
 	await flush();
-	if (sim.pending.length === 0) sim.settled = true;
+	if (sim.pending.length === 0 && sim.pendingPages.length === 0) {
+		sim.settled = true;
+	}
 	checkInvariants(sim, e);
 }
 
@@ -587,7 +751,7 @@ function checkInvariants(sim: SimBrowser, e: Event): void {
 	}
 	if (sim.terminal) return;
 
-	const quiescent = sim.pending.length === 0;
+	const quiescent = sim.pending.length === 0 && sim.pendingPages.length === 0;
 	const route = getNavigationStore().getRoute();
 	// I2 — at quiescence the screen describes the address bar.
 	if (quiescent && route?.path !== sim.current.url.pathname) {

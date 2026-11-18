@@ -89,12 +89,34 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 		await page.evaluate((marker) => {
 			window.__poyoMarker = marker;
 		}, LANDING_MARKER);
+		// A successful dynamic navigation must render the new page without
+		// showing the Suspense fallback: the route's page module is loaded
+		// before the store commit (ADR 0009). Record every fallback insertion,
+		// including one React would repaint over within a microtask.
+		await page.evaluate(() => {
+			window.__poyoFallbackSeen = false;
+			const observer = new MutationObserver((records) => {
+				for (const record of records) {
+					for (const node of record.addedNodes) {
+						if (node.textContent?.includes("Loading...")) {
+							window.__poyoFallbackSeen = true;
+						}
+					}
+				}
+			});
+			observer.observe(document.body, { childList: true, subtree: true });
+		});
 
 		// Link click: a dynamic navigation.
 		await page.click('a[href$="/Login"]');
 		await page.waitForURL(/\/Login$/);
 		await loginReady();
 		await assertSameDocument("Link to /Login");
+		assert.equal(
+			await page.evaluate(() => window.__poyoFallbackSeen),
+			false,
+			"a dynamic navigation showed the Suspense fallback",
+		);
 		assert.deepEqual(
 			await readHead(page),
 			expectedLogin,
@@ -118,6 +140,52 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 		await loginReady();
 		await assertSameDocument("Forward to /Login");
 		assert.deepEqual(await readHead(page), expectedLogin);
+
+		// A page chunk that fails to load — a tab left open across a deploy,
+		// whose old chunk hash now 404s — must become a document load of the
+		// requested URL. The router loads the page module before committing,
+		// so the rejection reaches the fallback instead of blanking the
+		// mounted shell. A separate context keeps its page errors out of the
+		// navigation scenario above.
+		const staleContext = await browser.newContext();
+		try {
+			const stale = await staleContext.newPage();
+			await stale.goto(`${origin}/`);
+			await stale.waitForSelector('a[href$="/Login"]');
+			await stale.evaluate((marker) => {
+				window.__poyoMarker = marker;
+			}, LANDING_MARKER);
+			const bootScripts = new Set(
+				await stale.evaluate(() =>
+					performance.getEntriesByType("resource").map((entry) => entry.name),
+				),
+			);
+			let aborted = 0;
+			await stale.route(/\/generated\/index\.page-[^/]+\.js$/, (route) => {
+				// The landing page's chunk is already in memory; every later
+				// page chunk is the one the deploy replaced.
+				if (bootScripts.has(route.request().url())) return route.continue();
+				aborted += 1;
+				return route.abort("failed");
+			});
+			const documentRequest = stale.waitForRequest(
+				(request) =>
+					request.resourceType() === "document" &&
+					new URL(request.url()).pathname.endsWith("/Login"),
+				{ timeout: 15000 },
+			);
+			await stale.click('a[href$="/Login"]');
+			await documentRequest;
+			await stale.waitForURL(/\/Login$/);
+			assert.ok(aborted > 0, "the failing page chunk was never requested");
+			assert.equal(
+				await stale.evaluate(() => window.__poyoMarker),
+				undefined,
+				"the failing page chunk did not fall back to a document load",
+			);
+		} finally {
+			await staleContext.close();
+		}
 
 		assert.deepEqual(
 			pageErrors.map((error) => error.message),

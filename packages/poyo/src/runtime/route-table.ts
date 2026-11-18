@@ -1,4 +1,4 @@
-import { lazy, type ComponentType, type LazyExoticComponent } from "react";
+import { createElement, type ComponentType, type ReactElement } from "react";
 
 export type RouteAccess = "public" | "guest" | "protected";
 
@@ -54,15 +54,26 @@ export type PageLoaders = Record<string, PageLoader>;
 
 /**
  * A resolved route: canonical path, page name, access from the registry, and
- * a lazy-wrapped component. Lookups return `AppRoute`, never a bare
- * component, so app code never hardcodes path values or access levels.
+ * a component that loads its page module on first render. Lookups return
+ * `AppRoute`, never a bare component, so app code never hardcodes path values
+ * or access levels.
  */
 export interface AppRoute {
 	path: string;
-	// biome-ignore lint/suspicious/noExplicitAny: page props are unknown and vary per page; any keeps lazy() and JSX permissive.
-	component: LazyExoticComponent<ComponentType<any>>;
+	// biome-ignore lint/suspicious/noExplicitAny: page props are unknown and vary per page; any keeps the component and JSX permissive.
+	component: ComponentType<any>;
 	pageName: string;
 	access: RouteAccess;
+	/**
+	 * Loads the page module, once per document. Optional: a route built by
+	 * hand without one is treated as already loaded and commits as before.
+	 * The router awaits it between resolving the descriptor and committing
+	 * the navigation, so a chunk that cannot load becomes a document load
+	 * instead of a blank screen; only a rejecting preload takes that floor.
+	 * A failed load is remembered for this document: the fallback document
+	 * load builds a fresh route table (ADR 0009).
+	 */
+	preload?(): Promise<void>;
 }
 
 export interface RouteTableOptions {
@@ -105,6 +116,71 @@ export interface RouteTable {
 	detectGhostRoutes(): void;
 }
 
+interface PageModule {
+	// biome-ignore lint/suspicious/noExplicitAny: page props are unknown and vary per page; any keeps the component permissive.
+	default: ComponentType<any>;
+}
+
+/**
+ * Binds a page loader to the component and the preload the router awaits.
+ *
+ * The component renders the module synchronously once it is loaded and
+ * suspends on the loader before that. `React.lazy` would work for the cold
+ * case, but it always suspends on first render even when its module is
+ * already in memory: the router's preload would then still commit a Suspense
+ * fallback for a microtask. Reading the loaded module directly removes that
+ * flash from every navigation (ADR 0009).
+ *
+ * A load failure is remembered: React cannot retry the same import, and the
+ * router's fallback document load builds a new route table. The promise is
+ * shared, so two navigations to the same page before it arrives await one
+ * request.
+ */
+function createPage(loader: PageLoader): {
+	component: AppRoute["component"];
+	preload: NonNullable<AppRoute["preload"]>;
+} {
+	let loaded: PageModule | undefined;
+	let pending: Promise<PageModule> | undefined;
+	let failure: { error: unknown } | undefined;
+
+	const load = (): Promise<PageModule> => {
+		if (loaded) return Promise.resolve(loaded);
+		if (failure) return Promise.reject(failure.error);
+		if (!pending) {
+			pending = loader().then(
+				(module) => {
+					loaded = module;
+					pending = undefined;
+					return module;
+				},
+				(error: unknown) => {
+					failure = { error };
+					pending = undefined;
+					throw error;
+				},
+			);
+		}
+		return pending;
+	};
+
+	// Props a caller passes reach the page unchanged, as they did through
+	// `React.lazy`: the route's component is the page's own component.
+	function Page(props: Record<string, unknown>): ReactElement {
+		if (loaded) return createElement(loaded.default, props);
+		if (failure) throw failure.error;
+		// Suspense retries once the module arrives, then renders Page again
+		// with `loaded` set, so the fallback is never shown for a preloaded
+		// navigation.
+		throw load();
+	}
+
+	return {
+		component: Page,
+		preload: () => load().then(() => undefined),
+	};
+}
+
 /**
  * Builds the client-side route table (ADR 0006): a stateless, per-page-load
  * resolver that binds a server-declared page name to its React component.
@@ -144,15 +220,16 @@ export function createRouteTable(
 			continue;
 		}
 
-		const Component = lazy(loader);
+		const page = createPage(loader);
 		const route: AppRoute = {
 			path: entry.path,
-			component: Component,
+			component: page.component,
 			pageName: entry.name,
 			access: entry.access ?? "protected",
+			preload: page.preload,
 		};
 		routes.push(route);
-		routeMap[entry.name] = Component;
+		routeMap[entry.name] = page.component;
 		byName.set(entry.name, route);
 		// First-inserted wins in the fallback map, matching the historical
 		// exact-then-case-insensitive lookup order.

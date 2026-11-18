@@ -1,21 +1,20 @@
-import { lazy } from "react";
 import { vi, type Mock } from "vitest";
 import { createRouter, type Router } from "../src/runtime/router.js";
 import type { AppRoute, RouteTable } from "../src/runtime/route-table.js";
 
 /**
- * `AppRoute.component` is whatever `createRouteTable` hands back from `lazy()`,
- * and `lazy()` returns an object — so a bare function is not a valid route
- * component, however convenient it looks in a test. Built with the real
- * `lazy()` rather than a hand-rolled shape so a change to what the runtime
- * hands back surfaces here.
+ * A route's page half: the component and the preload the router awaits.
  *
- * A factory rather than one shared value, so a route's component is its own
- * value the way the runtime's is. The loader is never invoked: nothing here
- * renders a page, the runtime only swaps the route.
+ * `AppRoute.component` is the runtime's own suspended page component, built
+ * by `createRouteTable`; a bare function is not a valid substitute, however
+ * convenient it looks in a test. The loader is never invoked here: no test
+ * renders a page or needs a real chunk, and the router only swaps the route.
  */
-export function stubComponent(): AppRoute["component"] {
-	return lazy(() => Promise.resolve({ default: () => null }));
+export function stubPage(): Pick<AppRoute, "component" | "preload"> {
+	return {
+		component: () => null,
+		preload: () => Promise.resolve(),
+	};
 }
 
 export interface MockLocation {
