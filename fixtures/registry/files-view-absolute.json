@@ -1,0 +1,20 @@
+{
+	"verdict": "reject",
+	"note": "An absolute file path is not relative to the project: resolving it against a project directory leaves it absolute, so the view is outside the project whatever the prefix is. Both runtimes refuse it rather than resolving it to the path it names.",
+	"message": [
+		"absolute path",
+		"\"/srv/views/victim.cshtml\"",
+		"\"files.view\"",
+		"relative to the project"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "/srv/views/victim.cshtml"
+			}
+		}
+	]
+}

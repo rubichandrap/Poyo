@@ -1,4 +1,9 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { getPaths } from "../src/config.js";
+import { scaffoldRouteFiles } from "../src/scaffold.js";
 import {
 	execInFixture,
 	existsFixtureFile,
@@ -165,5 +170,76 @@ describe("poyo route sync", () => {
 			existsFixtureFile(fixture, "Poyo.Server/Views/Stale/Index.cshtml"),
 		).toBe(false);
 		expect(fixture.routesJson().map((r) => r.path)).toEqual(["/Home"]);
+	});
+
+	it("refuses to rescaffold a registry whose page leaves the project", () => {
+		const fixture = makeFixture([
+			{
+				...starter[0],
+				files: {
+					react: "src/pages/../../victim.page.tsx",
+					view: "Views/Home/Index.cshtml",
+				},
+			},
+		]);
+		const result = execInFixture(fixture, ["route", "sync", "--rescaffold"]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain('".." segment');
+		expect(result.stderr).toContain('"files.react"');
+		expect(
+			existsFixtureFile(fixture, "poyo.client/src/pages/Home/index.page.tsx"),
+		).toBe(false);
+		expect(
+			existsFixtureFile(fixture, "Poyo.Server/Views/Home/Index.cshtml"),
+		).toBe(false);
+	});
+
+	/**
+	 * `--rescaffold` writes through `scaffoldRouteFiles`, and the guard lives
+	 * there rather than only in the registry read: this calls the seam with a
+	 * route the reader never saw, so the test fails if a hand-edited path can
+	 * still reach a write.
+	 */
+	it.each([
+		[
+			"react",
+			(file: string) => ({
+				react: file,
+				view: "Views/Evil/Index.cshtml",
+			}),
+			"Poyo.Server/Views/Evil/Index.cshtml",
+		],
+		[
+			"view",
+			(file: string) => ({
+				react: "src/pages/Evil/index.page.tsx",
+				view: file,
+			}),
+			"poyo.client/src/pages/Evil/index.page.tsx",
+		],
+	])("refuses to rescaffold an outside %s path without a validated registry", (field, filesFor, sibling) => {
+		const fixture = makeFixture();
+		const paths = getPaths(fixture.dir);
+		const victim = path.join(
+			os.tmpdir(),
+			`poyo-sync-victim-${field}-${process.pid}-${Date.now()}.txt`,
+		);
+
+		try {
+			expect(() =>
+				scaffoldRouteFiles(
+					paths,
+					"Evil",
+					filesFor(`../../${path.basename(victim)}`),
+					{},
+				),
+			).toThrow(/Refusing route file path/);
+
+			expect(fs.existsSync(victim)).toBe(false);
+			expect(existsFixtureFile(fixture, sibling)).toBe(false);
+		} finally {
+			fs.rmSync(victim, { force: true });
+		}
 	});
 });

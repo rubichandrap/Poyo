@@ -1,0 +1,20 @@
+{
+	"verdict": "reject",
+	"note": "A drive-rooted file path names a location on a volume rather than one under the project: resolving it against a project directory answers the drive path, so the view lands outside the project. Refused on every platform, since the registry is authored once and deployed anywhere.",
+	"message": [
+		"drive-rooted path",
+		"\"C:/Windows/evil.cshtml\"",
+		"\"files.view\"",
+		"relative to the project"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/Home/index.page.tsx",
+				"view": "C:/Windows/evil.cshtml"
+			}
+		}
+	]
+}

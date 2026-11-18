@@ -32,6 +32,10 @@ _Avoid_: route generator, route script
 What makes a route referable: a canonical declared path (rooted, with no trailing slash except for the root, no empty or dot (`.`/`..`) segment — `%2e` counts as a dot — no backslash, and no route-template or URL syntax (`{`, `}`, `*`, `?`, `#`, or a `%` other than `%2F`), unique ignoring case), a canonical name (present, with no leading or trailing slash, unique ignoring case), and a controller and action declared together or not at all. Enforced in two disciplines with one definition — the authored registry is strict and fails the boot, the incoming request is normalized and resolved. A request URL is owned by the browser; a declaration is not.
 _Avoid_: route validation, canonical routes, path cleanup
 
+**Route file path**:
+A route's declared `files.react` and `files.view`. Relative to the project and contained by it: a `..` segment, an absolute path or a drive-rooted path is refused by the server and the route manager (ADR 0022), and every file the route manager writes or deletes is resolved and checked against its project directory first. Containment is not identity: a blank view is still the route manager's own refusal.
+_Avoid_: route assets, static files
+
 **Registry corpus**:
 The set of registries at `fixtures/registry/`, one file per registry rule with the verdict it earns, read by both the server's and the route manager's suites. Makes the two runtimes' agreement falsifiable: a rule added to one and not the other fails a test. A case declaring one verdict for the two also pins the message fragments both carry; a case declaring a verdict per runtime pins a deliberate difference. Lives at the repository root because it belongs to neither package.
 _Avoid_: registry fixtures, shared fixtures, contract tests

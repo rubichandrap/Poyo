@@ -1,4 +1,9 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { getPaths } from "../src/config.js";
+import { deleteRouteFiles } from "../src/scaffold.js";
 import {
 	execInFixture,
 	existsFixtureFile,
@@ -149,5 +154,88 @@ describe("poyo route remove", () => {
 		expect(result.status).toBe(0);
 		const about = fixture.routesJson().find((r) => r.path === "/About");
 		expect(about?.dynamic).toBe(false);
+	});
+
+	it("refuses a hand-edited registry whose view leaves the project", () => {
+		const fixture = fixtureWithFiles();
+		const victim = path.join(
+			os.tmpdir(),
+			`poyo-remove-victim-${process.pid}-${Date.now()}.cshtml`,
+		);
+		fs.writeFileSync(victim, "victim\n");
+		const registry = fixture.routesJson();
+		registry[0].files = {
+			react: "src/pages/About/index.page.tsx",
+			view: `../../${path.basename(victim)}`,
+		};
+		const before = `${JSON.stringify(registry, null, 2)}\n`;
+		writeFixtureFile(fixture, "routes.json", before);
+
+		try {
+			const result = execInFixture(fixture, [
+				"route",
+				"remove",
+				"/About",
+				"--yes",
+			]);
+
+			expect(result.status).toBe(1);
+			expect(result.stderr).toContain('".." segment');
+			expect(result.stderr).toContain('"files.view"');
+			expect(fs.existsSync(victim)).toBe(true);
+			expect(readFixtureFile(fixture, "routes.json")).toBe(before);
+			expect(
+				existsFixtureFile(
+					fixture,
+					"poyo.client/src/pages/About/index.page.tsx",
+				),
+			).toBe(true);
+		} finally {
+			fs.rmSync(victim, { force: true });
+		}
+	});
+
+	/**
+	 * The registry reader refuses these paths, but the delete must not depend on
+	 * having been read through it: this calls the remove seam directly with an
+	 * unvalidated route, which is the state a caller can be in when the rule at
+	 * the operation is all that stands between a registry entry and a file.
+	 */
+	it.each([
+		[
+			"react",
+			(file: string) => ({
+				react: file,
+				view: "Views/About/Index.cshtml",
+			}),
+			"poyo.client/src/pages/About/index.page.tsx",
+		],
+		[
+			"view",
+			(file: string) => ({
+				react: "src/pages/About/index.page.tsx",
+				view: file,
+			}),
+			"Poyo.Server/Views/About/Index.cshtml",
+		],
+	])("refuses an outside %s path without a validated registry", (field, filesFor, sibling) => {
+		const fixture = fixtureWithFiles();
+		const paths = getPaths(fixture.dir);
+		const victim = path.join(
+			os.tmpdir(),
+			`poyo-remove-victim-${field}-${process.pid}-${Date.now()}.txt`,
+		);
+		fs.writeFileSync(victim, "victim\n");
+
+		try {
+			expect(() =>
+				deleteRouteFiles(paths, filesFor(`../../${path.basename(victim)}`)),
+			).toThrow(/Refusing route file path/);
+
+			expect(fs.existsSync(victim)).toBe(true);
+			expect(existsFixtureFile(fixture, sibling)).toBe(true);
+		} finally {
+			fs.rmSync(victim, { force: true });
+		}
 	});
 });

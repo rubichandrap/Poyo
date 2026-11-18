@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import type { ProjectPaths } from "./config.js";
 import { CliError } from "./error.js";
+import { filePathRefusal, filePathRefusalClause } from "./file-paths.js";
 import {
 	backslashRefusal,
 	firstRefusedSegment,
@@ -45,9 +46,34 @@ function expectNonEmptyString(
  * the route manager's own earlier guard, so it stays as it was rather than
  * borrowing the identity rule's notion of blank.
  */
-function expectFileString(label: string, field: string, value: unknown): void {
+function expectFileString(
+	label: string,
+	field: string,
+	value: unknown,
+): asserts value is string {
 	if (typeof value !== "string" || value.length === 0) {
 		throw new CliError(`${label}: "files.${field}" must be a non-empty string`);
+	}
+}
+
+/**
+ * A declared file path stays inside the project: the registry is authored, and
+ * the route manager resolves these paths against the project directories to
+ * scaffold or delete files. A path that leaves them is refused when it is
+ * authored rather than when a command acts on it, and the server refuses the
+ * same registry at boot. Blankness is still not judged here beyond presence:
+ * the server accepts a whitespace-only path, so this side does too.
+ */
+function expectContainedFile(
+	label: string,
+	field: string,
+	value: string,
+): void {
+	const refusal = filePathRefusal(value);
+	if (refusal !== undefined) {
+		throw new CliError(
+			`${label}: "files.${field}" ${filePathRefusalClause(refusal)}`,
+		);
 	}
 }
 
@@ -175,6 +201,8 @@ function validateRouteIdentity(route: unknown, index: number): void {
 	}
 	expectFileString(label, "react", fileEntries.react);
 	expectFileString(label, "view", fileEntries.view);
+	expectContainedFile(label, "react", fileEntries.react);
+	expectContainedFile(label, "view", fileEntries.view);
 
 	// `access` is optional and defaults to protected, which is the server's own
 	// default for an absent field. Refusing an absent one would make this side
