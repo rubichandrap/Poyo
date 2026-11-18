@@ -183,10 +183,10 @@ describe("poyo build emits the safe form", () => {
 
 		const manifest = JSON.parse(
 			readFixtureFile(fixture, "Poyo.Server/wwwroot/manifest.json"),
-		) as { js: string; css: string };
+		) as { js: string; css: string[] };
 		expect(manifest).toEqual({
 			js: "~/generated/main-abc.js",
-			css: "~/generated/main-abc.css",
+			css: ["~/generated/main-abc.css"],
 		});
 	});
 });

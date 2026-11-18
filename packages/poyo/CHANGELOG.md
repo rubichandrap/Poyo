@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `poyo build` fails naming the files when the Vite manifest lists assets the client build did not produce, instead of copying whatever is there and shipping a page whose script or stylesheet 404s.
+- `poyo build` emits the stylesheet of every chunk the entry imports statically, not only the entry's first CSS file. `wwwroot/manifest.json` records `css` as an array. **Upgrading:** a consumer that reads that field as a string must read an array.
+- The CLI strips only the `--` pnpm forwards before the user's arguments, so a `--` the caller passed on purpose reaches the command.
+
 ## [0.7.1] - 2026-11-17
 
 ### Changed

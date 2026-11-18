@@ -12,6 +12,7 @@ interface ManifestChunk {
 	isEntry?: boolean;
 	css?: string[];
 	assets?: string[];
+	imports?: string[];
 }
 
 function writeManifest(
@@ -123,8 +124,91 @@ describe("poyo build", () => {
 			// App-relative: a consumer resolves these with Url.Content so the
 			// host's path base is applied.
 			js: "~/generated/index-abc.js",
-			css: "~/generated/index-abc.css",
+			css: ["~/generated/index-abc.css"],
 		});
+	});
+
+	it("fails naming a manifest file that the client build did not produce", () => {
+		const fixture = makeFixture();
+		writeManifest(fixture, {
+			"index.html": {
+				file: "generated/index-abc.js",
+				isEntry: true,
+				css: ["generated/index-abc.css"],
+			},
+			"src/main.tsx": { file: "generated/chunk-zzz.js" },
+		});
+		writeFixtureFile(
+			fixture,
+			"poyo.client/dist/generated/index-abc.js",
+			"console.log('index');\n",
+		);
+
+		const result = execInFixture(fixture, ["build"]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("missing");
+		expect(result.stderr).toContain("generated/index-abc.css");
+		// Nothing is copied or pruned when the asset set is incomplete.
+		expect(
+			existsFixtureFile(fixture, "Poyo.Server/wwwroot/generated/index-abc.js"),
+		).toBe(false);
+	});
+
+	it("emits the css of chunks the entry imports statically", () => {
+		const fixture = makeFixture();
+		writeManifest(fixture, {
+			"index.html": {
+				file: "generated/index-abc.js",
+				isEntry: true,
+				css: ["generated/index-abc.css"],
+				imports: ["_shared-zzz.js"],
+			},
+			"_shared-zzz.js": {
+				file: "generated/shared-zzz.js",
+				css: ["generated/shared-zzz.css"],
+				imports: ["theme.js"],
+			},
+			"theme.js": {
+				file: "generated/theme-qqq.js",
+				css: ["generated/theme-qqq.css"],
+			},
+		});
+		for (const file of [
+			"generated/index-abc.js",
+			"generated/index-abc.css",
+			"generated/shared-zzz.js",
+			"generated/shared-zzz.css",
+			"generated/theme-qqq.js",
+			"generated/theme-qqq.css",
+		]) {
+			writeFixtureFile(fixture, `poyo.client/dist/${file}`, "/* asset */\n");
+		}
+
+		execInFixture(fixture, ["build"]);
+
+		const content = readFixtureFile(
+			fixture,
+			"Poyo.Server/Views/Shared/_ReactAssets.cshtml",
+		);
+		// Vite's backend-integration order: the entry's own stylesheets, then
+		// the imported chunks', following `imports` recursively.
+		const order = [
+			'~/generated/index-abc.css")"',
+			'~/generated/shared-zzz.css")"',
+			'~/generated/theme-qqq.css")"',
+		].map((needle) => content.indexOf(needle));
+		expect(order.every((index) => index !== -1)).toBe(true);
+		expect(order).toEqual([...order].sort((a, b) => a - b));
+
+		const manifest = JSON.parse(
+			readFixtureFile(fixture, "Poyo.Server/wwwroot/manifest.json"),
+		) as { css: string[] };
+		expect(manifest.css).toEqual([
+			"~/generated/index-abc.css",
+			"~/generated/shared-zzz.css",
+			"~/generated/theme-qqq.css",
+		]);
 	});
 
 	it("fails with a clear error when the Vite manifest is missing", () => {
