@@ -54,6 +54,7 @@ export function removeCommand(): Command {
 
 			if (deleteController || deleteFiles) {
 				deleteRouteFiles(paths, route.files, {
+					files: deleteFiles,
 					controller: deleteController ? route.controller : undefined,
 				});
 			}

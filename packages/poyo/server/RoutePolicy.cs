@@ -38,8 +38,8 @@ public sealed class RoutePolicy
 
     private RoutePolicy(IReadOnlyList<RouteDefinition> routes, string routesJsonPath)
     {
-        RouteFilePaths.Validate(routes, routesJsonPath);
         RouteIdentity.Validate(routes, routesJsonPath);
+        RouteFilePaths.Validate(routes, routesJsonPath);
 
         _routes = routes;
         _routesByPath = routes.ToDictionary(

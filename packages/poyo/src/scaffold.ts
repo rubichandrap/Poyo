@@ -142,21 +142,19 @@ export function scaffoldRouteFiles(
 }
 
 /**
- * Deletes a route's files, and its controller when one is named, resolving and
- * checking every path before anything is removed. `route remove` reaches the
- * filesystem through here, so a route the registry never validated still
- * cannot delete a file outside the project: the check is at the operation, not
- * only at the read that usually precedes it.
+ * Deletes a route's files and, when the caller asks for them, its controller.
+ * `files` is required so a caller states which halves it deletes: the two
+ * confirmations in `route remove` are independent, and a controller deletion
+ * must not take the page and view with it. Every path is resolved and checked
+ * before anything is removed, so a route the registry never validated still
+ * cannot delete a file outside the project.
  */
 export function deleteRouteFiles(
 	paths: ProjectPaths,
 	files: RouteFile,
-	options: { controller?: string } = {},
+	options: { files: boolean; controller?: string },
 ): void {
-	const { react: pageFullPath, view: viewFullPath } = routeFilePaths(
-		paths,
-		files,
-	);
+	const filePaths = options.files ? routeFilePaths(paths, files) : undefined;
 	const controllerPath =
 		options.controller === undefined
 			? undefined
@@ -166,13 +164,17 @@ export function deleteRouteFiles(
 		fs.unlinkSync(controllerPath);
 	}
 
-	if (fs.existsSync(pageFullPath)) {
-		fs.unlinkSync(pageFullPath);
-		deleteEmptyParents(pageFullPath, paths.clientDir);
+	if (filePaths === undefined) {
+		return;
 	}
 
-	if (fs.existsSync(viewFullPath)) {
-		fs.unlinkSync(viewFullPath);
-		deleteEmptyParents(viewFullPath, paths.serverDir);
+	if (fs.existsSync(filePaths.react)) {
+		fs.unlinkSync(filePaths.react);
+		deleteEmptyParents(filePaths.react, paths.clientDir);
+	}
+
+	if (fs.existsSync(filePaths.view)) {
+		fs.unlinkSync(filePaths.view);
+		deleteEmptyParents(filePaths.view, paths.serverDir);
 	}
 }

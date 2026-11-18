@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import type { ProjectPaths, ProjectSide } from "./config.js";
 import { CliError } from "./error.js";
@@ -53,11 +54,13 @@ export function filePathRefusalClause(refusal: FilePathRefusal): string {
 
 /**
  * The path a route's declared file path names under `root`, refusing one that
- * leaves it. Both halves of the rule run here, so a caller cannot reach a
- * write or a delete without passing both: the declared form is refused before
- * anything is resolved — an absolute path is absolute on every platform — and
- * the resolved path is checked against `root` so a spelling the declared-form
- * rule does not know cannot put the operation outside the project.
+ * leaves it. The declared form is refused before anything is resolved — an
+ * absolute path is absolute on every platform — and the resolved path is then
+ * checked twice: once against `root` as written, and once against its real
+ * path, so a symbolic link inside the project cannot point a write or a delete
+ * outside it. Symbolic links are followed for the target and for its nearest
+ * existing ancestor, which is what lets a file that does not exist yet be
+ * checked: its future directory is resolved, not the file's own absence.
  */
 export function containedProjectPath(root: string, declared: string): string {
 	const refusal = filePathRefusal(declared);
@@ -69,19 +72,68 @@ export function containedProjectPath(root: string, declared: string): string {
 
 	const resolvedRoot = path.resolve(root);
 	const resolved = path.resolve(resolvedRoot, declared);
-	const relative = path.relative(resolvedRoot, resolved);
 
-	if (
-		relative === ".." ||
-		relative.startsWith(`..${path.sep}`) ||
-		path.isAbsolute(relative)
-	) {
+	if (leavesRoot(path.relative(resolvedRoot, resolved))) {
 		throw new CliError(
 			`Refusing route file path "${declared}": it resolves outside "${resolvedRoot}".`,
 		);
 	}
 
+	const realRoot = fs.realpathSync(resolvedRoot);
+	const realTarget = realPathOfNearestExisting(resolved, declared);
+
+	if (leavesRoot(path.relative(realRoot, realTarget))) {
+		throw new CliError(
+			`Refusing route file path "${declared}": it resolves outside "${resolvedRoot}" through a symbolic link.`,
+		);
+	}
+
 	return resolved;
+}
+
+function leavesRoot(relative: string): boolean {
+	return (
+		relative === ".." ||
+		relative.startsWith(`..${path.sep}`) ||
+		path.isAbsolute(relative)
+	);
+}
+
+/**
+ * The real path of `target`, following symbolic links for every part of it
+ * that exists. The missing tail is appended to the real path of its nearest
+ * existing ancestor, so a file that has not been created yet is judged by the
+ * directory it would land in. A link that exists but resolves nowhere is
+ * refused: writing through it would create its target, which may be outside.
+ */
+function realPathOfNearestExisting(target: string, declared: string): string {
+	let existing = target;
+	const missing: string[] = [];
+
+	for (;;) {
+		try {
+			fs.lstatSync(existing);
+			break;
+		} catch {
+			const parent = path.dirname(existing);
+			if (parent === existing) {
+				break;
+			}
+			missing.unshift(path.basename(existing));
+			existing = parent;
+		}
+	}
+
+	let real: string;
+	try {
+		real = fs.realpathSync(existing);
+	} catch {
+		throw new CliError(
+			`Refusing route file path "${declared}": it cannot be resolved, because a symbolic link in it targets nothing.`,
+		);
+	}
+
+	return missing.length === 0 ? real : path.join(real, ...missing);
 }
 
 export function projectFilePath(

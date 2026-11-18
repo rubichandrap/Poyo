@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { confirm } from "@inquirer/prompts";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { removeCommand } from "../src/commands/route-remove.js";
 import { getPaths } from "../src/config.js";
 import { deleteRouteFiles } from "../src/scaffold.js";
 import {
@@ -12,6 +14,8 @@ import {
 	writeFixtureFile,
 	type Route,
 } from "./helpers.js";
+
+vi.mock("@inquirer/prompts", () => ({ confirm: vi.fn() }));
 
 const starter: Route[] = [
 	{
@@ -229,7 +233,9 @@ describe("poyo route remove", () => {
 
 		try {
 			expect(() =>
-				deleteRouteFiles(paths, filesFor(`../../${path.basename(victim)}`)),
+				deleteRouteFiles(paths, filesFor(`../../${path.basename(victim)}`), {
+					files: true,
+				}),
 			).toThrow(/Refusing route file path/);
 
 			expect(fs.existsSync(victim)).toBe(true);
@@ -237,5 +243,47 @@ describe("poyo route remove", () => {
 		} finally {
 			fs.rmSync(victim, { force: true });
 		}
+	});
+
+	/**
+	 * The two prompts are answered separately: keeping the page and view while
+	 * deleting the controller must not delete the files the operator said to
+	 * keep. The command used to pass both decisions as one, so `--yes` semantics
+	 * leaked into the interactive path.
+	 */
+	it("keeps the page and view when the operator deletes only the controller", async () => {
+		const fixture = fixtureWithFiles();
+		const cwd = process.cwd();
+		vi.mocked(confirm).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+		try {
+			process.chdir(fixture.dir);
+			await removeCommand().parseAsync(["/Reports"], {
+				from: "user",
+			});
+		} finally {
+			process.chdir(cwd);
+		}
+
+		expect(fixture.routesJson().map((r) => r.path)).toEqual(["/About"]);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/ReportsController.cs",
+			),
+		).toBe(false);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"poyo.client/src/pages/Reports/index.page.tsx",
+			),
+		).toBe(true);
+		expect(
+			existsFixtureFile(fixture, "Poyo.Server/Views/Reports/Index.cshtml"),
+		).toBe(true);
+	});
+
+	afterEach(() => {
+		vi.mocked(confirm).mockReset();
 	});
 });
