@@ -19,8 +19,11 @@ public sealed class PageController : Controller
 
         // Endpoint routing has already matched this action to a registry route
         // by viewPath; resolve the registry entry the same way the policy
-        // filters do — by request path.
-        var route = policy.Find(HttpContext.Request.Path);
+        // filters do — by request path. `Path.Value` is the decoded path, which
+        // is the form the registry holds; PathString's implicit string
+        // conversion re-encodes it for a link, so `/Café` arrives as
+        // `/Caf%C3%A9` and matches no route.
+        var route = policy.Find(HttpContext.Request.Path.Value ?? string.Empty);
 
         if (route is null)
         {

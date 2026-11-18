@@ -1,0 +1,29 @@
+[
+	{
+		"path": "/Café",
+		"name": "Cafe",
+		"files": {
+			"react": "src/pages/Cafe/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "public"
+	},
+	{
+		"path": "/My Page",
+		"name": "MyPage",
+		"files": {
+			"react": "src/pages/MyPage/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "public"
+	},
+	{
+		"path": "/Users%2F42",
+		"name": "User42",
+		"files": {
+			"react": "src/pages/User42/index.page.tsx",
+			"view": "Views/Dashboard/Index.cshtml"
+		},
+		"access": "public"
+	}
+]
