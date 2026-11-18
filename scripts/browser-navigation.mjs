@@ -179,6 +179,41 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 		await assertFocusRegion("Login", "Forward to /Login");
 		assert.deepEqual(await readHead(page), expectedLogin);
 
+		// A route the registry marks `dynamic: false` is the browser's
+		// document load: clicking its Link must not send a descriptor
+		// request. The marker is still on the Login document, so a swap
+		// would keep it and the document load removes it (ADR 0009).
+		const registerDescriptors = [];
+		const collectRegisterDescriptor = (request) => {
+			if (
+				request.headers()["x-poyo-navigation"] === "1" &&
+				new URL(request.url()).pathname.endsWith("/Register")
+			) {
+				registerDescriptors.push(request.url());
+			}
+		};
+		page.on("request", collectRegisterDescriptor);
+		const registerDocument = page.waitForRequest(
+			(request) =>
+				request.resourceType() === "document" &&
+				new URL(request.url()).pathname.endsWith("/Register"),
+			{ timeout: 15000 },
+		);
+		await page.click('a[href$="/Register"]');
+		await registerDocument;
+		await page.waitForURL(/\/Register$/);
+		page.off("request", collectRegisterDescriptor);
+		assert.deepEqual(
+			registerDescriptors,
+			[],
+			"a Link to a dynamic: false route requested a descriptor",
+		);
+		assert.equal(
+			await page.evaluate(() => window.__poyoMarker),
+			undefined,
+			"a Link to a dynamic: false route swapped the page instead of loading the document",
+		);
+
 		// A page chunk that fails to load — a tab left open across a deploy,
 		// whose old chunk hash now 404s — must become a document load of the
 		// requested URL. The router loads the page module before committing,

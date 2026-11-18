@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The demo cookie is `SameSite=None` and the credentialed `AllowClient` CORS policy is registered only in Development; every other environment uses `SameSite=Lax` and no CORS policy, so no response grants a cross-origin credential. **Upgrading:** gate the cookie's `SameSite` and the `AddCors`/`UseCors` blocks on `builder.Environment.IsDevelopment()`.
 - The template no longer ships the `StaticData` view that only the server tests used, so a generated project's first `poyo route sync` reports nothing to sync. **Upgrading:** delete `Views/StaticData/Index.cshtml` from an existing project if nothing serves it.
 
+### Changed
+
+- The Login page links to the `dynamic: false` demo route, Register, so the template carries a `Link` that is a document load by design. **Upgrading:** none.
+
 ## [0.7.1] - 2026-11-17
 
 ### Changed

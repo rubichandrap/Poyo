@@ -1,4 +1,4 @@
-import React, { useSyncExternalStore } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import { commitNavigation, getNavigationStore } from "./navigation-store.js";
 import {
 	type AppRoute,
@@ -567,6 +567,7 @@ async function fetchAndResolveDescriptor(
 	token: number,
 	routeTable: RouteTable | undefined,
 	getSupercedeToken: () => number,
+	signal: AbortSignal | undefined,
 ): Promise<{ route: AppRoute; body: PageDescriptor } | null> {
 	if (!fetchFn || !routeTable) return null;
 	const fetchUrl = url.split("#")[0] || url;
@@ -588,6 +589,7 @@ async function fetchAndResolveDescriptor(
 		headers: {
 			[NAVIGATION_HEADER]: NAVIGATION_HEADER_VALUE,
 		},
+		signal,
 	});
 	// `redirect: "manual"` means a real browser cannot hand back a followed
 	// redirect, so this is defense for an injected transport that does follow.
@@ -605,6 +607,34 @@ async function fetchAndResolveDescriptor(
 	const resolvedRoute = routeTable.findRouteByName(body.name);
 	if (!resolvedRoute || token !== getSupercedeToken()) return null;
 	return { route: resolvedRoute, body };
+}
+
+/**
+ * Whether a navigation target is one this router may swap without a document
+ * load. A same-origin path the route table knows, whose registry entry is
+ * dynamic, qualifies. A `dynamic: false` route and a same-origin path outside
+ * the table are the browser's own document load: a descriptor request would
+ * run the controller once for a page the document then runs again. Another
+ * origin, or a target that cannot be resolved against the current URL,
+ * returns `undefined` so the caller keeps the descriptor path — the request
+ * itself fails or is redirected, which takes the document-load floor.
+ */
+function isDynamicTarget(
+	url: string,
+	win: Window | undefined,
+	routeTable: RouteTable | undefined,
+): boolean | undefined {
+	if (!routeTable || !win?.location) return undefined;
+	let target: URL;
+	try {
+		target = new URL(url, win.location.href);
+	} catch {
+		return undefined;
+	}
+	if (target.origin !== win.location.origin) return undefined;
+	const route = routeTable.findRouteGeneric(target.pathname);
+	if (!route) return false;
+	return route.dynamic !== false;
 }
 
 export function createRouter(options?: RouterOptions): Router {
@@ -625,6 +655,21 @@ export function createRouter(options?: RouterOptions): Router {
 	// Last-write-wins state is per instance: a second router must not supersede
 	// the first one's in-flight descriptor requests.
 	let supersedeToken = 0;
+
+	// The request the newest navigation is waiting for. A superseding
+	// navigation cancels it at the transport, so a slow response does not keep
+	// the connection open for a page nobody will see.
+	let inFlight: AbortController | undefined;
+	const abortInFlight = () => {
+		inFlight?.abort();
+		inFlight = undefined;
+	};
+
+	// destroy() makes the router inert. Every continuation of an in-flight
+	// navigation checks the token, so bumping it once is enough to stop a
+	// descriptor response, a page module and a queued frame from committing,
+	// writing history or scrolling after the router is gone.
+	let destroyed = false;
 
 	// Initialize route in navigation store if not already set
 	if (!store.getRoute()) {
@@ -791,6 +836,7 @@ export function createRouter(options?: RouterOptions): Router {
 		requestedUrl: string,
 		mode: "push" | "replace",
 	): Promise<void> => {
+		if (destroyed) return;
 		const activeTable = options?.routeTable ?? getActiveRouteTable();
 		// Callers speak app-relative paths, as the registry does; the request,
 		// the history entry and any fallback use the URL the browser sees.
@@ -811,8 +857,21 @@ export function createRouter(options?: RouterOptions): Router {
 		}
 
 		const currentToken = ++supersedeToken;
+		abortInFlight();
 		// A navigation supersedes any traversal in flight.
 		traversing = false;
+
+		// A target the registry marks document-only, or a same-origin path the
+		// route table does not know, is the browser's document load. Asking
+		// the server for a descriptor would run the controller twice for a
+		// page that can only arrive as a document.
+		if (isDynamicTarget(url, win, activeTable) === false) {
+			fallback(url, currentToken, mode === "replace");
+			return;
+		}
+
+		const controller = new AbortController();
+		inFlight = controller;
 
 		try {
 			const result = await fetchAndResolveDescriptor(
@@ -821,6 +880,7 @@ export function createRouter(options?: RouterOptions): Router {
 				currentToken,
 				activeTable,
 				() => supersedeToken,
+				controller.signal,
 			);
 
 			if (currentToken !== supersedeToken) {
@@ -915,10 +975,15 @@ export function createRouter(options?: RouterOptions): Router {
 			screenUrl = lastCommittedUrl;
 		} catch {
 			fallback(url, currentToken, mode === "replace");
+		} finally {
+			// A newer navigation owns its own controller; only this one clears
+			// the slot it set.
+			if (inFlight === controller) inFlight = undefined;
 		}
 	};
 
 	const onPopState = async (event: PopStateEvent) => {
+		if (destroyed) return;
 		const currentHref = win?.location?.href ?? "";
 		const targetUrl = win?.location
 			? win.location.pathname + win.location.search + win.location.hash ||
@@ -976,16 +1041,30 @@ export function createRouter(options?: RouterOptions): Router {
 		// created before this router was installed) is still traversed through
 		// the descriptor; it only lacks a scroll record to restore.
 		const currentToken = ++supersedeToken;
+		abortInFlight();
 		traversing = true;
 
+		const activeTable = options?.routeTable ?? getActiveRouteTable();
+		// The entry is already in the address bar, so a target the client
+		// cannot swap is settled with a document load of that entry — the
+		// same floor an unanswered descriptor takes, without the request.
+		if (isDynamicTarget(targetUrl, win, activeTable) === false) {
+			traversing = false;
+			fallback(targetUrl, currentToken, true);
+			return;
+		}
+
+		const controller = new AbortController();
+		inFlight = controller;
+
 		try {
-			const activeTable = options?.routeTable ?? getActiveRouteTable();
 			const result = await fetchAndResolveDescriptor(
 				fetchFn,
 				targetUrl,
 				currentToken,
 				activeTable,
 				() => supersedeToken,
+				controller.signal,
 			);
 
 			if (currentToken !== supersedeToken) {
@@ -1060,6 +1139,8 @@ export function createRouter(options?: RouterOptions): Router {
 			}
 		} catch {
 			fallback(targetUrl, currentToken, true);
+		} finally {
+			if (inFlight === controller) inFlight = undefined;
 		}
 	};
 
@@ -1106,6 +1187,12 @@ export function createRouter(options?: RouterOptions): Router {
 			}
 		},
 		destroy() {
+			// Cancel everything the router was waiting for. Every continuation
+			// checks the token, so a descriptor response, a page module or a
+			// queued frame that arrives afterwards changes nothing.
+			destroyed = true;
+			supersedeToken += 1;
+			abortInFlight();
 			win?.removeEventListener?.("popstate", onPopState);
 			win?.removeEventListener?.("scroll", onScroll);
 			if (
@@ -1151,11 +1238,19 @@ export function useRouter(): Router {
 	);
 	const currentRoute = currentState?.route ?? null;
 
-	return {
-		route: currentRoute,
-		push: router.push,
-		replace: router.replace,
-		back: router.back,
-		forward: router.forward,
-	};
+	// One object while the route is unchanged. A same-route commit (a push
+	// back to the page already mounted) refreshes Page data and re-renders the
+	// shell, but a consumer holding the router must not see a new object. The
+	// router instance is a dependency too: a second createRouter() serves
+	// different methods.
+	return useMemo(
+		() => ({
+			route: currentRoute,
+			push: router.push,
+			replace: router.replace,
+			back: router.back,
+			forward: router.forward,
+		}),
+		[router, currentRoute],
+	);
 }

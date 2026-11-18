@@ -3,6 +3,39 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Link } from "../src/runtime/link.js";
 import { createRouter } from "../src/runtime/router.js";
 import { resetNavigationStore } from "../src/runtime/navigation-store.js";
+import {
+	clearActiveRouteTable,
+	createRouteTable,
+	type AppRoute,
+	type RouteTable,
+} from "../src/runtime/route-table.js";
+
+/** A route table over hand-built routes, as the route loader would register. */
+function tableWith(routes: AppRoute[]): RouteTable {
+	return {
+		basePath: "/",
+		routes,
+		routeMap: Object.fromEntries(
+			routes.map((route) => [route.pageName, route.component]),
+		),
+		findRouteByName: (name) => routes.find((route) => route.pageName === name),
+		findRouteGeneric: (pathname) =>
+			routes.find((route) => route.path === pathname),
+		detectGhostRoutes: () => undefined,
+	};
+}
+
+const page = (
+	path: string,
+	pageName: string,
+	extra: Partial<AppRoute> = {},
+): AppRoute => ({
+	path,
+	pageName,
+	access: "public",
+	component: () => null,
+	...extra,
+});
 
 describe("<Link /> component click eligibility rules", () => {
 	beforeEach(() => {
@@ -11,6 +44,7 @@ describe("<Link /> component click eligibility rules", () => {
 
 	afterEach(() => {
 		vi.unstubAllGlobals();
+		clearActiveRouteTable();
 		resetNavigationStore();
 	});
 
@@ -334,15 +368,119 @@ describe("<Link /> component click eligibility rules", () => {
 		expect(pushMock).not.toHaveBeenCalled();
 	});
 
+	it("keeps native behavior for a dynamic: false route", async () => {
+		const pushMock = vi.fn();
+		const router = createRouter({
+			routeTable: tableWith([
+				page("/register", "Register", { dynamic: false }),
+			]),
+		});
+		vi.spyOn(router, "push").mockImplementation(pushMock);
+
+		vi.stubGlobal("window", {
+			location: {
+				origin: "http://localhost:3000",
+				pathname: "/",
+				search: "",
+				href: "http://localhost:3000/",
+			},
+		});
+
+		const event = createMockEvent();
+		const rendered = renderLink({ href: "/register" });
+		rendered.props.onClick(event);
+
+		expect(event.preventDefault).not.toHaveBeenCalled();
+		expect(pushMock).not.toHaveBeenCalled();
+	});
+
+	it("keeps native behavior for a same-origin path outside the route table", async () => {
+		const pushMock = vi.fn();
+		const router = createRouter({
+			routeTable: tableWith([page("/", "Home")]),
+		});
+		vi.spyOn(router, "push").mockImplementation(pushMock);
+
+		vi.stubGlobal("window", {
+			location: {
+				origin: "http://localhost:3000",
+				pathname: "/",
+				search: "",
+				href: "http://localhost:3000/",
+			},
+		});
+
+		const event = createMockEvent();
+		const rendered = renderLink({ href: "/not-a-route" });
+		rendered.props.onClick(event);
+
+		expect(event.preventDefault).not.toHaveBeenCalled();
+		expect(pushMock).not.toHaveBeenCalled();
+	});
+
+	it("intercepts a route the browser percent-encodes", async () => {
+		const pushMock = vi.fn();
+		// A real table: the lookup normalizes `URL.pathname` against the
+		// declared path, which the synthetic `tableWith` does not.
+		const table = createRouteTable(
+			[
+				{
+					path: "/Café",
+					name: "Cafe",
+					files: {
+						react: "src/pages/Cafe/index.page.tsx",
+						view: "Views/Cafe/Index.cshtml",
+					},
+					access: "public",
+				},
+			],
+			{
+				"src/pages/Cafe/index.page.tsx": async () => ({ default: () => null }),
+			},
+			{ baseUrl: "/" },
+		);
+		const router = createRouter({ routeTable: table });
+		vi.spyOn(router, "push").mockImplementation(pushMock);
+
+		vi.stubGlobal("window", {
+			location: {
+				origin: "http://localhost:3000",
+				pathname: "/",
+				search: "",
+				href: "http://localhost:3000/",
+			},
+		});
+
+		const event = createMockEvent();
+		const rendered = renderLink({ href: "/Café" });
+		rendered.props.onClick(event);
+
+		expect(event.preventDefault).toHaveBeenCalled();
+		expect(pushMock).toHaveBeenCalledWith("/Café");
+	});
+
 	it("resolves app-relative hrefs against the base path and leaves absolute URLs outside it native", async () => {
 		const pushMock = vi.fn();
+		const settings = page("/settings", "Settings");
+		const portalSettings = page("/Portal/settings", "PortalSettings");
 		const router = createRouter({
 			routeTable: {
 				basePath: "/portal",
-				routes: [],
-				routeMap: {},
-				findRouteByName: () => undefined,
-				findRouteGeneric: () => undefined,
+				routes: [settings, portalSettings],
+				routeMap: {
+					Settings: settings.component,
+					PortalSettings: portalSettings.component,
+				},
+				findRouteByName: (name) =>
+					[settings, portalSettings].find((route) => route.pageName === name),
+				findRouteGeneric: (pathname) => {
+					const relative = pathname.startsWith("/portal/")
+						? pathname.slice("/portal".length)
+						: pathname;
+					return [settings, portalSettings].find(
+						(route) => route.path === relative,
+					);
+				},
 				detectGhostRoutes: () => undefined,
 			},
 		});

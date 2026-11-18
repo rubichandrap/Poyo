@@ -168,11 +168,20 @@ export default function LoginPage() {
 						</p>
 					</div>
 
-					{/* Back to Home */}
-					<div className="mt-8 text-center">
+					{/* Register and back to Home */}
+					<div className="mt-8 text-center space-y-2">
+						<p className="text-sm text-slate-400">
+							New here?{" "}
+							<Link
+								href={routePath("Register")}
+								className="font-semibold text-[#5ba4fc] hover:text-[#4a93ed] transition-colors"
+							>
+								Create an account
+							</Link>
+						</p>
 						<Link
 							href={routePath("Home")}
-							className="text-sm font-semibold text-slate-400 hover:text-[#5ba4fc] transition-colors"
+							className="block text-sm font-semibold text-slate-400 hover:text-[#5ba4fc] transition-colors"
 						>
 							← Back to Home
 						</Link>

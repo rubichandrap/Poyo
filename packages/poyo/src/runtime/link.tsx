@@ -65,6 +65,14 @@ function isEligibleClick(
 			return false;
 		}
 
+		if (activeTable) {
+			// A route the registry marks document-only, or a same-origin path
+			// outside the table, is a document load: intercepting it would run
+			// the controller twice for a page only the document can render.
+			const route = activeTable.findRouteGeneric(targetUrl.pathname);
+			if (!route || route.dynamic === false) return false;
+		}
+
 		if (
 			targetUrl.pathname === window.location.pathname &&
 			targetUrl.search === window.location.search &&
