@@ -246,6 +246,35 @@ describe("create-poyo-app", () => {
 		expect(result.stderr).toContain("already exists");
 	});
 
+	it("leaves the scaffolded project in place when the dependency install fails", () => {
+		const cwd = makeTempDir();
+		const binDir = path.join(cwd, "bin");
+		fs.mkdirSync(binDir);
+		// A pnpm that fails at once: the test is the project's fate, not the
+		// install. Before staging, the copied project stayed on disk and
+		// `pnpm install` was the retry; it must not be deleted now.
+		if (process.platform === "win32") {
+			fs.writeFileSync(path.join(binDir, "pnpm.cmd"), "@exit /b 1\r\n");
+		} else {
+			const shim = path.join(binDir, "pnpm");
+			fs.writeFileSync(shim, "#!/bin/sh\nexit 1\n");
+			fs.chmodSync(shim, 0o755);
+		}
+
+		const result = runCli(["Half"], {
+			cwd,
+			env: { PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}` },
+		});
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("pnpm install failed");
+		expect(exists(cwd, "Half/package.json")).toBe(true);
+		expect(exists(cwd, "Half/Half.Server/Program.cs")).toBe(true);
+		expect(
+			fs.readdirSync(cwd).filter((entry) => entry.includes(".staging-")),
+		).toEqual([]);
+	});
+
 	it("leaves no target directory when scaffolding fails mid-copy", () => {
 		const cwd = makeTempDir();
 		// A copy that fails once, the way a full disk or a dying process does.
