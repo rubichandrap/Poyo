@@ -133,7 +133,10 @@ describe("names the generated server cannot compile under", () => {
 	});
 
 	it("keeps the committed list equal to a fresh derivation from the shipped C#", () => {
-		const committed = fs.readFileSync(MODULE_PATH, "utf-8");
+		// A Windows checkout writes CRLF; the list is content, not endings.
+		const committed = fs
+			.readFileSync(MODULE_PATH, "utf-8")
+			.replaceAll("\r\n", "\n");
 		expect(committed).toBe(renderModule(deriveReservedNames()));
 		expect([...RESERVED_TYPE_NAMES]).toEqual(deriveReservedNames());
 	});
