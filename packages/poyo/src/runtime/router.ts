@@ -731,9 +731,11 @@ export function createRouter(options?: RouterOptions): Router {
 			// deploy) must hand the navigation to a document load, not unmount
 			// the shell over a blank screen; and a route whose module is already
 			// in memory renders synchronously, with no Suspense flash
-			// (ADR 0009, decision 7).
+			// (ADR 0009, decision 7). A route without a preload is already
+			// loaded: it commits as before, and only a rejecting preload takes
+			// the document-load floor.
 			try {
-				await result.route.preload();
+				await result.route.preload?.();
 			} catch {
 				if (currentToken === supersedeToken) {
 					fallback(url, currentToken, mode === "replace");
@@ -880,9 +882,10 @@ export function createRouter(options?: RouterOptions): Router {
 
 			// Same seam as a push or replace: the entry the browser moved to is
 			// settled only when its page module has loaded. A rejection hands
-			// the entry to a document load.
+			// the entry to a document load; a route without a preload is
+			// already loaded.
 			try {
-				await result.route.preload();
+				await result.route.preload?.();
 			} catch {
 				if (currentToken === supersedeToken) {
 					fallback(targetUrl, currentToken, true);

@@ -65,13 +65,15 @@ export interface AppRoute {
 	pageName: string;
 	access: RouteAccess;
 	/**
-	 * Loads the page module, once per document. The router awaits it between
-	 * resolving the descriptor and committing the navigation, so a chunk that
-	 * cannot load becomes a document load instead of a blank screen. A failed
-	 * load is remembered for this document: the fallback document load builds
-	 * a fresh route table (ADR 0009).
+	 * Loads the page module, once per document. Optional: a route built by
+	 * hand without one is treated as already loaded and commits as before.
+	 * The router awaits it between resolving the descriptor and committing
+	 * the navigation, so a chunk that cannot load becomes a document load
+	 * instead of a blank screen; only a rejecting preload takes that floor.
+	 * A failed load is remembered for this document: the fallback document
+	 * load builds a fresh route table (ADR 0009).
 	 */
-	preload(): Promise<void>;
+	preload?(): Promise<void>;
 }
 
 export interface RouteTableOptions {
@@ -136,7 +138,7 @@ interface PageModule {
  */
 function createPage(loader: PageLoader): {
 	component: AppRoute["component"];
-	preload: AppRoute["preload"];
+	preload: NonNullable<AppRoute["preload"]>;
 } {
 	let loaded: PageModule | undefined;
 	let pending: Promise<PageModule> | undefined;

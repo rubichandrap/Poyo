@@ -103,6 +103,27 @@ describe("Router — page chunk loading", () => {
 		expect(harness.history.pushState).toHaveBeenCalledTimes(1);
 	});
 
+	it("commits a route without a preload, as before", async () => {
+		// `preload` is optional: a route built by hand — or by any route table
+		// that has nothing to load — is treated as already loaded. Before the
+		// router awaited the module, a missing method could not fail a
+		// navigation, and it still cannot.
+		const dashboard = route("/dashboard", "Dashboard", {
+			preload: undefined,
+		});
+		const harness = createRouterHarness({
+			routes: [dashboard],
+			fetch: descriptorFetch("Dashboard") as unknown as typeof fetch,
+		});
+
+		await harness.router.push("/dashboard");
+
+		expect(harness.assign).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
+		expect(harness.history.pushState).toHaveBeenCalledTimes(1);
+		expect(getNavigationStore().getRoute()).toBe(dashboard);
+	});
+
 	it("push whose page module fails falls back to a document load and writes nothing", async () => {
 		const dashboard = route("/dashboard", "Dashboard", {
 			preload: () =>

@@ -4,6 +4,7 @@ import {
 	createRouteTable,
 	routePath,
 	withBasePath,
+	type AppRoute,
 	type PageLoaders,
 	type RouteEntry,
 	type RouteName,
@@ -20,6 +21,16 @@ const DashboardPage: ComponentType = () =>
 const ServerDataPage: ComponentType = () =>
 	createElement("div", null, "ServerData");
 const AboutPage: ComponentType = () => createElement("div", null, "About");
+
+/**
+ * The preload `createRouteTable` always installs. `AppRoute.preload` is
+ * optional for hand-built routes, so a test that means "the route table's
+ * route" states the expectation instead of silently skipping the call.
+ */
+function preloadOf(route: AppRoute): Promise<void> {
+	if (!route.preload) throw new Error("route table route has no preload");
+	return route.preload();
+}
 
 const dashboardEntry: RouteEntry = {
 	path: "/Dashboard",
@@ -154,7 +165,7 @@ describe("createRouteTable", () => {
 			expect(suspended).toBeInstanceOf(Promise);
 
 			resolve({ default: DashboardPage });
-			await route.preload();
+			await preloadOf(route);
 
 			// A preloaded route renders without suspending again — the property the
 			// router relies on to commit without a fallback.
@@ -170,8 +181,8 @@ describe("createRouteTable", () => {
 			);
 			const route = table.routes[0];
 
-			await Promise.all([route.preload(), route.preload()]);
-			await route.preload();
+			await Promise.all([preloadOf(route), preloadOf(route)]);
+			await preloadOf(route);
 
 			expect(loader).toHaveBeenCalledTimes(1);
 		});
@@ -187,10 +198,10 @@ describe("createRouteTable", () => {
 			);
 			const route = table.routes[0];
 
-			await expect(route.preload()).rejects.toThrow(
+			await expect(preloadOf(route)).rejects.toThrow(
 				"Failed to fetch dynamically imported module",
 			);
-			await expect(route.preload()).rejects.toThrow(
+			await expect(preloadOf(route)).rejects.toThrow(
 				"Failed to fetch dynamically imported module",
 			);
 			expect(loader).toHaveBeenCalledTimes(1);
