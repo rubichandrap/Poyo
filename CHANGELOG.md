@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-18
+
 ### Fixed
 
 - `poyo build` fails naming the files when the Vite manifest lists assets the client build did not produce, instead of copying whatever is there and shipping a page whose script or stylesheet 404s.
