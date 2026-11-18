@@ -827,5 +827,8 @@ describe("dynamic navigation — model check", () => {
 			(c) => `${c.message}\n    trace: ${c.trace.join(" → ")}`,
 		);
 		expect(report).toEqual([]);
-	}, 600_000);
+		// Depth 7 explores millions of states in a CPU-bound walk. A shared
+		// runner has taken over ten minutes for it, so a ten-minute cap failed
+		// runs that were slower, not wrong.
+	}, 900_000);
 });
