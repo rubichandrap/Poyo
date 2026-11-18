@@ -20,7 +20,7 @@ function App() {
 			<ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
 				<AuthProvider>
 					{currentRoute ? (
-						<RouteComponent route={currentRoute} />
+						<RouteComponent key={currentRoute.path} route={currentRoute} />
 					) : (
 						<PageNotFound />
 					)}
