@@ -741,6 +741,40 @@ describe("poyo route add refuses dot and empty segments", () => {
 	});
 });
 
+/**
+ * A path holding route-template or URL syntax is refused before its name is
+ * derived. The server maps a declared path as an ASP.NET route template while
+ * every request-time lookup resolves it literally, so `{`, `}` and `*` would
+ * let the endpoint serve URLs the registry does not own, and `?` and `#` split
+ * the URL at a character no request path carries. A `%` is refused unless it
+ * starts `%2F`, the one escape the server leaves encoded in a request path.
+ */
+describe("poyo route add refuses route-template and URL syntax", () => {
+	const refused: [string, string][] = [
+		["/Users/{id}", '"{" character'],
+		["/Users/id}", '"}" character'],
+		["/Files/*", '"*" character'],
+		["/Search?q=draft", '"?" character'],
+		["/Docs#top", '"#" character'],
+		["/Reports/100%25", '"%" that does not start "%2F"'],
+	];
+
+	it.each(refused)("refuses '%s' and writes nothing", (argument, character) => {
+		const fixture = makeFixture(starter);
+		const treeBefore = tree(fixture.dir);
+		const registryBefore = readFixtureFile(fixture, "routes.json");
+
+		const result = execInFixture(fixture, ["route", "add", argument]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain(character);
+		expect(result.stderr).toContain("declared path is a literal URL");
+		expect(result.stderr).toContain(argument);
+		expect(tree(fixture.dir)).toEqual(treeBefore);
+		expect(readFixtureFile(fixture, "routes.json")).toBe(registryBefore);
+	});
+});
+
 /** Every path under the fixture, so a write of any kind shows up as a diff. */
 function tree(root: string): string[] {
 	return fs

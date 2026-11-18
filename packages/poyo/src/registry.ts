@@ -5,6 +5,7 @@ import {
 	backslashRefusal,
 	firstRefusedSegment,
 	refusalMessage,
+	reservedRefusal,
 } from "./path-segments.js";
 import { isRouteAccess, type Route } from "./routes.js";
 
@@ -136,6 +137,14 @@ function validateRouteIdentity(route: unknown, index: number): void {
 	const refused = firstRefusedSegment(routePath);
 	if (refused !== undefined) {
 		throw new CliError(`${label}: "path" ${refusalMessage(refused)}`);
+	}
+
+	// Route-template and URL syntax is judged after the segments so a
+	// percent-encoded dot segment is reported as the dot it is, not as a
+	// percent sign.
+	const reserved = reservedRefusal(routePath);
+	if (reserved !== undefined) {
+		throw new CliError(`${label}: "path" ${refusalMessage(reserved)}`);
 	}
 
 	if (typeof entry.name === "string" && entry.name.trim().length > 0) {

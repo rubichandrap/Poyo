@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A number sign starts a fragment, which the browser keeps and never sends to the server: the declared path is not the request path, so the route is unreachable as written.",
+	"message": ["\"#\" character", "/Docs#top"],
+	"registry": [
+		{
+			"path": "/Docs#top",
+			"name": "Docs",
+			"files": {
+				"react": "src/pages/Docs/index.page.tsx",
+				"view": "Views/Docs/Index.cshtml"
+			}
+		}
+	]
+}

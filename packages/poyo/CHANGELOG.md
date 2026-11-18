@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - `wwwroot/manifest.json` records `css` as an array, not a string or `null`. **Upgrading:** a consumer that reads that field as a string must read an array.
+- A route path may no longer declare route-template or URL syntax — `{`, `}`, `*`, `?`, `#`, or a `%` other than `%2F` (ADR 0015). The server core mapped such a path as an ASP.NET route template while resolving requests literally, so `/Users/{id}` served `/Users/42` and skipped the access policy, the SEO policy and `no-store`. The registry reader refuses it on every read and write, `poyo route add` refuses the argument before deriving a file path, and seven corpus cases pin the rule for both runtimes. **Upgrading:** a registry declaring one now fails to start until its path is corrected.
 
 ## [0.7.1] - 2026-11-17
 

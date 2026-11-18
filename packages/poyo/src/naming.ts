@@ -1,7 +1,7 @@
-import { assertPathSegments } from "./path-segments.js";
+import { assertDeclarablePath } from "./path-segments.js";
 
 export function toRouteName(rawPath: string): string {
-	assertPathSegments(rawPath);
+	assertDeclarablePath(rawPath);
 
 	const parts = rawPath.split(/[\\/]/).filter(Boolean);
 	return parts

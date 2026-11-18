@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "The server decodes the request path except for %2F, so any other percent-encoding is a string the registry can never match: /Reports/100%25 is requested as /Reports/100%, and the literal lookup fails while the endpoint still matched.",
+	"message": ["\"%\" that does not start \"%2F\"", "/Reports/100%25"],
+	"registry": [
+		{
+			"path": "/Reports/100%25",
+			"name": "Reports",
+			"files": {
+				"react": "src/pages/Reports/index.page.tsx",
+				"view": "Views/Reports/Index.cshtml"
+			}
+		}
+	]
+}

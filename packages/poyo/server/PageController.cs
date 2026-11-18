@@ -7,7 +7,9 @@ namespace Poyo.Framework;
 /// Serves every registry page. For a registry route, renders the registry's
 /// view file or, on a descriptor request, the JSON page descriptor; custom
 /// controllers keep their own actions and can use ControllerExtensions.
-/// PoyoPage to join the wire contract.
+/// PoyoPage to join the wire contract. A request that reaches this action
+/// without a registry route is a 404: serving the view would bypass the
+/// policies the registry exists to apply.
 /// </summary>
 public sealed class PageController : Controller
 {
@@ -19,6 +21,17 @@ public sealed class PageController : Controller
         // by viewPath; resolve the registry entry the same way the policy
         // filters do — by request path.
         var route = policy.Find(HttpContext.Request.Path);
+
+        if (route is null)
+        {
+            // Defense in depth. Endpoint routing matches a declared path as a
+            // route template while every policy filter and the descriptor
+            // resolve the registry literally, so a template-shaped declaration
+            // could reach this action with no route behind it. The registry
+            // refuses such a declaration at boot; if a request gets here, it
+            // is not a page.
+            return NotFound();
+        }
 
         return PageResult.For(this, viewPath, route);
     }

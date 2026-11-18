@@ -1,0 +1,14 @@
+{
+	"verdict": "accept",
+	"note": "The percent-encoded slash is the one escape the server leaves encoded in the request path, so a declared path holding %2F is requested as written and resolved literally — the exception the percent rule keeps.",
+	"registry": [
+		{
+			"path": "/Users%2F42",
+			"name": "User42",
+			"files": {
+				"react": "src/pages/User42/index.page.tsx",
+				"view": "Views/User42/Index.cshtml"
+			}
+		}
+	]
+}

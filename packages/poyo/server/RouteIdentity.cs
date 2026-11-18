@@ -130,6 +130,7 @@ public static class RouteIdentity
         }
 
         ValidatePathSegments(route, routesJsonPath);
+        ValidatePathCharacters(route, routesJsonPath);
     }
 
     /// <summary>
@@ -192,6 +193,55 @@ public static class RouteIdentity
 
         throw new RoutePolicyException(
             $"{RegistryLabel(routesJsonPath)}: {Describe(route)} {refusal}");
+    }
+
+    /// <summary>
+    /// A declared path is a literal URL, not an ASP.NET route template and not
+    /// a URL with a query or fragment. The server maps it as a route pattern
+    /// while every request-time lookup resolves it literally, so `{`, `}` and
+    /// `*` would match URLs the registry does not own — a route declared
+    /// `/Users/{id}` serves `/Users/42` and skips the access policy, the SEO
+    /// policy and `no-store`. `?` and `#` split the URL at a character no
+    /// request path carries, so the route is never reached as declared.
+    ///
+    /// `%` is refused unless it starts `%2F`, the one escape the server leaves
+    /// encoded in a request path: every other escape is decoded before the
+    /// literal lookup, so the declared string can never equal the request it
+    /// names.
+    /// </summary>
+    private static void ValidatePathCharacters(RouteDefinition route, string routesJsonPath)
+    {
+        var path = route.Path;
+
+        for (var index = 0; index < path.Length; index++)
+        {
+            var character = path[index];
+
+            if (character == '%')
+            {
+                var encoded = path.AsSpan(index + 1, Math.Min(2, path.Length - index - 1));
+                if (!encoded.Equals("2F", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new RoutePolicyException(
+                        $"{RegistryLabel(routesJsonPath)}: {Describe(route)} declares a \"%\" that does " +
+                        "not start \"%2F\" — a declared path is a literal URL, and the server decodes " +
+                        "every escape but %2F in a request path, so this path can never match the " +
+                        "request it declares.");
+                }
+
+                index += 2;
+                continue;
+            }
+
+            if (character is '{' or '}' or '*' or '?' or '#')
+            {
+                throw new RoutePolicyException(
+                    $"{RegistryLabel(routesJsonPath)}: {Describe(route)} declares the \"{character}\" " +
+                    "character — a declared path is a literal URL, and the server maps it as an " +
+                    "ASP.NET route template while resolving requests literally, so route-template " +
+                    "and URL syntax is refused.");
+            }
+        }
     }
 
     /// <summary>

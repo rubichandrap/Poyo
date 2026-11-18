@@ -2,8 +2,8 @@ import { CliError } from "./error.js";
 
 /** A reason a declared route path may not be declared as written. */
 export interface PathRefusal {
-	readonly kind: "backslash" | "empty" | "dot";
-	/** The segment (or path) as written, so the message quotes editable text. */
+	readonly kind: "backslash" | "empty" | "dot" | "route-template" | "percent";
+	/** The segment, path or character as written, so the message quotes editable text. */
 	readonly written: string;
 }
 
@@ -46,6 +46,43 @@ export function firstRefusedSegment(rawPath: string): PathRefusal | undefined {
 }
 
 /**
+ * The first route-template or URL character a path may not carry: `{`, `}`,
+ * `*`, `?`, `#`, or a `%` that does not start `%2F`. The server maps a
+ * declared path as an ASP.NET route template while every request-time lookup
+ * resolves it literally, so a template-shaped declaration matches URLs the
+ * registry does not own — and `?` and `#` split the URL where no request path
+ * continues. `%2F` is the one escape the server leaves encoded in a request
+ * path; every other escape is decoded before the literal lookup, so the
+ * declared string can never equal the request it names.
+ */
+export function reservedRefusal(rawPath: string): PathRefusal | undefined {
+	for (let index = 0; index < rawPath.length; index++) {
+		const character = rawPath[index];
+
+		if (character === "%") {
+			if (rawPath.slice(index + 1, index + 3).toUpperCase() !== "2F") {
+				return { kind: "percent", written: "%" };
+			}
+
+			index += 2;
+			continue;
+		}
+
+		if (
+			character === "{" ||
+			character === "}" ||
+			character === "*" ||
+			character === "?" ||
+			character === "#"
+		) {
+			return { kind: "route-template", written: character };
+		}
+	}
+
+	return undefined;
+}
+
+/**
  * What is wrong with a refused path, as one sentence the registry reader and
  * the route-name derivation both report. The kinds fail for different reasons
  * and so are told apart: a backslash is read as "/" by the browser, so the
@@ -53,6 +90,10 @@ export function firstRefusedSegment(rawPath: string): PathRefusal | undefined {
  * which leaves the route unreachable; an empty segment is one ASP.NET's route
  * patterns cannot express, so mapping it throws a routing error at boot that
  * names neither the route nor its file.
+ *
+ * The route-template and percent kinds are the same hazard from the other
+ * side: the endpoint matches a declaration as a pattern, while the registry
+ * lookup matches it literally.
  */
 export function refusalMessage(refused: PathRefusal): string {
 	if (refused.kind === "backslash") {
@@ -69,6 +110,22 @@ export function refusalMessage(refused: PathRefusal): string {
 		);
 	}
 
+	if (refused.kind === "route-template") {
+		return (
+			`declares the "${refused.written}" character — a declared path is a ` +
+			"literal URL, and the server maps it as an ASP.NET route template while " +
+			"resolving requests literally, so route-template and URL syntax is refused"
+		);
+	}
+
+	if (refused.kind === "percent") {
+		return (
+			'declares a "%" that does not start "%2F" — a declared path is a literal ' +
+			"URL, and the server decodes every escape but %2F in a request path, so " +
+			"this path can never match the request it declares"
+		);
+	}
+
 	return (
 		`declares the "${refused.written}" segment — a browser reads it as a dot ` +
 		"segment and normalizes it away, so the route could never be reached"
@@ -78,14 +135,16 @@ export function refusalMessage(refused: PathRefusal): string {
 /**
  * Refuses a path before any file path is derived from it: a path becomes a
  * route name, and a name becomes the page and view file paths, so a dot
- * segment would resolve the write outside `src/pages/` or `Views/`.
+ * segment would resolve the write outside `src/pages/` or `Views/`, and a
+ * route-template or URL character would be written into a file name the
+ * server could not serve.
  *
  * A backslash is not refused here but read as a separator, as it is to a
  * browser and to a developer on Windows: the derived name holds only
  * separators, so the argument can never put a backslash in the registry.
  */
-export function assertPathSegments(rawPath: string): void {
-	const refused = firstRefusedSegment(rawPath);
+export function assertDeclarablePath(rawPath: string): void {
+	const refused = firstRefusedSegment(rawPath) ?? reservedRefusal(rawPath);
 	if (refused === undefined) return;
 
 	throw new CliError(

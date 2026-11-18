@@ -59,7 +59,7 @@ Vocabulary is in `CONTEXT.md`; the reasons behind every rule below are in `docs/
   "access": "protected", "dynamic": true, "seo": { "title": "Dashboard" } }
 ```
 
-- Identity is strict on disk, liberal at runtime (ADR 0015): a path starts with `/`, has no trailing slash except `/`, has no empty or dot (`.`/`..`) segment — `%2e` counts as a dot — nor a backslash, and is unique ignoring case; a name is present, slash-free at both ends and unique ignoring case; `controller` and `action` come together and non-blank. Requests match case-insensitively with trailing slashes trimmed.
+- Identity is strict on disk, liberal at runtime (ADR 0015): a path starts with `/`, has no trailing slash except `/`, has no empty or dot (`.`/`..`) segment — `%2e` counts as a dot — nor a backslash, nor route-template or URL syntax (`{`, `}`, `*`, `?`, `#`, or a `%` other than `%2F`), and is unique ignoring case; a name is present, slash-free at both ends and unique ignoring case; `controller` and `action` come together and non-blank. Requests match case-insensitively with trailing slashes trimmed.
 - Each field has one spelling (ADR 0018). The rules exist in C# and TypeScript, held together by `fixtures/registry/`: **a validation rule lands with its corpus case.**
 - `"dynamic": false` makes a route document-only. It has no CLI flag; edit the registry by hand.
 - Manage routes from `packages/poyo-template/`: `pnpm run route:add <Name>` (`--guest`, `--controller X`), `route:remove`, `route:sync`.
