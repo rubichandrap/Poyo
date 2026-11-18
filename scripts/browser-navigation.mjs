@@ -15,7 +15,9 @@
  *     agree in the browser, not only in the corpus.
  *
  * The scaffolded template's Home page links to Login and Login links back, so
- * the scenario needs no fixture pages of its own.
+ * the scenario needs no fixture pages of its own. It then signs in with the
+ * demo credentials and logs out, asserting the full-page redirect lands on the
+ * application's root — which under a path base is not the host's root.
  */
 import assert from "node:assert/strict";
 
@@ -56,6 +58,8 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 		const page = await context.newPage();
 		const pageErrors = [];
 		page.on("pageerror", (error) => pageErrors.push(error));
+		const basePathname =
+			new URL(`${origin}/`).pathname.replace(/\/$/, "") || "/";
 
 		// The rendered href includes the app's path base (/Login at the host
 		// root, /Poyo/Login under one), so match the route, not the raw path.
@@ -220,6 +224,27 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 		} finally {
 			await staleContext.close();
 		}
+
+		// Logout is a full document load to the application's root. Under a
+		// path base that root is `${origin}/`, not the host's `/` — the host
+		// root is outside the application, so a redirect there strands the
+		// user on a page the app does not serve under its mount.
+		await page.goto(`${origin}/Login`);
+		await loginReady();
+		await page.waitForLoadState("networkidle");
+		await page.fill("#username", "demo");
+		await page.fill("#password", "password");
+		await page.click('button[type="submit"]');
+		await page.waitForURL(/\/Dashboard$/);
+		await page.waitForSelector('button:has-text("Logout")');
+		await page.click('button:has-text("Logout")');
+		// `withBasePath("/")` emits the base as normalized, without a trailing
+		// slash, so the app root is `${origin}` or `${origin}/` — never the
+		// host root above it.
+		await page.waitForURL(
+			(url) => (url.pathname.replace(/\/$/, "") || "/") === basePathname,
+		);
+		await homeReady();
 
 		assert.deepEqual(
 			pageErrors.map((error) => error.message),

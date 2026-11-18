@@ -81,7 +81,16 @@ The server resolves it from `Routes:JsonPath` when the host names a location (a 
 
 ### Hosting under a path base
 
-Set `PathBase` (for example `/Poyo`) when the app is not at the host root — an IIS virtual directory, a reverse-proxy prefix. `app.UsePoyoPathBase()` applies it once, and every URL the app emits resolves against that one value: asset tags through `Url.Content`, the client's `data-base-path`, dynamic navigation, API calls and the authentication challenge. Leave it unset for a root deployment. The reverse proxy must forward the prefixed path (or strip nothing) — the app answers at `/Poyo/...` and does not guess the prefix from headers.
+Set `PathBase` (for example `/Poyo`) when the app is not at the host root — an IIS virtual directory, a reverse-proxy prefix. `app.UsePoyoPathBase()` applies it once, and every URL the app emits resolves against that one value: asset tags through `Url.Content`, the client's `data-base-path`, dynamic navigation, API calls, logout and the authentication challenge. Leave it unset for a root deployment. The reverse proxy must forward the prefixed path (or strip nothing) — the app answers at `/Poyo/...` and does not guess the prefix from headers.
+
+### Cookies and cross-origin access
+
+The demo cookie scheme and the `AllowClient` CORS policy exist for one client: the Vite dev server, which runs on another localhost origin and sends the cookie cross-origin. Both are development-only.
+
+- In Development the cookie is `SameSite=None; Secure` and `AllowClient` allows the localhost dev origins with credentials.
+- In every other environment the cookie is `SameSite=Lax` and no CORS policy is registered, so no response grants a cross-origin credential. The built client is served by the application itself, which needs neither.
+
+> **Upgrading?** Gate the cookie's `SameSite` and the `AddCors`/`UseCors` block on `builder.Environment.IsDevelopment()` (or `app.Environment`), as this template now does. A deployment that relied on a cross-origin credentialed client stops working — and should not have had one; the client it ships is served from the app.
 
 ### Route identity
 

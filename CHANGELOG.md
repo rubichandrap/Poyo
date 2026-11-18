@@ -23,6 +23,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `create-poyo-app` assembles a project in a staging directory and moves it into place, so a run that fails mid-copy leaves no target directory and a re-run is not refused as "already exists". **Upgrading:** none.
 - A dynamic navigation loads the page's module before committing the route, so a chunk that no longer exists (a tab open across a deploy) takes the document load instead of leaving the shell over a blank screen. `AppRoute.preload` is optional: a route without one commits as before, and only a preload that rejects takes the fallback (ADR 0009).
 - Dynamic navigation formats `<title>` through the layout's template at every `%s` and literally, so registry titles holding `$&`, `$$` or `%s` match a document load, and moves focus to the incoming page's `[data-page-region]` or `<main>` after React renders it. **Upgrading:** render `data-page-region` (or `<main>`) in a page for focus to land there; otherwise focus stays on the mount root.
+- A generated project's logout redirect resolves the app root through the client base path, so a project mounted under `PathBase` lands on its own root instead of the host's. **Upgrading:** in `providers/auth-provider.tsx`, redirect to `withBasePath("/")` instead of `"/"`.
+- A generated project's demo cookie is `SameSite=None` and the credentialed `AllowClient` CORS policy is registered only in Development; every other environment uses `SameSite=Lax` and no CORS policy, so no response grants a cross-origin credential. **Upgrading:** gate the cookie's `SameSite` and the `AddCors`/`UseCors` blocks on `builder.Environment.IsDevelopment()`.
 
 ### Changed
 

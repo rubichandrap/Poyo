@@ -76,8 +76,14 @@ builder.Services.AddAuthentication(options =>
 })
     .AddCookie("Cookies", options =>
     {
-        // Required for cross-origin (Vite -> API) on localhost
-        options.Cookie.SameSite = SameSiteMode.None;
+        // The Vite dev server runs on another localhost origin, so only a
+        // development boot has a cross-site client: the demo cookie is
+        // SameSite=None there. A deployment serves the built client from the
+        // application itself, so the cookie is SameSite=Lax and never rides a
+        // cross-site request — the CSRF surface SameSite closes.
+        options.Cookie.SameSite = builder.Environment.IsDevelopment()
+            ? SameSiteMode.None
+            : SameSiteMode.Lax;
         options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
 
         options.LoginPath = "/Login";
@@ -109,16 +115,22 @@ builder.Services.AddExceptionHandler<
     Poyo.Server.Middleware.Error.GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
 
-builder.Services.AddCors(options =>
+// The credentialed policy is for the Vite dev server's separate localhost
+// origin. A deployment serves the client from the application itself, so it
+// registers no cross-origin policy and no response grants a credential.
+if (builder.Environment.IsDevelopment())
 {
-    options.AddPolicy("AllowClient", policy =>
+    builder.Services.AddCors(options =>
     {
-        policy.WithOrigins("https://localhost:7058", "http://localhost:5173", "http://localhost:4173") // Vite/Aspire ports
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        options.AddPolicy("AllowClient", policy =>
+        {
+            policy.WithOrigins("https://localhost:7058", "http://localhost:5173", "http://localhost:4173") // Vite/Aspire ports
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        });
     });
-});
+}
 
 // Add Vite services
 if (builder.Environment.IsDevelopment())
@@ -162,7 +174,10 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
-app.UseCors("AllowClient");
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("AllowClient");
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
