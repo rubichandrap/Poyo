@@ -6,12 +6,12 @@ import { pageTemplate } from "../src/templates.js";
 import {
 	execInFixture,
 	existsFixtureFile,
+	type Fixture,
 	makeFixture,
+	type Route,
 	readFixtureFile,
 	typeErrors,
 	writeFixtureFile,
-	type Fixture,
-	type Route,
 } from "./helpers.js";
 
 const starter: Route[] = [
@@ -229,7 +229,7 @@ describe("poyo route add", () => {
 		expect(result.stderr).toContain("--action");
 	});
 
-	it("creates a custom controller and records it on the route", () => {
+	it("records the bare controller name MVC matches and scaffolds a PoyoPage action", () => {
 		const fixture = makeFixture(starter);
 		execInFixture(fixture, [
 			"route",
@@ -242,16 +242,20 @@ describe("poyo route add", () => {
 		]);
 
 		const route = fixture.routesJson().find((r) => r.path === "/Reports");
-		expect(route?.controller).toBe("ReportsController");
+		// MVC matches a controller by the class name without its suffix; a
+		// registry value carrying "Controller" names no controller and 404s.
+		expect(route?.controller).toBe("Reports");
 		expect(route?.action).toBe("Index");
 
 		const controller = readFixtureFile(
 			fixture,
 			"Poyo.Server/Controllers/ReportsController.cs",
 		);
+		expect(controller).toContain("using Poyo.Framework;");
 		expect(controller).toContain("class ReportsController : Controller");
 		expect(controller).toContain("public IActionResult Index()");
-		expect(controller).toContain('View("~/Views/Reports/Index.cshtml")');
+		expect(controller).toContain("return this.PoyoPage(null);");
+		expect(controller).not.toContain("return View(");
 	});
 
 	it("creates the Controllers directory when the project has none", () => {
@@ -280,7 +284,29 @@ describe("poyo route add", () => {
 		).toBe(true);
 	});
 
-	it("injects an action into an existing controller without duplicating the class", () => {
+	it("accepts a controller name without the suffix and still names the class with it", () => {
+		const fixture = makeFixture(starter);
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Reports",
+			"--action",
+			"Index",
+		]);
+
+		const route = fixture.routesJson().find((r) => r.path === "/Reports");
+		expect(route?.controller).toBe("Reports");
+
+		const controller = readFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+		);
+		expect(controller).toContain("class ReportsController : Controller");
+	});
+
+	it("injects a PoyoPage action into an existing controller without duplicating the class", () => {
 		const fixture = makeFixture(starter);
 		writeFixtureFile(
 			fixture,
@@ -304,7 +330,7 @@ public class ReportsController : Controller
 			"add",
 			"/Reports",
 			"--controller",
-			"ReportsController",
+			"Reports",
 			"--action",
 			"Index",
 		]);
@@ -313,9 +339,213 @@ public class ReportsController : Controller
 			fixture,
 			"Poyo.Server/Controllers/ReportsController.cs",
 		);
+		expect(controller).toContain("using Poyo.Framework;");
 		expect(controller).toContain("class ReportsController : Controller");
 		expect(controller).toContain("public IActionResult Index()");
+		expect(controller).toContain("return this.PoyoPage(null);");
 		expect(controller).toContain("public IActionResult Existing()");
+	});
+
+	it("places the framework using after extern alias lines", () => {
+		const fixture = makeFixture(starter);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+			`extern alias Foo;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Poyo.Server.Controllers;
+
+public class ReportsController : Controller
+{
+    public IActionResult Existing()
+    {
+        return Content("hi");
+    }
+}
+`,
+		);
+
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Reports",
+			"--action",
+			"Index",
+		]);
+
+		const controller = readFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+		);
+		expect(controller.startsWith("extern alias Foo;\n")).toBe(true);
+		expect(controller.indexOf("using Poyo.Framework;")).toBeGreaterThan(
+			controller.indexOf("extern alias Foo;"),
+		);
+		expect(controller).toContain("return this.PoyoPage(null);");
+	});
+
+	it("does not add a local using when the project has a global one", () => {
+		const fixture = makeFixture(starter);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/GlobalUsings.cs",
+			"global using Poyo.Framework;\n",
+		);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+			`using Microsoft.AspNetCore.Mvc;
+
+namespace Poyo.Server.Controllers;
+
+public class ReportsController : Controller
+{
+    public IActionResult Existing()
+    {
+        return Content("hi");
+    }
+}
+`,
+		);
+
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Reports",
+			"--action",
+			"Index",
+		]);
+
+		const controller = readFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+		);
+		expect(controller).not.toContain("using Poyo.Framework;");
+		expect(controller).toContain("return this.PoyoPage(null);");
+	});
+});
+
+describe("poyo route add validates --controller and --action", () => {
+	it("requires --controller when --action is given", () => {
+		const fixture = makeFixture(starter);
+		const treeBefore = tree(fixture.dir);
+		const registryBefore = readFixtureFile(fixture, "routes.json");
+
+		const result = execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--action",
+			"Index",
+		]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("--controller");
+		expect(tree(fixture.dir)).toEqual(treeBefore);
+		expect(readFixtureFile(fixture, "routes.json")).toBe(registryBefore);
+	});
+
+	const invalid: [string, string][] = [
+		["../../../poyo-escaped-controller", "controller"],
+		["Reports.Controller", "controller"],
+		["Reports Controller", "controller"],
+		["1Reports", "controller"],
+		["class", "controller"],
+		["Index()", "action"],
+		["class", "action"],
+		["void", "action"],
+	];
+
+	it.each(
+		invalid,
+	)("refuses the %s argument for --%s before writing anything", (value, flag) => {
+		const fixture = makeFixture(starter);
+		const treeBefore = tree(fixture.dir);
+		const registryBefore = readFixtureFile(fixture, "routes.json");
+
+		const result = execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			flag === "controller" ? value : "Reports",
+			"--action",
+			flag === "action" ? value : "Index",
+		]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain(`--${flag}`);
+		expect(result.stderr).toContain("C# identifier");
+		expect(tree(fixture.dir)).toEqual(treeBefore);
+		expect(readFixtureFile(fixture, "routes.json")).toBe(registryBefore);
+	});
+
+	it("writes nothing outside the project for an escaping --controller", () => {
+		const fixture = makeFixture(starter);
+		const outside = path.join(
+			os.tmpdir(),
+			"poyo-escaped-controllerController.cs",
+		);
+
+		try {
+			const result = execInFixture(fixture, [
+				"route",
+				"add",
+				"/Reports",
+				"--controller",
+				"../../../poyo-escaped-controller",
+				"--action",
+				"Index",
+			]);
+
+			expect(result.status).toBe(1);
+			expect(fs.existsSync(outside)).toBe(false);
+		} finally {
+			fs.rmSync(outside, { force: true });
+		}
+	});
+
+	it("refuses a --controller that is only the Controller suffix", () => {
+		const fixture = makeFixture(starter);
+		const treeBefore = tree(fixture.dir);
+
+		const result = execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Controller",
+			"--action",
+			"Index",
+		]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("--controller");
+		expect(tree(fixture.dir)).toEqual(treeBefore);
+	});
+
+	it("refuses a blank --controller", () => {
+		const fixture = makeFixture(starter);
+		const treeBefore = tree(fixture.dir);
+
+		const result = execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"",
+			"--action",
+			"Index",
+		]);
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("--controller");
+		expect(tree(fixture.dir)).toEqual(treeBefore);
 	});
 });
 

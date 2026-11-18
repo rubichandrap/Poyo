@@ -36,9 +36,9 @@ export function controllerTemplate(
 	serverNamespace: string,
 	controllerName: string,
 	actionName: string,
-	viewPath: string,
 ): string {
 	return `using Microsoft.AspNetCore.Mvc;
+using Poyo.Framework;
 
 namespace ${serverNamespace}.Controllers;
 
@@ -46,17 +46,17 @@ public class ${controllerName} : Controller
 {
     public IActionResult ${actionName}()
     {
-        return View("~/${viewPath}");
+        return this.PoyoPage(null);
     }
 }
 `;
 }
 
-export function actionTemplate(actionName: string, viewPath: string): string {
+export function actionTemplate(actionName: string): string {
 	return `
     public IActionResult ${actionName}()
     {
-        return View("~/${viewPath}");
+        return this.PoyoPage(null);
     }
 `;
 }

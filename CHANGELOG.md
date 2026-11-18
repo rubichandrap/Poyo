@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - CI runs the framework and scaffolder suites on Windows and on the lowest Node version `engines` allows; the fixes those runs needed are tests that assumed a POSIX separator, `/tmp`, or a shell shim.
 - A Poyo page response keeps any `Vary` value already on it (CORS or response compression, for one) and adds `X-Poyo-Navigation` to that value instead of replacing the header. A registry route whose view file is missing answers a descriptor request the way the document does: a logged 500 through the exception handler, not an empty 404. **Upgrading:** none.
 - `poyo route add` scaffolds a page that type-checks for any route name: the component identifier is derived separately (`User-profile` becomes `UserProfile`, `123` becomes `Page123`, `React` becomes `ReactPage`) and the heading renders the name as an expression, so hyphens, digits, spaces and `<`/`{` no longer break it. **Upgrading:** delete the page file, then run `route:sync --rescaffold` to regenerate it.
+- `poyo route add --controller` now stores the bare controller name in `routes.json` and scaffolds actions that return `this.PoyoPage(null)`, so the route answers 200 for the document and a navigation descriptor. **Upgrading:** drop the `Controller` suffix from `controller` in `routes.json` and replace `return View(...)` with `return this.PoyoPage(null)` in scaffolded actions.
 
 ### Changed
 

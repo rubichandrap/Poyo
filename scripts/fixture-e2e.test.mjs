@@ -757,6 +757,57 @@ test(
 					"the gate stays red until a version shipping offline snapshot codegen is published",
 			);
 
+			// 4b. `route add --controller` must produce a route the server can
+			//     actually serve: the registry stores the bare name MVC matches,
+			//     and the scaffolded action joins the PoyoPage wire contract.
+			//     Both are checked here against the CLI the project installed,
+			//     and the server reply is asserted after the boot below.
+			const routeAdd = run(
+				"pnpm",
+				[
+					"exec",
+					"poyo",
+					"route",
+					"add",
+					"/CliScaffold",
+					"--controller",
+					"CliScaffoldController",
+					"--action",
+					"Index",
+					"--public",
+				],
+				fixture,
+				120_000,
+			);
+			assert.equal(
+				routeAdd.status,
+				0,
+				`poyo route add --controller failed:\n${routeAdd.output}`,
+			);
+			const cliRoutes = readJson(path.join(fixture, "routes.json"));
+			const cliRoute = cliRoutes.find((route) => route.path === "/CliScaffold");
+			assert.ok(cliRoute, "poyo route add did not register /CliScaffold");
+			assert.equal(
+				cliRoute.controller,
+				"CliScaffold",
+				"the registry must store the bare controller name MVC matches",
+			);
+			assert.equal(cliRoute.action, "Index");
+			const cliControllerPath = path.join(
+				fixture,
+				SERVER_DIR,
+				"Controllers",
+				"CliScaffoldController.cs",
+			);
+			assert.ok(
+				fs.existsSync(cliControllerPath),
+				"poyo route add wrote no CliScaffoldController.cs",
+			);
+			const cliController = fs.readFileSync(cliControllerPath, "utf-8");
+			assert.match(cliController, /class CliScaffoldController : Controller/);
+			assert.match(cliController, /return this\.PoyoPage\(null\);/);
+			assert.doesNotMatch(cliController, /return View\(/);
+
 			// 5. Offline codegen verification: generate DTOs and Zod schemas
 			// completely offline from the committed openapi/openapi.json snapshot.
 			const dtosPath = path.join(
@@ -1139,6 +1190,45 @@ test(
 				!loginHtml.includes("window.SERVER_DATA"),
 				"the Login document injects no window.SERVER_DATA — its null pageData matches",
 			);
+
+			// The CLI-scaffolded custom-controller route answers both
+			// representations: a 200 document and a valid descriptor. Before
+			// the fix the registry stored `CliScaffoldController`, which names
+			// no MVC controller, and the action returned a view; both halves
+			// failed here as a 404 or as HTML for a navigation request.
+			const cliDocumentRes = await fetch(
+				`http://127.0.0.1:${serverPort}/CliScaffold`,
+			);
+			assert.equal(
+				cliDocumentRes.status,
+				200,
+				"a CLI-scaffolded controller route must serve its document",
+			);
+			assertPageResponse(cliDocumentRes);
+			assert.match(
+				cliDocumentRes.headers.get("content-type") || "",
+				/^text\/html/,
+			);
+			assert.match(await cliDocumentRes.text(), /data-page-name="CliScaffold"/);
+
+			const cliDescriptorRes = await fetch(
+				`http://127.0.0.1:${serverPort}/CliScaffold`,
+				sameOriginDescriptorInit(navHeaders),
+			);
+			assert.equal(
+				cliDescriptorRes.status,
+				200,
+				"a CLI-scaffolded controller route must answer the descriptor request",
+			);
+			assertPageResponse(cliDescriptorRes);
+			assert.equal(
+				cliDescriptorRes.headers.get("content-type")?.split(";")[0],
+				"application/json",
+				"a navigation request must receive the descriptor, not the view",
+			);
+			const cliDescriptor = await cliDescriptorRes.json();
+			assert.equal(cliDescriptor.name, "CliScaffold");
+			assert.equal(cliDescriptor.pageData, null);
 
 			// The opted-out route ("dynamic": false) answers the document
 			// even when the request carries the navigation header.

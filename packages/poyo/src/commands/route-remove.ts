@@ -1,10 +1,9 @@
 import { Command } from "commander";
 import { getPaths } from "../config.js";
 import { CliError } from "../error.js";
-import { findRoute } from "../registry.js";
-import { readRoutes, writeRoutes } from "../registry.js";
+import { findRoute, readRoutes, writeRoutes } from "../registry.js";
 import { writeRouteManifest } from "../route-manifest.js";
-import { deleteRouteFiles } from "../scaffold.js";
+import { controllerClassName, deleteRouteFiles } from "../scaffold.js";
 
 export function removeCommand(): Command {
 	return new Command("remove")
@@ -76,7 +75,7 @@ export function removeCommand(): Command {
 				);
 				if (deleteController === false && route.controller) {
 					process.stdout.write(
-						`  - ${paths.toProjectPath("server", `Controllers/${route.controller}.cs`)}\n`,
+						`  - ${paths.toProjectPath("server", `Controllers/${controllerClassName(route.controller)}.cs`)}\n`,
 					);
 				}
 			}

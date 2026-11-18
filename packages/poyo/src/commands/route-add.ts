@@ -1,13 +1,17 @@
 import { Command } from "commander";
 import { getPaths } from "../config.js";
 import { CliError } from "../error.js";
-import { toRouteName, toRoutePath } from "../naming.js";
+import { resolveRouteFiles, toRouteName, toRoutePath } from "../naming.js";
 import { readRoutes, writeRoutes } from "../registry.js";
 import { writeRouteManifest } from "../route-manifest.js";
 import { accessFromFlags, type Route } from "../routes.js";
-import { ensureControllerAction, scaffoldRouteFiles } from "../scaffold.js";
+import {
+	assertCSharpIdentifier,
+	controllerRouteName,
+	ensureControllerAction,
+	scaffoldRouteFiles,
+} from "../scaffold.js";
 import { defaultSeo } from "../templates.js";
-import { resolveRouteFiles } from "../naming.js";
 
 export function addCommand(): Command {
 	return new Command("add")
@@ -44,15 +48,25 @@ export function addCommand(): Command {
 				);
 			}
 
+			if (options.action && !options.controller) {
+				throw new CliError(
+					"If --action is specified, --controller must also be specified.",
+				);
+			}
+
+			// Both flags become a file name and C# source, so they are checked
+			// before anything is written: an escaping value must not reach the
+			// controller path, and an arbitrary string must not reach the class.
+			if (options.controller) {
+				assertCSharpIdentifier(options.controller, "controller");
+				assertCSharpIdentifier(options.action, "action");
+				controllerRouteName(options.controller);
+			}
+
 			const files = resolveRouteFiles(name, options.flat);
 
 			const controller = options.controller
-				? ensureControllerAction(
-						paths,
-						options.controller,
-						options.action,
-						files.view,
-					)
+				? ensureControllerAction(paths, options.controller, options.action)
 				: undefined;
 
 			const route: Route = {
