@@ -41,6 +41,17 @@ const starter: Route[] = [
 	},
 ];
 
+/** A controller the CLI could have written for two routes, in its exact shape. */
+function twoActionController(first: string, second: string): string {
+	const base = controllerTemplate("Poyo.Server", "ReportsController", first);
+	const lastBrace = base.lastIndexOf("}");
+	return `${base.slice(0, lastBrace)}\n    public IActionResult ${second}()
+    {
+        return this.PoyoPage(null);
+    }
+${base.slice(lastBrace)}`;
+}
+
 function fixtureWithFiles(): ReturnType<typeof makeFixture> {
 	const fixture = makeFixture(starter);
 	for (const route of starter) {
@@ -156,6 +167,105 @@ describe("poyo route remove", () => {
 		);
 		expect(result.stdout).toContain("/Reports/Detail");
 		expect(result.stdout).toContain("Index action is left in place");
+	});
+
+	it("treats a legacy controller spelling as sharing the same controller", () => {
+		const fixture = makeFixture([
+			{
+				path: "/Reports",
+				name: "Reports",
+				files: {
+					react: "src/pages/Reports/index.page.tsx",
+					view: "Views/Reports/Index.cshtml",
+				},
+				access: "protected",
+				controller: "Reports",
+				action: "Index",
+			},
+			{
+				path: "/Reports/Detail",
+				name: "ReportsDetail",
+				files: {
+					react: "src/pages/Reports/Detail/index.page.tsx",
+					view: "Views/Reports/Detail/Index.cshtml",
+				},
+				access: "protected",
+				controller: "ReportsController",
+				action: "Detail",
+			},
+		]);
+		for (const route of fixture.routesJson()) {
+			writeFixtureFile(
+				fixture,
+				`poyo.client/${route.files.react}`,
+				"export default () => null;\n",
+			);
+			writeFixtureFile(
+				fixture,
+				`Poyo.Server/${route.files.view}`,
+				'<div id="react-root"></div>\n',
+			);
+		}
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+			twoActionController("Index", "Detail"),
+		);
+
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/Reports",
+			"--yes",
+		]);
+
+		expect(result.status).toBe(0);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/ReportsController.cs",
+			),
+		).toBe(true);
+		expect(result.stdout).toContain("Kept controller");
+		expect(result.stdout).toContain("/Reports/Detail");
+	});
+
+	it("reports a controller file it could not find", () => {
+		const fixture = makeFixture([
+			{
+				path: "/Reports",
+				name: "Reports",
+				files: {
+					react: "src/pages/Reports/index.page.tsx",
+					view: "Views/Reports/Index.cshtml",
+				},
+				access: "protected",
+				controller: "Reports",
+				action: "Index",
+			},
+		]);
+		writeFixtureFile(
+			fixture,
+			"poyo.client/src/pages/Reports/index.page.tsx",
+			"export default () => null;\n",
+		);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Views/Reports/Index.cshtml",
+			'<div id="react-root"></div>\n',
+		);
+
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/Reports",
+			"--yes",
+		]);
+
+		expect(result.status).toBe(0);
+		expect(result.stdout).toContain(
+			"Controller not found: Poyo.Server/Controllers/ReportsController.cs",
+		);
 	});
 
 	it("deletes a scaffolded controller once its last route is removed", () => {

@@ -163,25 +163,15 @@ export function scaffoldedControllerSource(
 	controllerName: string,
 	actionNames: string[],
 ): string {
-	const actions = actionNames
-		.map(
-			(actionName) => `    public IActionResult ${actionName}()
-    {
-        return this.PoyoPage(null);
-    }`,
-		)
-		.join("\n\n");
-
-	return `using Microsoft.AspNetCore.Mvc;
-using Poyo.Framework;
-
-namespace ${serverNamespace}.Controllers;
-
-public class ${controllerName} : Controller
-{
-${actions}
-}
-`;
+	const [first, ...rest] = actionNames;
+	let source = controllerTemplate(serverNamespace, controllerName, first);
+	// Each later action is appended the way `ensureControllerAction` appends
+	// one: immediately before the class's closing brace.
+	for (const actionName of rest) {
+		const lastBraceIndex = source.lastIndexOf("}");
+		source = `${source.slice(0, lastBraceIndex)}${actionTemplate(actionName)}${source.slice(lastBraceIndex)}`;
+	}
+	return source;
 }
 
 /** The action signature the CLI writes, used to read a controller back. */
