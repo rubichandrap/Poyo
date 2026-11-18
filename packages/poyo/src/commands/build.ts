@@ -114,31 +114,45 @@ export function syncClientAssets(clientDir: string, serverDir: string): void {
 }
 
 /**
- * The stylesheets the page needs, in Vite's backend-integration order: the
- * entry chunk's own `css` first, then the `css` of every chunk reachable
- * through its static `imports`, recursively. A stylesheet the entry imports
- * is as load-bearing as its own, so emitting only the first file loses the
- * rest of the page's styling.
+ * The stylesheets the page needs, in the order Vite's backend-integration
+ * guide recommends: the entry chunk's own `css` first, then the `css` of
+ * every chunk reachable through its static `imports`, deepest dependency
+ * first. That last order is the one the guide's `importedChunks` helper
+ * returns — it recurses into a chunk's imports before pushing the chunk — so
+ * an imported chunk's own dependencies come before it. A stylesheet the entry
+ * imports is as load-bearing as its own, so emitting only the first file
+ * loses the rest of the page's styling.
+ * https://vite.dev/guide/backend-integration
  */
 function entryCss(
 	manifest: Record<string, ViteManifestChunk>,
 	entryKey: string,
 ): string[] {
 	const cssFiles: string[] = [];
-	const visited = new Set<string>();
-	const visit = (key: string): void => {
-		if (visited.has(key)) return;
-		visited.add(key);
-		const chunk = manifest[key];
-		if (!chunk) return;
-		for (const cssFile of chunk.css ?? []) {
+	const addCss = (chunk: ViteManifestChunk | undefined): void => {
+		for (const cssFile of chunk?.css ?? []) {
 			if (!cssFiles.includes(cssFile)) cssFiles.push(cssFile);
 		}
-		for (const imported of chunk.imports ?? []) {
-			visit(imported);
-		}
 	};
-	visit(entryKey);
+
+	addCss(manifest[entryKey]);
+
+	// Mirrors the guide's helper: a chunk is listed after its own imports.
+	const seen = new Set<string>();
+	const importedChunks = (chunk: ViteManifestChunk): ViteManifestChunk[] => {
+		const chunks: ViteManifestChunk[] = [];
+		for (const key of chunk.imports ?? []) {
+			if (seen.has(key)) continue;
+			seen.add(key);
+			const importee = manifest[key];
+			if (!importee) continue;
+			chunks.push(...importedChunks(importee), importee);
+		}
+		return chunks;
+	};
+	for (const chunk of importedChunks(manifest[entryKey])) {
+		addCss(chunk);
+	}
 	return cssFiles;
 }
 

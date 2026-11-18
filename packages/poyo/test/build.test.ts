@@ -192,11 +192,13 @@ describe("poyo build", () => {
 			"Poyo.Server/Views/Shared/_ReactAssets.cshtml",
 		);
 		// Vite's backend-integration order: the entry's own stylesheets, then
-		// the imported chunks', following `imports` recursively.
+		// the imported chunks' in the order its `importedChunks` helper
+		// returns — deepest dependency first (the helper recurses before it
+		// pushes the importee).
 		const order = [
 			'~/generated/index-abc.css")"',
-			'~/generated/shared-zzz.css")"',
 			'~/generated/theme-qqq.css")"',
+			'~/generated/shared-zzz.css")"',
 		].map((needle) => content.indexOf(needle));
 		expect(order.every((index) => index !== -1)).toBe(true);
 		expect(order).toEqual([...order].sort((a, b) => a - b));
@@ -206,8 +208,8 @@ describe("poyo build", () => {
 		) as { css: string[] };
 		expect(manifest.css).toEqual([
 			"~/generated/index-abc.css",
-			"~/generated/shared-zzz.css",
 			"~/generated/theme-qqq.css",
+			"~/generated/shared-zzz.css",
 		]);
 	});
 
