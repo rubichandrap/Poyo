@@ -1,4 +1,11 @@
-import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { confirm } from "@inquirer/prompts";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { removeCommand } from "../src/commands/route-remove.js";
+import { getPaths } from "../src/config.js";
+import { deleteRouteFiles } from "../src/scaffold.js";
 import {
 	execInFixture,
 	existsFixtureFile,
@@ -7,6 +14,8 @@ import {
 	writeFixtureFile,
 	type Route,
 } from "./helpers.js";
+
+vi.mock("@inquirer/prompts", () => ({ confirm: vi.fn() }));
 
 const starter: Route[] = [
 	{
@@ -149,5 +158,132 @@ describe("poyo route remove", () => {
 		expect(result.status).toBe(0);
 		const about = fixture.routesJson().find((r) => r.path === "/About");
 		expect(about?.dynamic).toBe(false);
+	});
+
+	it("refuses a hand-edited registry whose view leaves the project", () => {
+		const fixture = fixtureWithFiles();
+		const victim = path.join(
+			os.tmpdir(),
+			`poyo-remove-victim-${process.pid}-${Date.now()}.cshtml`,
+		);
+		fs.writeFileSync(victim, "victim\n");
+		const registry = fixture.routesJson();
+		registry[0].files = {
+			react: "src/pages/About/index.page.tsx",
+			view: `../../${path.basename(victim)}`,
+		};
+		const before = `${JSON.stringify(registry, null, 2)}\n`;
+		writeFixtureFile(fixture, "routes.json", before);
+
+		try {
+			const result = execInFixture(fixture, [
+				"route",
+				"remove",
+				"/About",
+				"--yes",
+			]);
+
+			expect(result.status).toBe(1);
+			expect(result.stderr).toContain('".." segment');
+			expect(result.stderr).toContain('"files.view"');
+			expect(fs.existsSync(victim)).toBe(true);
+			expect(readFixtureFile(fixture, "routes.json")).toBe(before);
+			expect(
+				existsFixtureFile(
+					fixture,
+					"poyo.client/src/pages/About/index.page.tsx",
+				),
+			).toBe(true);
+		} finally {
+			fs.rmSync(victim, { force: true });
+		}
+	});
+
+	/**
+	 * The registry reader refuses these paths, but the delete must not depend on
+	 * having been read through it: this calls the remove seam directly with an
+	 * unvalidated route, which is the state a caller can be in when the rule at
+	 * the operation is all that stands between a registry entry and a file.
+	 */
+	it.each([
+		[
+			"react",
+			(file: string) => ({
+				react: file,
+				view: "Views/About/Index.cshtml",
+			}),
+			"poyo.client/src/pages/About/index.page.tsx",
+		],
+		[
+			"view",
+			(file: string) => ({
+				react: "src/pages/About/index.page.tsx",
+				view: file,
+			}),
+			"Poyo.Server/Views/About/Index.cshtml",
+		],
+	])("refuses an outside %s path without a validated registry", (field, filesFor, sibling) => {
+		const fixture = fixtureWithFiles();
+		const paths = getPaths(fixture.dir);
+		const victim = path.join(
+			os.tmpdir(),
+			`poyo-remove-victim-${field}-${process.pid}-${Date.now()}.txt`,
+		);
+		fs.writeFileSync(victim, "victim\n");
+
+		try {
+			expect(() =>
+				deleteRouteFiles(paths, filesFor(`../../${path.basename(victim)}`), {
+					files: true,
+				}),
+			).toThrow(/Refusing route file path/);
+
+			expect(fs.existsSync(victim)).toBe(true);
+			expect(existsFixtureFile(fixture, sibling)).toBe(true);
+		} finally {
+			fs.rmSync(victim, { force: true });
+		}
+	});
+
+	/**
+	 * The two prompts are answered separately: keeping the page and view while
+	 * deleting the controller must not delete the files the operator said to
+	 * keep. The command used to pass both decisions as one, so `--yes` semantics
+	 * leaked into the interactive path.
+	 */
+	it("keeps the page and view when the operator deletes only the controller", async () => {
+		const fixture = fixtureWithFiles();
+		const cwd = process.cwd();
+		vi.mocked(confirm).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+
+		try {
+			process.chdir(fixture.dir);
+			await removeCommand().parseAsync(["/Reports"], {
+				from: "user",
+			});
+		} finally {
+			process.chdir(cwd);
+		}
+
+		expect(fixture.routesJson().map((r) => r.path)).toEqual(["/About"]);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/ReportsController.cs",
+			),
+		).toBe(false);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"poyo.client/src/pages/Reports/index.page.tsx",
+			),
+		).toBe(true);
+		expect(
+			existsFixtureFile(fixture, "Poyo.Server/Views/Reports/Index.cshtml"),
+		).toBe(true);
+	});
+
+	afterEach(() => {
+		vi.mocked(confirm).mockReset();
 	});
 });

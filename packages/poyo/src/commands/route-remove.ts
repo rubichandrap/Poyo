@@ -1,11 +1,10 @@
-import fs from "node:fs";
 import { Command } from "commander";
 import { getPaths } from "../config.js";
 import { CliError } from "../error.js";
 import { findRoute } from "../registry.js";
 import { readRoutes, writeRoutes } from "../registry.js";
 import { writeRouteManifest } from "../route-manifest.js";
-import { deleteEmptyParents } from "../scaffold.js";
+import { deleteRouteFiles } from "../scaffold.js";
 
 export function removeCommand(): Command {
 	return new Command("remove")
@@ -53,24 +52,11 @@ export function removeCommand(): Command {
 				});
 			}
 
-			if (deleteController && route.controller) {
-				const controllerPath = `${paths.controllersDir}/${route.controller}.cs`;
-				if (fs.existsSync(controllerPath)) {
-					fs.unlinkSync(controllerPath);
-				}
-			}
-
-			if (deleteFiles) {
-				const reactPath = `${paths.clientDir}/${route.files.react}`;
-				const viewPath = `${paths.serverDir}/${route.files.view}`;
-				if (fs.existsSync(reactPath)) {
-					fs.unlinkSync(reactPath);
-					deleteEmptyParents(reactPath, paths.clientDir);
-				}
-				if (fs.existsSync(viewPath)) {
-					fs.unlinkSync(viewPath);
-					deleteEmptyParents(viewPath, paths.serverDir);
-				}
+			if (deleteController || deleteFiles) {
+				deleteRouteFiles(paths, route.files, {
+					files: deleteFiles,
+					controller: deleteController ? route.controller : undefined,
+				});
 			}
 
 			const index = routes.findIndex((r) => r.path === route.path);

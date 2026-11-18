@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ProjectPaths } from "./config.js";
+import { containedProjectPath, routeFilePaths } from "./file-paths.js";
 import type { RouteFile } from "./routes.js";
 import {
 	actionTemplate,
@@ -56,7 +57,7 @@ export function ensureControllerAction(
 		safeControllerName += "Controller";
 	}
 
-	const controllerPath = path.join(
+	const controllerPath = containedProjectPath(
 		paths.controllersDir,
 		`${safeControllerName}.cs`,
 	);
@@ -108,8 +109,13 @@ export function scaffoldRouteFiles(
 	files: RouteFile,
 	options: { noView?: boolean; controller?: string; action?: string },
 ): void {
-	const pageFullPath = path.join(paths.clientDir, files.react);
-	const viewFullPath = path.join(paths.serverDir, files.view);
+	// Both paths are resolved and checked before either file is written, so a
+	// registry that names a file outside the project fails the command with
+	// nothing created — not even the page beside the refused view.
+	const { react: pageFullPath, view: viewFullPath } = routeFilePaths(
+		paths,
+		files,
+	);
 
 	if (!fs.existsSync(pageFullPath)) {
 		fs.mkdirSync(path.dirname(pageFullPath), { recursive: true });
@@ -132,5 +138,43 @@ export function scaffoldRouteFiles(
 			options.action,
 			files.view,
 		);
+	}
+}
+
+/**
+ * Deletes a route's files and, when the caller asks for them, its controller.
+ * `files` is required so a caller states which halves it deletes: the two
+ * confirmations in `route remove` are independent, and a controller deletion
+ * must not take the page and view with it. Every path is resolved and checked
+ * before anything is removed, so a route the registry never validated still
+ * cannot delete a file outside the project.
+ */
+export function deleteRouteFiles(
+	paths: ProjectPaths,
+	files: RouteFile,
+	options: { files: boolean; controller?: string },
+): void {
+	const filePaths = options.files ? routeFilePaths(paths, files) : undefined;
+	const controllerPath =
+		options.controller === undefined
+			? undefined
+			: containedProjectPath(paths.controllersDir, `${options.controller}.cs`);
+
+	if (controllerPath !== undefined && fs.existsSync(controllerPath)) {
+		fs.unlinkSync(controllerPath);
+	}
+
+	if (filePaths === undefined) {
+		return;
+	}
+
+	if (fs.existsSync(filePaths.react)) {
+		fs.unlinkSync(filePaths.react);
+		deleteEmptyParents(filePaths.react, paths.clientDir);
+	}
+
+	if (fs.existsSync(filePaths.view)) {
+		fs.unlinkSync(filePaths.view);
+		deleteEmptyParents(filePaths.view, paths.serverDir);
 	}
 }

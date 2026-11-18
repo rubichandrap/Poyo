@@ -18,6 +18,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - `wwwroot/manifest.json` records `css` as an array, not a string or `null`. **Upgrading:** a consumer that reads that field as a string must read an array.
 - A route path may no longer declare route-template or URL syntax — `{`, `}`, `*`, `?`, `#`, or a `%` other than `%2F` (ADR 0015). It was mapped as an ASP.NET route template but resolved literally, so `/Users/{id}` served `/Users/42` and skipped access, SEO and `no-store`. The route manager and `poyo route add` refuse it as well. **Upgrading:** correct such a registry or it will not boot.
+- A route's `files.react` and `files.view` must stay inside the project: both validators refuse a `..` segment, an absolute path or a drive-rooted path, and every route command resolves and checks a file before writing or deleting it (ADR 0022). **Upgrading:** a registry declaring one now fails to start until the path is corrected.
 
 ## [0.7.1] - 2026-11-17
 

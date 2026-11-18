@@ -168,9 +168,10 @@ internal static class RouteSchema
 
     /// <summary>
     /// Fails the boot unless a route declares the members without which nothing
-    /// can serve it. Only presence and type are checked: a blank file path is
-    /// not part of a route's identity, and the registry is authored, so judging
-    /// one is left to the route manager that resolves it.
+    /// can serve it. Only presence and type are checked here: containment is
+    /// where the path points and is judged by <see cref="RouteFilePaths"/>, while
+    /// blankness is not part of a route's identity and is left to the route
+    /// manager that resolves the path (ADR 0015, ADR 0018).
     /// </summary>
     private static void ValidateRequiredMembers(SchemaContext context)
     {

@@ -1,0 +1,20 @@
+{
+	"verdict": "reject",
+	"note": "An absolute file path is not relative to the project: resolving it against a project directory leaves it absolute, so the file is outside the project whatever the prefix is. Both runtimes refuse it rather than resolving it to the path it names.",
+	"message": [
+		"absolute path",
+		"\"/etc/passwd\"",
+		"\"files.react\"",
+		"relative to the project"
+	],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "/etc/passwd",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}

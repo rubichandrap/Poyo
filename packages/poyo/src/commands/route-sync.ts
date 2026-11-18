@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Command } from "commander";
 import { getPaths, type ProjectPaths } from "../config.js";
+import { projectFilePath } from "../file-paths.js";
 import { toRouteName, toRoutePath } from "../naming.js";
 import { readRoutes, writeRoutes } from "../registry.js";
 import { writeRouteManifest } from "../route-manifest.js";
@@ -272,8 +273,8 @@ async function runAction(
 				if (!routes.some((r) => r.path === route.path)) {
 					routes.push(route);
 				}
-				if (!fs.existsSync(`${paths.serverDir}/${route.files.view}`)) {
-					const viewPath = `${paths.serverDir}/${route.files.view}`;
+				const viewPath = projectFilePath(paths, "server", route.files.view);
+				if (!fs.existsSync(viewPath)) {
 					fs.mkdirSync(path.dirname(viewPath), { recursive: true });
 					fs.writeFileSync(viewPath, viewTemplate(route.name));
 				}
@@ -304,7 +305,7 @@ async function runAction(
 
 			for (const file of selected) {
 				const side = paths.resolveSide(file);
-				const full = path.join(paths.dirOf(side), file);
+				const full = projectFilePath(paths, side, file);
 				if (fs.existsSync(full)) {
 					fs.unlinkSync(full);
 					deleteEmptyParents(full, paths.dirOf(side));

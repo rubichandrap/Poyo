@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A route's file path is relative to the project, so a \"..\" segment reaches outside it: the route manager would scaffold or delete the file there. The server refuses the same registry at boot, because containment is a rule the two runtimes share rather than a detail of either one's file handling.",
+	"message": ["\"..\" segment", "\"files.react\"", "relative to the project"],
+	"registry": [
+		{
+			"path": "/Home",
+			"name": "Home",
+			"files": {
+				"react": "src/pages/../../victim.page.tsx",
+				"view": "Views/Home/Index.cshtml"
+			}
+		}
+	]
+}
