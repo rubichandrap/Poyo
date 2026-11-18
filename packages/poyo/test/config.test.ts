@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { getPaths } from "../src/config.js";
 import { makeFixture, mkdirs } from "./helpers.js";
@@ -12,9 +13,10 @@ describe("project path detection", () => {
 		const paths = getPaths(fixture.dir);
 		expect(paths.clientDir.endsWith("myapp.client")).toBe(true);
 		expect(paths.serverDir.endsWith("MyApp.Server")).toBe(true);
-		expect(paths.controllersDir.endsWith("MyApp.Server/Controllers")).toBe(
-			true,
-		);
+		// A native path: the separator is the platform's, not "/".
+		expect(
+			paths.controllersDir.endsWith(path.join("MyApp.Server", "Controllers")),
+		).toBe(true);
 	});
 
 	it("falls back to the legacy poyo names", () => {
