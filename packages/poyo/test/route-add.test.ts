@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { pageTemplate } from "../src/templates.js";
 import {
 	execInFixture,
 	existsFixtureFile,
@@ -107,8 +108,6 @@ describe("poyo route add", () => {
 			["/123", "poyo.client/src/pages/123/index.page.tsx"],
 			["/a-b/c", "poyo.client/src/pages/A-b/C/index.page.tsx"],
 			["/react", "poyo.client/src/pages/React/index.page.tsx"],
-			["/a<b", "poyo.client/src/pages/A<b/index.page.tsx"],
-			["/a{b", "poyo.client/src/pages/A{b/index.page.tsx"],
 		] as const;
 
 		for (const [urlPath, pagePath] of cases) {
@@ -118,14 +117,15 @@ describe("poyo route add", () => {
 			const page = readFixtureFile(fixture, pagePath);
 			expect(typeErrors(page), urlPath).toEqual([]);
 		}
+	});
 
-		const escaped = readFixtureFile(
-			fixture,
-			"poyo.client/src/pages/A<b/index.page.tsx",
-		);
-		expect(escaped).toContain(
-			'<h1 className="text-2xl font-bold">{"A<b"}</h1>',
-		);
+	it("renders a route name holding JSX-significant characters as text", () => {
+		// The name cannot reach the CLI on Windows — `<`, `>` and `:` are not
+		// file-name characters there — so the template is checked directly.
+		const page = pageTemplate("A<{b}");
+
+		expect(page).toContain('{"A<{b}"}');
+		expect(typeErrors(page), "A<{b}").toEqual([]);
 	});
 
 	it("honors --public and --guest", () => {
