@@ -8,17 +8,22 @@ import type { Route } from "../routes.js";
 import {
 	controllerFilePath,
 	controllerClassName,
+	controllerRouteName,
 	deleteRouteFiles,
 	isScaffoldedController,
 } from "../scaffold.js";
 
 /**
- * Whether another route is served by the same controller. MVC matches a
- * controller by its bare name ignoring case, and the registry stores that
- * name, so two routes share the file when their declarations do.
+ * Whether another route is served by the same controller. The registry may
+ * still hold the bare name or a legacy class name, so both sides are reduced
+ * to the name MVC matches before they are compared, ignoring case as MVC does.
  */
 function usesController(route: Route, controller: string): boolean {
-	return route.controller?.toLowerCase() === controller.toLowerCase();
+	return (
+		route.controller !== undefined &&
+		controllerRouteName(route.controller).toLowerCase() ===
+			controllerRouteName(controller).toLowerCase()
+	);
 }
 
 export function removeCommand(): Command {
@@ -110,7 +115,7 @@ export function removeCommand(): Command {
 				);
 			}
 
-			if (controller === undefined || !controllerExists) {
+			if (controller === undefined) {
 				return;
 			}
 
@@ -118,6 +123,10 @@ export function removeCommand(): Command {
 				"server",
 				`Controllers/${controllerClassName(controller)}.cs`,
 			);
+			if (!controllerExists) {
+				process.stdout.write(`Controller not found: ${controllerPath}\n`);
+				return;
+			}
 			if (deleteController) {
 				process.stdout.write(`Deleted controller: ${controllerPath}\n`);
 				return;
