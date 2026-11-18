@@ -850,7 +850,7 @@ describe("Router push, replace, and fallbacks", () => {
 		expect(staleDescription.setAttribute).not.toHaveBeenCalled();
 	});
 
-	it("moves focus to the page region and announces swap via live region", async () => {
+	it("focuses the mount root at commit and announces the swap via live region", async () => {
 		const settingsRoute: AppRoute = {
 			path: "/settings",
 			pageName: "Settings",
@@ -927,6 +927,75 @@ describe("Router push, replace, and fallbacks", () => {
 		);
 		expect(announcerEl.textContent).toBe("Settings - Account Preferences");
 		expect(bodyAppendMock).toHaveBeenCalledWith(announcerEl);
+	});
+
+	it("focuses a reused page region on the next frame", async () => {
+		const settingsRoute: AppRoute = {
+			path: "/settings",
+			pageName: "Settings",
+			access: "protected",
+			...stubPage(),
+		};
+
+		// The same page is pushed again: React reuses the region node, so no
+		// DOM mutation replaces the outgoing one.
+		const regionEl = {
+			hasAttribute: vi.fn().mockReturnValue(false),
+			setAttribute: vi.fn(),
+			focus: vi.fn(),
+		};
+		const rootEl = {
+			hasAttribute: vi.fn().mockReturnValue(true),
+			setAttribute: vi.fn(),
+			focus: vi.fn(),
+			querySelector: vi.fn((selector: string) =>
+				selector === "[data-page-region]" ? regionEl : null,
+			),
+		};
+		const mockDoc = {
+			title: "",
+			querySelector: vi.fn().mockReturnValue(null),
+			getElementById: vi.fn((id: string) => {
+				if (id === "poyo-announcer") return null;
+				if (id === "react-root") return rootEl;
+				return null;
+			}),
+			createElement: vi.fn(() => ({
+				id: "",
+				textContent: "",
+				setAttribute: vi.fn(),
+			})),
+			body: { appendChild: vi.fn() },
+		};
+		let frame: FrameRequestCallback | undefined;
+		const harness = createRouterHarness({
+			routes: [settingsRoute],
+			fetch: vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ name: "Settings", seo: null, pageData: null }),
+			}) as unknown as typeof fetch,
+			document: mockDoc as unknown as Document,
+			location: {
+				pathname: "/settings",
+				href: "http://localhost:3000/settings",
+			},
+			requestAnimationFrame: (callback) => {
+				frame = callback;
+				return 1;
+			},
+		});
+
+		await harness.router.push("/settings");
+
+		// The root takes focus at commit; the page's region follows once React
+		// has had its frame.
+		expect(rootEl.focus).toHaveBeenCalledWith({ preventScroll: true });
+		expect(regionEl.focus).not.toHaveBeenCalled();
+
+		frame?.(0);
+
+		expect(regionEl.focus).toHaveBeenCalledWith({ preventScroll: true });
 	});
 });
 
@@ -1158,6 +1227,18 @@ describe("Head parity with the server-rendered document", () => {
 		const doc = previousPage();
 		await navigateTo(doc, { title: "Your profile" });
 		expect(doc.title).toBe("Your profile - Poyo");
+	});
+
+	it("replaces every placeholder literally, as the layout does", async () => {
+		const doc = createFakeDocument();
+		seed(
+			doc,
+			"title",
+			{ [TITLE_TEMPLATE_ATTRIBUTE]: "%s / %s" },
+			"Home / Home",
+		);
+		await navigateTo(doc, { title: "$& and $$ with %s" });
+		expect(doc.title).toBe("$& and $$ with %s / $& and $$ with %s");
 	});
 
 	it("replaces the previous route's description, meta tags and JSON-LD", async () => {

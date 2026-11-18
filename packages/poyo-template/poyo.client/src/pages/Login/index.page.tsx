@@ -63,7 +63,10 @@ export default function LoginPage() {
 	};
 
 	return (
-		<div className="min-h-screen bg-[#F0F9FF] flex items-center justify-center p-4">
+		<div
+			data-page-region="Login"
+			className="min-h-screen bg-[#F0F9FF] flex items-center justify-center p-4"
+		>
 			<div className="w-full max-w-md">
 				{/* Logo/Title */}
 				<div className="text-center mb-8">

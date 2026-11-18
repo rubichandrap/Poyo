@@ -4,7 +4,10 @@ import { routePath } from "@rubichandrap/poyo/runtime";
 
 export default function HomePage() {
 	return (
-		<div className="min-h-screen flex flex-col items-center justify-center bg-[#F0F9FF] text-slate-700 font-sans selection:bg-[#5ba4fc] selection:text-white">
+		<div
+			data-page-region="Home"
+			className="min-h-screen flex flex-col items-center justify-center bg-[#F0F9FF] text-slate-700 font-sans selection:bg-[#5ba4fc] selection:text-white"
+		>
 			{/* Content Container */}
 			<div className="max-w-4xl w-full px-6 py-16 text-center">
 				{/* Logo / Title */}

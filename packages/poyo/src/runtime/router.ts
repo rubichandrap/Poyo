@@ -194,8 +194,11 @@ function applyHead(doc: Document, body: PageDescriptor): string {
 	const template = doc
 		.querySelector?.("title")
 		?.getAttribute?.(TITLE_TEMPLATE_ATTRIBUTE);
+	// The server's layout replaces every `%s` literally; `String.replace`
+	// would read `$&` and `$$` in the page title as replacement patterns and
+	// stop after the first placeholder. Split/join does neither.
 	doc.title = template?.includes("%s")
-		? template.replace("%s", pageTitle)
+		? template.split("%s").join(pageTitle)
 		: pageTitle;
 
 	if (typeof doc.querySelectorAll === "function") {
@@ -251,23 +254,15 @@ function applyHead(doc: Document, body: PageDescriptor): string {
 
 function applySeoAndAccessibility(
 	doc: Document | undefined,
+	win: Window | undefined,
 	body: PageDescriptor,
+	isCurrent: () => boolean,
+	samePage: boolean,
 ): void {
 	if (!doc) return;
 
 	const title = applyHead(doc, body);
-
-	// Shift focus to page region for accessibility
-	const pageRegion =
-		doc.querySelector("[data-page-region]") ??
-		doc.querySelector("main") ??
-		doc.getElementById("react-root");
-	if (pageRegion && typeof (pageRegion as HTMLElement).focus === "function") {
-		if (!pageRegion.hasAttribute("tabindex")) {
-			pageRegion.setAttribute("tabindex", "-1");
-		}
-		(pageRegion as HTMLElement).focus({ preventScroll: true });
-	}
+	focusPageAfterRender(doc, win, isCurrent, samePage);
 
 	// Announce swap via live region for assistive tech
 	if (doc.body) {
@@ -287,6 +282,117 @@ function applySeoAndAccessibility(
 			announcer.textContent = title;
 		}
 	}
+}
+
+/** How long a navigation watches for the incoming page's focus region. */
+const FOCUS_RENDER_WAIT_MS = 5000;
+
+/** Gives the page region focus, making it focusable if it is not. */
+function focusPageRegion(element: Element): boolean {
+	if (typeof (element as HTMLElement).focus !== "function") return false;
+	if (!element.hasAttribute("tabindex")) {
+		element.setAttribute("tabindex", "-1");
+	}
+	(element as HTMLElement).focus({ preventScroll: true });
+	return true;
+}
+
+/**
+ * Moves focus into the page the navigation just committed, never onto an
+ * element React is about to remove. The page region on screen at commit
+ * belongs to the outgoing page; the mount root survives the swap, so focus
+ * goes there first, and the incoming page's own region takes it once React
+ * has rendered it (a lazy page renders a fallback before its markup). A page
+ * that renders no region keeps the focus on the root, as before. Regions are
+ * looked up inside the mount root, so a modal or another document-level
+ * `<main>` cannot capture the navigation's focus.
+ */
+function focusPageAfterRender(
+	doc: Document,
+	win: Window | undefined,
+	isCurrent: () => boolean,
+	samePage: boolean,
+): void {
+	const root = doc.getElementById?.("react-root") ?? null;
+	const scopedRoot = typeof root?.querySelector === "function" ? root : null;
+	const findRegion = () => {
+		if (scopedRoot) {
+			return (
+				scopedRoot.querySelector("[data-page-region]") ??
+				scopedRoot.querySelector("main")
+			);
+		}
+		return (
+			doc.querySelector?.("[data-page-region]") ??
+			doc.querySelector?.("main") ??
+			null
+		);
+	};
+	const outgoing = findRegion();
+	const focusedRoot = root ? focusPageRegion(root) : false;
+
+	let stopped = false;
+	let observer: MutationObserver | undefined;
+	const stop = () => {
+		if (stopped) return;
+		stopped = true;
+		observer?.disconnect();
+	};
+
+	// A navigation to the page already on screen keeps its region node. One
+	// frame after the commit React has applied the new data, and that node is
+	// still the page's, so focusing it is safe. A navigation to a different
+	// page waits for the replacement region below.
+	if (samePage && typeof win?.requestAnimationFrame === "function") {
+		win.requestAnimationFrame(() => {
+			if (!isCurrent()) {
+				stop();
+				return;
+			}
+			const region = findRegion();
+			if (!region) return;
+			// Do not steal focus from a reader who has already moved it.
+			if (focusedRoot) {
+				const active = doc.activeElement;
+				if (active && active !== doc.body && active !== root) {
+					stop();
+					return;
+				}
+			}
+			focusPageRegion(region);
+			stop();
+		});
+	}
+
+	const Observer = (win as (Window & typeof globalThis) | undefined)
+		?.MutationObserver;
+	const target = scopedRoot ?? doc.body;
+	if (stopped || !Observer || !target) return;
+
+	// A lazy page renders its own region later than the fallback; watch the
+	// page's own subtree for it, and give up at the same bound a fragment
+	// navigation uses.
+	observer = new Observer(() => {
+		if (!isCurrent()) {
+			stop();
+			return;
+		}
+		const region = findRegion();
+		// The region still on screen is the outgoing page's; only its
+		// replacement is the incoming page's.
+		if (!region || region === outgoing) return;
+		if (focusedRoot) {
+			const active = doc.activeElement;
+			if (active && active !== doc.body && active !== root) {
+				stop();
+				return;
+			}
+		}
+		focusPageRegion(region);
+		stop();
+	});
+	observer.observe(target, { childList: true, subtree: true });
+	win?.setTimeout?.(stop, FOCUS_RENDER_WAIT_MS);
 }
 function saveCurrentScroll(win: Window | undefined): void {
 	if (!win?.history) return;
@@ -747,6 +853,9 @@ export function createRouter(options?: RouterOptions): Router {
 			// Save current scroll of the entry we are leaving BEFORE committing new route
 			rememberScroll();
 			recordScroll();
+			// The page already on screen keeps its region node, so its focus
+			// can move on the next frame instead of waiting for a replacement.
+			const samePage = store.getRoute()?.pageName === result.route.pageName;
 
 			// Atomic commit to navigation store
 			store.commit({
@@ -793,7 +902,15 @@ export function createRouter(options?: RouterOptions): Router {
 			if (fragment) revealFragment(fragment, currentToken);
 
 			// Apply SEO & accessibility
-			applySeoAndAccessibility(doc, result.body);
+			applySeoAndAccessibility(
+				doc,
+				win,
+				result.body,
+				() => {
+					return currentToken === supersedeToken;
+				},
+				samePage,
+			);
 			lastCommittedUrl = win?.location?.href ?? url;
 			screenUrl = lastCommittedUrl;
 		} catch {
@@ -894,6 +1011,10 @@ export function createRouter(options?: RouterOptions): Router {
 			}
 			if (currentToken !== supersedeToken) return;
 
+			// The page already on screen keeps its region node, so its focus
+			// can move on the next frame instead of waiting for a replacement.
+			const samePage = store.getRoute()?.pageName === result.route.pageName;
+
 			// Atomic commit to navigation store
 			store.commit({
 				route: result.route,
@@ -901,7 +1022,15 @@ export function createRouter(options?: RouterOptions): Router {
 			});
 
 			// Apply SEO & accessibility
-			applySeoAndAccessibility(doc, result.body);
+			applySeoAndAccessibility(
+				doc,
+				win,
+				result.body,
+				() => {
+					return currentToken === supersedeToken;
+				},
+				samePage,
+			);
 
 			// Restore the stored scroll position after the browser has had a
 			// chance to render the destination — restoring synchronously clamps
