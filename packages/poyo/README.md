@@ -45,7 +45,7 @@ A route's identity is one thing, defined once, and enforced in two disciplines: 
 
 ## Build sync
 
-`poyo build` reads the Vite manifest, copies the built assets into `wwwroot/generated`, prunes stale files, and rewrites `_ReactAssets.cshtml` with the current entry JS/CSS — so Razor views always reference the correct hashed filenames.
+`poyo build` reads the Vite manifest, copies the built assets into `wwwroot/generated`, prunes stale files, and rewrites `_ReactAssets.cshtml` with the current entry JS and every stylesheet it needs — the entry's own CSS, then the CSS of each chunk it imports statically — so Razor views always reference the correct hashed filenames. A manifest entry with no file behind it fails the build with that file's name, rather than shipping a page whose script or stylesheet 404s.
 
 ## Client runtime
 
