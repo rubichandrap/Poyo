@@ -264,6 +264,10 @@ async function assertGeneratedRuntimeNavigation(
 		pageName: "Dashboard",
 		access: "protected",
 		component: () => null,
+		// The router loads the page module between resolving the descriptor
+		// and committing the navigation (ADR 0009); a hand-built route stands
+		// in for a route table's route, whose preload is already satisfied here.
+		preload: async () => {},
 	};
 	const history = {
 		state: null,
