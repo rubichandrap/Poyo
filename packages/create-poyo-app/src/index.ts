@@ -151,9 +151,13 @@ function restoreTemplates(dir: string): void {
 }
 
 function installDependencies(targetDir: string): void {
+	// On Windows pnpm is `pnpm.cmd`, which CreateProcess cannot launch without
+	// a shell; the scaffolder would copy the template and then fail here. The
+	// arguments are constants, so nothing user-supplied reaches the shell.
 	const result = spawnSync("pnpm", ["install"], {
 		cwd: targetDir,
 		stdio: "inherit",
+		shell: true,
 	});
 	if (result.status !== 0) {
 		throw new CliError(`pnpm install failed in ${targetDir}`);
