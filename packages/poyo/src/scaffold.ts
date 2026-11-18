@@ -140,6 +140,85 @@ export function controllerRouteName(controllerName: string): string {
 	return name;
 }
 
+/** The file a controller name resolves to, inside the project. */
+export function controllerFilePath(
+	paths: ProjectPaths,
+	controllerName: string,
+): string {
+	return containedProjectPath(
+		paths.controllersDir,
+		`${controllerClassName(controllerName)}.cs`,
+	);
+}
+
+/**
+ * The one shape `route add --controller` writes: the class wrapper around one
+ * `PoyoPage(null)` action per route it scaffolded. `route remove` rebuilds a
+ * controller from the actions it can read and compares the whole file, so any
+ * edit — a different body, a constructor, an extra method — reads as authored
+ * and is never deleted on the operator's behalf.
+ */
+export function scaffoldedControllerSource(
+	serverNamespace: string,
+	controllerName: string,
+	actionNames: string[],
+): string {
+	const actions = actionNames
+		.map(
+			(actionName) => `    public IActionResult ${actionName}()
+    {
+        return this.PoyoPage(null);
+    }`,
+		)
+		.join("\n\n");
+
+	return `using Microsoft.AspNetCore.Mvc;
+using Poyo.Framework;
+
+namespace ${serverNamespace}.Controllers;
+
+public class ${controllerName} : Controller
+{
+${actions}
+}
+`;
+}
+
+/** The action signature the CLI writes, used to read a controller back. */
+const SCAFFOLDED_ACTION = /public IActionResult ([A-Za-z_][A-Za-z0-9_]*)\(\)/g;
+
+/**
+ * Whether the whole controller file is exactly what the CLI writes for the
+ * actions it holds. Line endings and a BOM are the editor's, not authorship, so
+ * they are normalized; every other difference means a human wrote or changed
+ * something and the file is kept.
+ */
+export function isScaffoldedController(
+	paths: ProjectPaths,
+	controllerName: string,
+): boolean {
+	const controllerPath = controllerFilePath(paths, controllerName);
+	if (!fs.existsSync(controllerPath)) return false;
+
+	const content = fs
+		.readFileSync(controllerPath, "utf-8")
+		.replace(/^\uFEFF/, "")
+		.replace(/\r\n/g, "\n");
+	const actionNames = [...content.matchAll(SCAFFOLDED_ACTION)].map(
+		(match) => match[1],
+	);
+	if (actionNames.length === 0) return false;
+
+	return (
+		content ===
+		scaffoldedControllerSource(
+			paths.serverNamespace,
+			controllerClassName(controllerName),
+			actionNames,
+		)
+	);
+}
+
 const FRAMEWORK_USING = "using Poyo.Framework;";
 
 const LOCAL_FRAMEWORK_USING = /^[ \t]*using[ \t]+Poyo\.Framework[ \t]*;/m;
@@ -254,10 +333,7 @@ export function ensureControllerAction(
 	const routeName = controllerRouteName(controllerName);
 	const className = controllerClassName(controllerName);
 
-	const controllerPath = containedProjectPath(
-		paths.controllersDir,
-		`${className}.cs`,
-	);
+	const controllerPath = controllerFilePath(paths, controllerName);
 
 	if (!fs.existsSync(controllerPath)) {
 		fs.mkdirSync(paths.controllersDir, { recursive: true });
@@ -344,10 +420,7 @@ export function deleteRouteFiles(
 	const controllerPath =
 		options.controller === undefined
 			? undefined
-			: containedProjectPath(
-					paths.controllersDir,
-					`${controllerClassName(options.controller)}.cs`,
-				);
+			: controllerFilePath(paths, options.controller);
 
 	if (controllerPath !== undefined && fs.existsSync(controllerPath)) {
 		fs.unlinkSync(controllerPath);
