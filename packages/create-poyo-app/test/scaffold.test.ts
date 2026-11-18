@@ -212,6 +212,31 @@ describe("create-poyo-app", () => {
 		expect(exists(cwd, "OtherApp/package.json")).toBe(true);
 	});
 
+	it("launches the dependency install without Node's shell deprecation warning", () => {
+		const cwd = makeTempDir();
+		const binDir = path.join(cwd, "bin");
+		fs.mkdirSync(binDir);
+		// A pnpm that succeeds at once: the test is the launch, not the install.
+		if (process.platform === "win32") {
+			fs.writeFileSync(path.join(binDir, "pnpm.cmd"), "@exit /b 0\r\n");
+		} else {
+			const shim = path.join(binDir, "pnpm");
+			fs.writeFileSync(shim, "#!/bin/sh\nexit 0\n");
+			fs.chmodSync(shim, 0o755);
+		}
+
+		const result = runCli(["Installed"], {
+			cwd,
+			env: { PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}` },
+		});
+
+		expect(result.status, result.stderr).toBe(0);
+		// Node 24 deprecates a shell launch that also passes an argument
+		// vector; the scaffolder must not warn on every run, on every OS.
+		expect(result.stderr).not.toContain("DEP0190");
+		expect(result.stdout).toContain("Created Installed");
+	});
+
 	it("errors when the target directory already exists", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });

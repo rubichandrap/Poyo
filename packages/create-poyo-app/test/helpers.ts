@@ -23,11 +23,12 @@ export const OWN_VERSION = (
 
 export function runCli(
 	args: string[],
-	options: { cwd: string },
+	options: { cwd: string; env?: Record<string, string> },
 ): { status: number; stdout: string; stderr: string } {
 	const result = spawnSync(process.execPath, [CLI_PATH, ...args], {
 		cwd: options.cwd,
 		encoding: "utf-8",
+		env: { ...process.env, ...options.env },
 	});
 	return {
 		status: result.status ?? -1,
