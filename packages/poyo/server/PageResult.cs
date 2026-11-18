@@ -268,6 +268,13 @@ internal static class PageResponsePolicy
     /// </summary>
     internal static void AddVary(HttpResponse response, string value)
     {
+        // A started response cannot take a header, and the bytes already left
+        // with whatever it carried; never let the append throw.
+        if (response.HasStarted)
+        {
+            return;
+        }
+
         foreach (var headerValue in response.Headers.Vary)
         {
             if (headerValue is null)
@@ -277,7 +284,13 @@ internal static class PageResponsePolicy
 
             foreach (var token in headerValue.Split(','))
             {
-                if (string.Equals(token.Trim(), value, StringComparison.OrdinalIgnoreCase))
+                var trimmed = token.Trim();
+
+                // `*` already varies on every header, the navigation header
+                // included, so adding a token would only make the value lie
+                // about being a wildcard.
+                if (trimmed == "*"
+                    || string.Equals(trimmed, value, StringComparison.OrdinalIgnoreCase))
                 {
                     return;
                 }

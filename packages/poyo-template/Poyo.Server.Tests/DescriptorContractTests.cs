@@ -100,6 +100,24 @@ public class DescriptorContractTests : IClassFixture<DescriptorServerFixture>
     }
 
     [Fact]
+    public async Task Document_leaves_a_wildcard_vary_alone()
+    {
+        var response = await CreateClient().GetAsync("/VaryAny");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("*", response.Headers.Vary.ToString());
+    }
+
+    [Fact]
+    public async Task Descriptor_leaves_a_wildcard_vary_alone()
+    {
+        var response = await CreateClient().SendAsync(NavigationRequests.Descriptor("/VaryAny"));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("*", response.Headers.Vary.ToString());
+    }
+
+    [Fact]
     public async Task Document_and_descriptor_page_data_are_structurally_equal()
     {
         var (documentBody, pageData) = await GetPageDataRepresentationsAsync(CreateClient());

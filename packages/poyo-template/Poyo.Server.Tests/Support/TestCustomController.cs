@@ -52,6 +52,16 @@ public sealed class TestCustomController : Controller
     }
 
     /// <summary>
+    /// A page whose response varies on every header: <c>Vary: *</c> already
+    /// covers the navigation header, so Poyo must leave it alone.
+    /// </summary>
+    public IActionResult VaryAny()
+    {
+        Response.Headers.Vary = "*";
+        return this.PoyoPage(new { message = "vary any" });
+    }
+
+    /// <summary>
     /// A page answered with a non-success status: both representations must
     /// carry it.
     /// </summary>

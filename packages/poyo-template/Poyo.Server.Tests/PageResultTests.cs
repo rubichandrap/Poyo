@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Poyo.Framework;
 
 namespace Poyo.Server.Tests;
@@ -90,7 +92,40 @@ public class PageResultTests
         Assert.False(route.Dynamic);
     }
 
+    [Fact]
+    public void AddVary_does_nothing_once_the_response_has_started()
+    {
+        var context = new DefaultHttpContext();
+        context.Features.Set<IHttpResponseFeature>(new StartedResponseFeature());
+
+        PageResponsePolicy.AddVary(context.Response, PageResult.NavigationHeaderName);
+
+        Assert.True(context.Response.HasStarted);
+        Assert.Equal(0, context.Response.Headers.Vary.Count);
+    }
+
     private sealed class TestController : Microsoft.AspNetCore.Mvc.Controller
     {
+    }
+
+    private sealed class StartedResponseFeature : IHttpResponseFeature
+    {
+        public int StatusCode { get; set; } = StatusCodes.Status200OK;
+
+        public string? ReasonPhrase { get; set; }
+
+        public IHeaderDictionary Headers { get; set; } = new HeaderDictionary();
+
+        public Stream Body { get; set; } = Stream.Null;
+
+        public bool HasStarted => true;
+
+        public void OnStarting(Func<object, Task> callback, object state)
+        {
+        }
+
+        public void OnCompleted(Func<object, Task> callback, object state)
+        {
+        }
     }
 }
