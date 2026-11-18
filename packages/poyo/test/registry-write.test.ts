@@ -79,4 +79,99 @@ describe("poyo registry write", () => {
 			fs.readdirSync(fixture.dir).filter((entry) => entry.endsWith(".tmp")),
 		).toEqual([]);
 	});
+
+	/**
+	 * Windows readers hold a file open — an editor, antivirus — and the
+	 * replacement then fails with a share violation a plain rewrite never hit.
+	 * The rename retries those codes briefly, the way `graceful-fs` does, so a
+	 * route command does not fail on the one platform where the atomic step
+	 * takes a lock.
+	 */
+	it("retries the replacement when Windows holds routes.json open", () => {
+		const fixture = makeFixture(starter);
+		const renameSync = fs.renameSync;
+		let attempts = 0;
+		vi.spyOn(fs, "renameSync").mockImplementation((from, to) => {
+			attempts += 1;
+			if (attempts <= 2) {
+				throw Object.assign(new Error("resource busy or locked"), {
+					code: "EBUSY",
+				});
+			}
+			renameSync(from, to);
+		});
+
+		withPlatform("win32", () =>
+			writeRoutes(getPaths(fixture.dir), [...starter, added]),
+		);
+
+		expect(attempts).toBe(3);
+		const written = JSON.parse(readFixtureFile(fixture, "routes.json")) as {
+			path: string;
+		}[];
+		expect(written.map((route) => route.path)).toEqual(["/About", "/Home"]);
+	});
+
+	it("gives up on a rename that stays blocked and leaves the registry intact", () => {
+		const fixture = makeFixture(starter);
+		const before = readFixtureFile(fixture, "routes.json");
+		let attempts = 0;
+		vi.spyOn(fs, "renameSync").mockImplementation(() => {
+			attempts += 1;
+			throw Object.assign(new Error("permission denied"), {
+				code: "EPERM",
+			});
+		});
+
+		expect(() =>
+			withPlatform("win32", () =>
+				writeRoutes(getPaths(fixture.dir), [...starter, added]),
+			),
+		).toThrow("permission denied");
+
+		expect(attempts).toBeGreaterThan(1);
+		expect(readFixtureFile(fixture, "routes.json")).toBe(before);
+		expect(
+			fs.readdirSync(fixture.dir).filter((entry) => entry.endsWith(".tmp")),
+		).toEqual([]);
+	});
+
+	it("does not retry a blocked rename off Windows", () => {
+		const fixture = makeFixture(starter);
+		let attempts = 0;
+		vi.spyOn(fs, "renameSync").mockImplementation(() => {
+			attempts += 1;
+			throw Object.assign(new Error("permission denied"), {
+				code: "EPERM",
+			});
+		});
+
+		withPlatform("linux", () => {
+			expect(() =>
+				writeRoutes(getPaths(fixture.dir), [...starter, added]),
+			).toThrow("permission denied");
+		});
+
+		expect(attempts).toBe(1);
+	});
 });
+
+/**
+ * Runs `run` as another platform. `process.platform` is a configurable value
+ * property, so it is redefined and put back rather than spied on.
+ */
+function withPlatform(platform: NodeJS.Platform, run: () => void): void {
+	const original = process.platform;
+	Object.defineProperty(process, "platform", {
+		value: platform,
+		configurable: true,
+	});
+	try {
+		run();
+	} finally {
+		Object.defineProperty(process, "platform", {
+			value: original,
+			configurable: true,
+		});
+	}
+}
