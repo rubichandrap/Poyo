@@ -81,6 +81,9 @@ export function addCommand(): Command {
 			const nextRoutes = [...routes, route];
 			validateRoutes(nextRoutes);
 
+			// Past this point a failure is not rolled back: the controller may
+			// already be appended when a later write fails. The guarantee is
+			// for a command that fails validation, which changes nothing.
 			if (options.controller) {
 				ensureControllerAction(paths, options.controller, options.action);
 			}
