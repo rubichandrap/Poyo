@@ -37,6 +37,8 @@ poyo generate ./custom-spec.json   # ... from a custom local file override
 
 `poyo route sync` runs both directions: forward (fix missing files, rescaffold) and reverse (detect untracked pages, offer to register them).
 
+`poyo route remove` removes a route and, when asked, its page and view. It deletes the controller only when no other route references it and the CLI wrote the whole file; a controller shared with another route, or one holding actions the CLI did not scaffold, is kept and the command names it and why.
+
 A route may also carry `dynamic: false` — an optional boolean (default `true`) that opts the route out of dynamic navigation. There is no flag for it; edit `routes.json` by hand and the CLI validates and preserves the field on every read and write (a non-boolean fails with the route named, as does the server's boot validation).
 
 Every route command re-emits the typed route manifest (`<client>/routes.generated.ts`) — the registry stays the only edited source of truth.

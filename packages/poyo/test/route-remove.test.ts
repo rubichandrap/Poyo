@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { removeCommand } from "../src/commands/route-remove.js";
 import { getPaths } from "../src/config.js";
 import { deleteRouteFiles } from "../src/scaffold.js";
+import { controllerTemplate } from "../src/templates.js";
 import {
 	execInFixture,
 	existsFixtureFile,
@@ -55,10 +56,18 @@ function fixtureWithFiles(): ReturnType<typeof makeFixture> {
 		);
 	}
 	if (starter.find((r) => r.controller)) {
+		// The real shape `route add --controller` writes. A controller the CLI
+		// did not author must never be deleted, so the fixture that expects a
+		// delete has to carry a scaffolded one.
+		const reports = starter.find((r) => r.controller);
 		writeFixtureFile(
 			fixture,
 			"Poyo.Server/Controllers/ReportsController.cs",
-			"public class ReportsController {}\n",
+			controllerTemplate(
+				"Poyo.Server",
+				"ReportsController",
+				reports?.action ?? "Index",
+			),
 		);
 	}
 	return fixture;
@@ -84,16 +93,218 @@ describe("poyo route remove", () => {
 		).toBe(false);
 	});
 
-	it("deletes the custom controller with --yes when the route uses one", () => {
+	it("deletes a scaffolded controller with --yes when no other route uses it", () => {
 		const fixture = fixtureWithFiles();
-		execInFixture(fixture, ["route", "remove", "/Reports", "--yes"]);
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/Reports",
+			"--yes",
+		]);
 
+		expect(result.status).toBe(0);
 		expect(
 			existsFixtureFile(
 				fixture,
 				"Poyo.Server/Controllers/ReportsController.cs",
 			),
 		).toBe(false);
+		expect(result.stdout).toContain("Deleted controller");
+	});
+
+	it("keeps a controller another route still uses, and says so", () => {
+		const fixture = makeFixture([]);
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Reports",
+			"--action",
+			"Index",
+		]);
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports/Detail",
+			"--controller",
+			"Reports",
+			"--action",
+			"Detail",
+		]);
+
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/Reports",
+			"--yes",
+		]);
+
+		expect(result.status).toBe(0);
+		expect(fixture.routesJson().map((r) => r.path)).toEqual([
+			"/Reports/Detail",
+		]);
+		const controller = readFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+		);
+		expect(controller).toContain("public IActionResult Index()");
+		expect(controller).toContain("public IActionResult Detail()");
+		expect(result.stdout).toContain("Kept controller");
+		expect(result.stdout).toContain(
+			"Poyo.Server/Controllers/ReportsController.cs",
+		);
+		expect(result.stdout).toContain("/Reports/Detail");
+		expect(result.stdout).toContain("Index action is left in place");
+	});
+
+	it("deletes a scaffolded controller once its last route is removed", () => {
+		const fixture = makeFixture([]);
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Reports",
+			"--action",
+			"Index",
+		]);
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports/Detail",
+			"--controller",
+			"Reports",
+			"--action",
+			"Detail",
+		]);
+		execInFixture(fixture, ["route", "remove", "/Reports", "--yes"]);
+
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/Reports/Detail",
+			"--yes",
+		]);
+
+		expect(result.status).toBe(0);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/ReportsController.cs",
+			),
+		).toBe(false);
+		expect(result.stdout).toContain("Deleted controller");
+	});
+
+	it("never deletes a controller holding an action the CLI did not scaffold", () => {
+		const fixture = fixtureWithFiles();
+		const scaffolded = controllerTemplate(
+			"Poyo.Server",
+			"ReportsController",
+			"Index",
+		);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+			scaffolded.replace(
+				"\n}\n",
+				'\n    public IActionResult Export()\n    {\n        return Content("csv");\n    }\n}\n',
+			),
+		);
+
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/Reports",
+			"--yes",
+		]);
+
+		expect(result.status).toBe(0);
+		const controller = readFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+		);
+		expect(controller).toContain("public IActionResult Export()");
+		expect(result.stdout).toContain("Kept controller");
+		expect(result.stdout).toContain("did not scaffold");
+	});
+
+	it("never deletes a controller the CLI did not write", () => {
+		const fixture = fixtureWithFiles();
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+			`using Microsoft.AspNetCore.Mvc;
+
+namespace Poyo.Server.Controllers;
+
+public class ReportsController : Controller
+{
+    public IActionResult Index()
+    {
+        return View();
+    }
+}
+`,
+		);
+
+		const result = execInFixture(fixture, [
+			"route",
+			"remove",
+			"/Reports",
+			"--yes",
+		]);
+
+		expect(result.status).toBe(0);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/ReportsController.cs",
+			),
+		).toBe(true);
+		expect(result.stdout).toContain("Kept controller");
+	});
+
+	it("does not offer to delete a controller another route uses", async () => {
+		const fixture = makeFixture([]);
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Reports",
+			"--action",
+			"Index",
+		]);
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports/Detail",
+			"--controller",
+			"Reports",
+			"--action",
+			"Detail",
+		]);
+		const cwd = process.cwd();
+		vi.mocked(confirm).mockResolvedValue(false);
+
+		try {
+			process.chdir(fixture.dir);
+			await removeCommand().parseAsync(["/Reports"], {
+				from: "user",
+			});
+		} finally {
+			process.chdir(cwd);
+		}
+
+		expect(vi.mocked(confirm)).toHaveBeenCalledTimes(1);
+		expect(
+			existsFixtureFile(
+				fixture,
+				"Poyo.Server/Controllers/ReportsController.cs",
+			),
+		).toBe(true);
 	});
 
 	it("keeps files on disk and reports orphans with --keep-files", () => {
