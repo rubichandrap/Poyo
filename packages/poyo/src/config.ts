@@ -39,14 +39,34 @@ function findClientDir(root: string): string {
 	return path.join(root, client ?? "poyo.client");
 }
 
+/**
+ * The server directory among the directories that carry a Views/Controllers
+ * pair. A generated project ships its server test project beside the app, and
+ * that project keeps the same pair for its fixtures; the app is the one whose
+ * name does not end in `.Tests`. Directory listing order belongs to the
+ * platform (Windows returned the test project first on a fresh scaffold), so
+ * the answer must not depend on it. With only a test-suffixed candidate, that
+ * candidate is still the best answer there is.
+ */
+export function selectServerDir(
+	candidates: readonly string[],
+): string | undefined {
+	return (
+		candidates.find((entry) => !entry.toLowerCase().endsWith(".tests")) ??
+		candidates[0]
+	);
+}
+
 function findServerDir(root: string): string {
 	const topLevel = fs
 		.readdirSync(root)
 		.filter((entry) => fs.statSync(path.join(root, entry)).isDirectory());
-	const server = topLevel.find(
-		(entry) =>
-			fs.existsSync(path.join(root, entry, "Views")) &&
-			fs.existsSync(path.join(root, entry, "Controllers")),
+	const server = selectServerDir(
+		topLevel.filter(
+			(entry) =>
+				fs.existsSync(path.join(root, entry, "Views")) &&
+				fs.existsSync(path.join(root, entry, "Controllers")),
+		),
 	);
 	return path.join(root, server ?? "Poyo.Server");
 }

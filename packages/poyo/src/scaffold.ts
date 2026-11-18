@@ -283,6 +283,13 @@ function ensureFrameworkUsing(
 	return `${bom}${body.slice(0, insertAt)}${FRAMEWORK_USING}\n${body.slice(insertAt)}`;
 }
 
+/**
+ * Walks `dir` and records the files `predicate` accepts, relative to `rootDir`
+ * and separated by `/`. The predicate sees that same spelling, not the native
+ * path it was found at: a caller that decides membership by a relative shape
+ * (`Views/…`, a leading underscore) must match the entry the list records, or
+ * the returned set depends on the platform's separator.
+ */
 export function findFiles(
 	dir: string,
 	predicate: (filePath: string) => boolean,
@@ -290,14 +297,18 @@ export function findFiles(
 	rootDir = dir,
 ): string[] {
 	if (!fs.existsSync(dir)) return fileList;
-	const entries = fs.readdirSync(dir);
-	for (const entry of entries) {
+	for (const entry of fs.readdirSync(dir)) {
 		const entryPath = path.join(dir, entry);
 		const stat = fs.statSync(entryPath);
 		if (stat.isDirectory()) {
 			findFiles(entryPath, predicate, fileList, rootDir);
-		} else if (predicate(entryPath)) {
-			fileList.push(path.relative(rootDir, entryPath).replaceAll("\\", "/"));
+			continue;
+		}
+		const relativePath = path
+			.relative(rootDir, entryPath)
+			.replaceAll("\\", "/");
+		if (predicate(relativePath)) {
+			fileList.push(relativePath);
 		}
 	}
 	return fileList;
@@ -315,10 +326,19 @@ export function deleteEmptyParents(filePath: string, rootDir: string): void {
 	}
 }
 
+/**
+ * What an action that is already in the controller means. `route add` refuses
+ * it — the route being created would collide with an action that exists — while
+ * `route sync --rescaffold` keeps it: it repairs the files of a route that
+ * already owns the action, so finding the action there is the expected state.
+ */
+export type ExistingAction = "refuse" | "keep";
+
 export function ensureControllerAction(
 	paths: ProjectPaths,
 	controllerName: string,
 	actionName: string,
+	options: { existingAction?: ExistingAction } = {},
 ): string {
 	const routeName = controllerRouteName(controllerName);
 	const className = controllerClassName(controllerName);
@@ -339,11 +359,18 @@ export function ensureControllerAction(
 		projectUsesGlobalFramework(paths.serverDir),
 	);
 	const safeActionNameForRegex = escapeRegExp(actionName);
+	// Any return type and modifier list: `IActionResult`, `ActionResult`,
+	// `ActionResult<T>`, `PageResult`, `virtual async Task<ActionResult>`.
+	// A field, property or expression-bodied member stops at `;`, `{` or `=`,
+	// and the name must sit at a word boundary before its `(`.
 	const actionRegex = new RegExp(
-		`public\\s+(async\\s+Task<)?IActionResult(>)?\\s+${safeActionNameForRegex}\\s*\\(`,
+		`public\\s+[^;{=]*?\\b${safeActionNameForRegex}\\s*\\(`,
 		"i",
 	);
 	if (actionRegex.test(content)) {
+		if (options.existingAction === "keep") {
+			return routeName;
+		}
 		throw new Error(`Action '${actionName}' already exists in ${className}.cs`);
 	}
 
@@ -364,7 +391,12 @@ export function scaffoldRouteFiles(
 	paths: ProjectPaths,
 	name: string,
 	files: RouteFile,
-	options: { noView?: boolean; controller?: string; action?: string },
+	options: {
+		noView?: boolean;
+		controller?: string;
+		action?: string;
+		existingAction?: ExistingAction;
+	},
 ): void {
 	// Both paths are resolved and checked before either file is written, so a
 	// registry that names a file outside the project fails the command with
@@ -389,7 +421,9 @@ export function scaffoldRouteFiles(
 	}
 
 	if (options.controller && options.action) {
-		ensureControllerAction(paths, options.controller, options.action);
+		ensureControllerAction(paths, options.controller, options.action, {
+			existingAction: options.existingAction,
+		});
 	}
 }
 

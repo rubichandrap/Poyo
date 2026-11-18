@@ -20,6 +20,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - A route command validates the registry it is about to write before creating or changing a file, and `routes.json` is replaced through a temporary file and a rename. A refused command therefore changes nothing, and an interrupted write cannot leave a truncated registry. **Upgrading:** none.
 - A dynamic navigation loads the page's module before committing the route, and `AppRoute.preload` is optional: a route without one is treated as already loaded and commits as before, while a preload that rejects takes the document-load fallback (ADR 0009).
 - The runtime formats `<title>` through the layout's template at every `%s` and literally, so registry titles holding `$&`, `$$` or `%s` match a document load; focus moves to the incoming page's `[data-page-region]` or `<main>` after React renders it. **Upgrading:** render `data-page-region` (or `<main>`) in a page for focus to land there; otherwise focus stays on the mount root.
+- `poyo route sync` no longer aborts on a controller-backed route whose view was deleted: `--rescaffold` keeps its existing action, and `--delete` removes untracked React pages but never a Razor view a plain `View()` route may own. A Windows scaffold now syncs clean. **Upgrading:** `--delete` no longer removes views; delete a view by hand if you relied on that.
 
 ### Changed
 

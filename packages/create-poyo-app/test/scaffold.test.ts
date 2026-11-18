@@ -29,6 +29,38 @@ describe("create-poyo-app", () => {
 		expect(exists(cwd, "MyApp/MyApp.slnx")).toBe(true);
 	});
 
+	it("a freshly scaffolded project reports nothing to sync", () => {
+		const cwd = makeTempDir();
+		runCli(["Shop", "--skip-install"], { cwd });
+
+		const projectDir = path.join(cwd, "Shop");
+		const poyoCli = path.resolve(
+			import.meta.dirname,
+			"../../poyo/dist/index.js",
+		);
+		// --rescaffold keeps the check non-interactive: a synced project
+		// answers [OK] before any action runs, and a project with missing
+		// files would re-create them instead of prompting.
+		const result = spawnSync(
+			process.execPath,
+			[poyoCli, "route", "sync", "--rescaffold"],
+			{
+				cwd: projectDir,
+				encoding: "utf-8",
+			},
+		);
+		const listing = fs
+			.readdirSync(projectDir, { recursive: true, encoding: "utf-8" })
+			.filter((file) => file.includes("src") || file.includes("Views"))
+			.sort();
+
+		expect(result.status, result.stderr).toBe(0);
+		expect(
+			result.stdout,
+			`Files in the scaffold:\n${listing.join("\n")}`,
+		).toContain("[OK]");
+	});
+
 	it("drops the template's publishing metadata from the project manifest", () => {
 		const cwd = makeTempDir();
 		runCli(["Shop", "--skip-install"], { cwd });
