@@ -75,6 +75,20 @@ function loadersFor(...entries: RouteEntry[]): PageLoaders {
 	return loaders;
 }
 
+/**
+ * Hand-rolled rather than `Promise.withResolvers`, which is ES2024: this package
+ * supports Node 20 (`engines`), where the builtin does not exist.
+ */
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	let reject!: (reason?: unknown) => void;
+	const promise = new Promise<T>((onResolve, onReject) => {
+		resolve = onResolve;
+		reject = onReject;
+	});
+	return { promise, resolve, reject };
+}
+
 function makeTable(
 	options: {
 		manifest?: readonly RouteEntry[];
@@ -118,10 +132,74 @@ describe("createRouteTable", () => {
 		expect(table.routeMap["ServerData"]).toBe(table.routes[1].component);
 	});
 
-	it("wraps components in lazy()", () => {
-		const table = makeTable();
-		expect(typeof table.routes[0].component).toBe("object");
-		expect(table.routes[0].component).toHaveProperty("$$typeof");
+	describe("createPage — page module loading", () => {
+		it("suspends until the module is preloaded, then renders it synchronously", async () => {
+			const { promise, resolve } = deferred<{ default: ComponentType }>();
+			const table = createRouteTable(
+				[dashboardEntry],
+				{ [dashboardEntry.files.react]: () => promise },
+				{ baseUrl: "/" },
+			);
+			const route = table.routes[0];
+			const render = route.component as unknown as () => unknown;
+
+			// Before the module is in memory the component suspends: it throws the
+			// loader's thenable, which is what a Suspense boundary catches.
+			let suspended: unknown;
+			try {
+				render();
+			} catch (thrown) {
+				suspended = thrown;
+			}
+			expect(suspended).toBeInstanceOf(Promise);
+
+			resolve({ default: DashboardPage });
+			await route.preload();
+
+			// A preloaded route renders without suspending again — the property the
+			// router relies on to commit without a fallback.
+			expect(render()).toMatchObject({ type: DashboardPage });
+		});
+
+		it("loads a page module at most once", async () => {
+			const loader = vi.fn(async () => ({ default: DashboardPage }));
+			const table = createRouteTable(
+				[dashboardEntry],
+				{ [dashboardEntry.files.react]: loader },
+				{ baseUrl: "/" },
+			);
+			const route = table.routes[0];
+
+			await Promise.all([route.preload(), route.preload()]);
+			await route.preload();
+
+			expect(loader).toHaveBeenCalledTimes(1);
+		});
+
+		it("remembers a failed load, so the component reports the error instead of retrying", async () => {
+			const loader = vi.fn(async () => {
+				throw new Error("Failed to fetch dynamically imported module");
+			});
+			const table = createRouteTable(
+				[dashboardEntry],
+				{ [dashboardEntry.files.react]: loader },
+				{ baseUrl: "/" },
+			);
+			const route = table.routes[0];
+
+			await expect(route.preload()).rejects.toThrow(
+				"Failed to fetch dynamically imported module",
+			);
+			await expect(route.preload()).rejects.toThrow(
+				"Failed to fetch dynamically imported module",
+			);
+			expect(loader).toHaveBeenCalledTimes(1);
+			// A rejected import is surfaced to the error boundary; suspending
+			// again would make React retry a module that cannot arrive.
+			expect(() => (route.component as unknown as () => unknown)()).toThrow(
+				"Failed to fetch dynamically imported module",
+			);
+		});
 	});
 
 	it("defaults access to protected when the registry omits it", () => {

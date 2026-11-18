@@ -28,7 +28,7 @@ import {
 	clearActiveRouteTable,
 	type AppRoute,
 } from "../src/runtime/route-table.js";
-import { createRouterHarness, stubComponent } from "./router-test-helpers.js";
+import { createRouterHarness, stubPage } from "./router-test-helpers.js";
 
 // usePage is a hook over the navigation store. These tests read it outside a
 // React render (the package has no renderer), so the store hook reads the
@@ -48,7 +48,7 @@ const dummyRoute: AppRoute = {
 	path: "/dashboard",
 	pageName: "Dashboard",
 	access: "protected",
-	component: stubComponent(),
+	...stubPage(),
 };
 
 /**
@@ -150,7 +150,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/dashboard",
 			pageName: "Dashboard",
 			access: "protected",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const routes: AppRoute[] = [dashboardRoute];
@@ -206,7 +206,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/login",
 			pageName: "Login",
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const routes: AppRoute[] = [loginRoute];
@@ -247,7 +247,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/login",
 			pageName: "Login",
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const fetchMock = vi.fn().mockResolvedValue({
@@ -330,13 +330,13 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/dashboard",
 			pageName: "Dashboard",
 			access: "protected",
-			component: stubComponent(),
+			...stubPage(),
 		};
 		const loginRoute: AppRoute = {
 			path: "/login",
 			pageName: "Login",
 			access: "guest",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		// What a browser hands back for a cross-"same-origin" redirect under
@@ -385,7 +385,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/login",
 			pageName: "Login",
 			access: "guest",
-			component: stubComponent(),
+			...stubPage(),
 		};
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,
@@ -421,7 +421,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/",
 			pageName: "Home",
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 		const harness = createRouterHarness({
 			routes: [activeRoute],
@@ -577,7 +577,7 @@ describe("Router push, replace, and fallbacks", () => {
 		path: "/target",
 		pageName: "Login",
 		access: "public",
-		component: stubComponent(),
+		...stubPage(),
 	};
 
 	describe.each(failureSeams)("R05 fallback — $label", ({ makeFetch }) => {
@@ -611,13 +611,13 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/slow",
 			pageName: "Slow",
 			access: "protected",
-			component: stubComponent(),
+			...stubPage(),
 		};
 		const fastRoute: AppRoute = {
 			path: "/fast",
 			pageName: "Fast",
 			access: "protected",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const routes: AppRoute[] = [slowRoute, fastRoute];
@@ -698,7 +698,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/active",
 			pageName: "Active",
 			access: "protected",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const { promise: slowPromise, reject: rejectSlowFetch } =
@@ -748,7 +748,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/profile",
 			pageName: "Profile",
 			access: "protected",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const metaEl = {
@@ -813,7 +813,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/plain",
 			pageName: "Plain",
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 		// The previous page left a description tag behind.
 		const staleDescription = { setAttribute: vi.fn(), remove: vi.fn() };
@@ -855,7 +855,7 @@ describe("Router push, replace, and fallbacks", () => {
 			path: "/settings",
 			pageName: "Settings",
 			access: "protected",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const pageRegionEl = {
@@ -949,7 +949,7 @@ describe("useRouter and shell reactivity without a provider", () => {
 			path: "/",
 			pageName: "Home",
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		// Server declared an unknown page name "GhostPage" on #react-root
@@ -981,7 +981,7 @@ describe("useRouter and shell reactivity without a provider", () => {
 			path: "/",
 			pageName: "Home",
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const mockDoc = {
@@ -1011,7 +1011,7 @@ describe("useRouter and shell reactivity without a provider", () => {
 			path: "/about",
 			pageName: "About",
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const fetchMock = vi.fn().mockResolvedValue({
@@ -1050,7 +1050,7 @@ describe("useRouter and shell reactivity without a provider", () => {
 			path: "/dashboard",
 			pageName: "Dashboard",
 			access: "protected",
-			component: stubComponent(),
+			...stubPage(),
 		};
 
 		const routes: AppRoute[] = [dashboardRoute];
@@ -1093,7 +1093,7 @@ describe("Head parity with the server-rendered document", () => {
 		path: "/profile",
 		pageName: "Profile",
 		access: "public",
-		component: stubComponent(),
+		...stubPage(),
 	};
 
 	afterEach(() => {
@@ -1221,7 +1221,7 @@ describe("Base path and fragment targets", () => {
 			path: "/Dashboard",
 			pageName: "Dashboard",
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 		const fetchMock = vi
 			.fn()
@@ -1300,7 +1300,7 @@ describe("Base path and fragment targets", () => {
 			path: "/about",
 			pageName: "About",
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 		const harness = createRouterHarness({
 			routes: [about],
@@ -1378,13 +1378,13 @@ describe("programmatic navigation to a fragment of the page on screen", () => {
 		path: "/",
 		pageName: "Home",
 		access: "public",
-		component: stubComponent(),
+		...stubPage(),
 	};
 	const other: AppRoute = {
 		path: "/other",
 		pageName: "Other",
 		access: "public",
-		component: stubComponent(),
+		...stubPage(),
 	};
 
 	const boot = () => {

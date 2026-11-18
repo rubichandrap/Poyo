@@ -14,7 +14,7 @@ import {
 	clearActiveRouteTable,
 } from "../src/runtime/route-table.js";
 import { createFakeDocument, seed } from "./fake-head.js";
-import { createRouterHarness, stubComponent } from "./router-test-helpers.js";
+import { createRouterHarness, stubPage } from "./router-test-helpers.js";
 
 /**
  * The head-parity corpus, read by the runtime's side of it. The server suite
@@ -78,7 +78,7 @@ describe("head parity corpus — runtime side", () => {
 			path: `/${corpusCase.name}`,
 			pageName: corpusCase.name,
 			access: "public",
-			component: stubComponent(),
+			...stubPage(),
 		};
 		// The page another route left behind.
 		const doc = createFakeDocument();
