@@ -1,5 +1,6 @@
 import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
+import { withBasePath } from "@rubichandrap/poyo/runtime";
 import { parseJwt } from "~/lib";
 
 interface User {
@@ -51,8 +52,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 	const logout = () => {
 		localStorage.removeItem("ui-token");
 		setUser(null);
-		// Force reload or redirect to ensure clean state
-		window.location.href = "/";
+		// Force reload or redirect to ensure clean state. The app root is the
+		// base-relative root, not the host's: with a path base the host root
+		// is outside the application.
+		window.location.href = withBasePath("/");
 	};
 
 	return (
