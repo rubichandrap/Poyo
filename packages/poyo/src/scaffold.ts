@@ -18,14 +18,99 @@ function escapeRegExp(value: string): string {
 const CSHARP_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
+ * The C# reserved keywords. A contextual keyword is a legal identifier in the
+ * positions this CLI writes, a reserved one is not: `public IActionResult
+ * class()` does not compile.
+ */
+const CSHARP_KEYWORDS = new Set([
+	"abstract",
+	"as",
+	"base",
+	"bool",
+	"break",
+	"byte",
+	"case",
+	"catch",
+	"char",
+	"checked",
+	"class",
+	"const",
+	"continue",
+	"decimal",
+	"default",
+	"delegate",
+	"do",
+	"double",
+	"else",
+	"enum",
+	"event",
+	"explicit",
+	"extern",
+	"false",
+	"finally",
+	"fixed",
+	"float",
+	"for",
+	"foreach",
+	"goto",
+	"if",
+	"implicit",
+	"in",
+	"int",
+	"interface",
+	"internal",
+	"is",
+	"lock",
+	"long",
+	"namespace",
+	"new",
+	"null",
+	"object",
+	"operator",
+	"out",
+	"override",
+	"params",
+	"private",
+	"protected",
+	"public",
+	"readonly",
+	"ref",
+	"return",
+	"sbyte",
+	"sealed",
+	"short",
+	"sizeof",
+	"stackalloc",
+	"static",
+	"string",
+	"struct",
+	"switch",
+	"this",
+	"throw",
+	"true",
+	"try",
+	"typeof",
+	"uint",
+	"ulong",
+	"unchecked",
+	"unsafe",
+	"ushort",
+	"using",
+	"virtual",
+	"void",
+	"volatile",
+	"while",
+]);
+
+/**
  * Refuses a value that cannot be written into generated C# as an identifier.
  * A controller or action name reaches a file path and a source file, so
  * anything else is either a path escape or a syntax injection.
  */
 export function assertCSharpIdentifier(value: string, flag: string): void {
-	if (!CSHARP_IDENTIFIER.test(value)) {
+	if (!CSHARP_IDENTIFIER.test(value) || CSHARP_KEYWORDS.has(value)) {
 		throw new CliError(
-			`--${flag} must be a C# identifier (letters, digits, and underscores, not starting with a digit), got: ${JSON.stringify(value)}`,
+			`--${flag} must be a C# identifier (letters, digits, and underscores, not starting with a digit, and not a reserved keyword), got: ${JSON.stringify(value)}`,
 		);
 	}
 }
@@ -55,11 +140,78 @@ export function controllerRouteName(controllerName: string): string {
 	return name;
 }
 
-function ensureFrameworkUsing(content: string): string {
-	if (/^\s*using\s+Poyo\.Framework\s*;/m.test(content)) {
+const FRAMEWORK_USING = "using Poyo.Framework;";
+
+const LOCAL_FRAMEWORK_USING = /^[ \t]*using[ \t]+Poyo\.Framework[ \t]*;/m;
+const GLOBAL_FRAMEWORK_USING =
+	/^[ \t]*global[ \t]+using[ \t]+Poyo\.Framework[ \t]*;/m;
+
+/**
+ * Whether any C# source in the project declares `global using Poyo.Framework;`.
+ * A global using reaches every file compiled with it, so a scaffolded action
+ * needs no local directive. Build output is skipped: generated files under
+ * bin/ and obj/ are not authored sources.
+ */
+function projectUsesGlobalFramework(dir: string): boolean {
+	for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+		if (
+			entry.name === "bin" ||
+			entry.name === "obj" ||
+			entry.name === "node_modules"
+		) {
+			continue;
+		}
+
+		const full = path.join(dir, entry.name);
+		if (entry.isDirectory()) {
+			if (projectUsesGlobalFramework(full)) return true;
+			continue;
+		}
+
+		if (
+			entry.name.endsWith(".cs") &&
+			GLOBAL_FRAMEWORK_USING.test(fs.readFileSync(full, "utf-8"))
+		) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+ * Adds the framework using to an existing controller unless the project
+ * already reaches the namespace, and after any `extern alias` directives,
+ * which C# requires to precede using directives.
+ */
+function ensureFrameworkUsing(
+	content: string,
+	projectHasGlobalUsing: boolean,
+): string {
+	if (
+		projectHasGlobalUsing ||
+		LOCAL_FRAMEWORK_USING.test(content) ||
+		GLOBAL_FRAMEWORK_USING.test(content)
+	) {
 		return content;
 	}
-	return `using Poyo.Framework;\n${content}`;
+
+	const bom = content.startsWith("\uFEFF") ? "\uFEFF" : "";
+	const body = bom ? content.slice(1) : content;
+	const externAlias =
+		/^[ \t]*extern[ \t]+alias[ \t]+[A-Za-z_][A-Za-z0-9_.]*[ \t]*;[ \t]*(?:\/\/[^\n]*)?$/gm;
+	let insertAt = 0;
+
+	for (const match of body.matchAll(externAlias)) {
+		insertAt = (match.index ?? 0) + match[0].length;
+		if (body.slice(insertAt, insertAt + 2) === "\r\n") {
+			insertAt += 2;
+		} else if (body[insertAt] === "\n") {
+			insertAt += 1;
+		}
+	}
+
+	return `${bom}${body.slice(0, insertAt)}${FRAMEWORK_USING}\n${body.slice(insertAt)}`;
 }
 
 export function findFiles(
@@ -118,6 +270,7 @@ export function ensureControllerAction(
 
 	const content = ensureFrameworkUsing(
 		fs.readFileSync(controllerPath, "utf-8"),
+		projectUsesGlobalFramework(paths.serverDir),
 	);
 	const safeActionNameForRegex = escapeRegExp(actionName);
 	const actionRegex = new RegExp(

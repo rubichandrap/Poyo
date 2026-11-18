@@ -345,6 +345,89 @@ public class ReportsController : Controller
 		expect(controller).toContain("return this.PoyoPage(null);");
 		expect(controller).toContain("public IActionResult Existing()");
 	});
+
+	it("places the framework using after extern alias lines", () => {
+		const fixture = makeFixture(starter);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+			`extern alias Foo;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Poyo.Server.Controllers;
+
+public class ReportsController : Controller
+{
+    public IActionResult Existing()
+    {
+        return Content("hi");
+    }
+}
+`,
+		);
+
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Reports",
+			"--action",
+			"Index",
+		]);
+
+		const controller = readFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+		);
+		expect(controller.startsWith("extern alias Foo;\n")).toBe(true);
+		expect(controller.indexOf("using Poyo.Framework;")).toBeGreaterThan(
+			controller.indexOf("extern alias Foo;"),
+		);
+		expect(controller).toContain("return this.PoyoPage(null);");
+	});
+
+	it("does not add a local using when the project has a global one", () => {
+		const fixture = makeFixture(starter);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/GlobalUsings.cs",
+			"global using Poyo.Framework;\n",
+		);
+		writeFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+			`using Microsoft.AspNetCore.Mvc;
+
+namespace Poyo.Server.Controllers;
+
+public class ReportsController : Controller
+{
+    public IActionResult Existing()
+    {
+        return Content("hi");
+    }
+}
+`,
+		);
+
+		execInFixture(fixture, [
+			"route",
+			"add",
+			"/Reports",
+			"--controller",
+			"Reports",
+			"--action",
+			"Index",
+		]);
+
+		const controller = readFixtureFile(
+			fixture,
+			"Poyo.Server/Controllers/ReportsController.cs",
+		);
+		expect(controller).not.toContain("using Poyo.Framework;");
+		expect(controller).toContain("return this.PoyoPage(null);");
+	});
 });
 
 describe("poyo route add validates --controller and --action", () => {
@@ -372,7 +455,10 @@ describe("poyo route add validates --controller and --action", () => {
 		["Reports.Controller", "controller"],
 		["Reports Controller", "controller"],
 		["1Reports", "controller"],
+		["class", "controller"],
 		["Index()", "action"],
+		["class", "action"],
+		["void", "action"],
 	];
 
 	it.each(
