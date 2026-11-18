@@ -164,8 +164,10 @@ function createPage(loader: PageLoader): {
 		return pending;
 	};
 
-	function Page(): ReactElement {
-		if (loaded) return createElement(loaded.default);
+	// Props a caller passes reach the page unchanged, as they did through
+	// `React.lazy`: the route's component is the page's own component.
+	function Page(props: Record<string, unknown>): ReactElement {
+		if (loaded) return createElement(loaded.default, props);
 		if (failure) throw failure.error;
 		// Suspense retries once the module arrives, then renders Page again
 		// with `loaded` set, so the fallback is never shown for a preloaded

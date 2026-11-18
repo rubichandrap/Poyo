@@ -172,6 +172,36 @@ describe("createRouteTable", () => {
 			expect(render()).toMatchObject({ type: DashboardPage });
 		});
 
+		it("forwards the props it is rendered with to the page", async () => {
+			function PropsPage(props: { greeting: string }) {
+				return createElement("span", null, props.greeting);
+			}
+			const entry: RouteEntry = {
+				...dashboardEntry,
+				path: "/Props",
+				name: "Props",
+			};
+			const table = createRouteTable(
+				[entry],
+				{ [entry.files.react]: async () => ({ default: PropsPage }) },
+				{ baseUrl: "/" },
+			);
+			const route = table.routes[0];
+			await preloadOf(route);
+
+			const render = route.component as unknown as (props: {
+				greeting: string;
+			}) => unknown;
+			const element = render({ greeting: "hello" });
+
+			// The element React renders is the page's own component with the
+			// caller's props, not the page with none.
+			expect(element).toMatchObject({
+				type: PropsPage,
+				props: { greeting: "hello" },
+			});
+		});
+
 		it("loads a page module at most once", async () => {
 			const loader = vi.fn(async () => ({ default: DashboardPage }));
 			const table = createRouteTable(
