@@ -2,7 +2,7 @@ import { Command } from "commander";
 import { getPaths } from "../config.js";
 import { CliError } from "../error.js";
 import { resolveRouteFiles, toRouteName, toRoutePath } from "../naming.js";
-import { readRoutes, writeRoutes } from "../registry.js";
+import { readRoutes, validateRoutes, writeRoutes } from "../registry.js";
 import { writeRouteManifest } from "../route-manifest.js";
 import { accessFromFlags, type Route } from "../routes.js";
 import {
@@ -57,17 +57,14 @@ export function addCommand(): Command {
 			// Both flags become a file name and C# source, so they are checked
 			// before anything is written: an escaping value must not reach the
 			// controller path, and an arbitrary string must not reach the class.
+			let controller: string | undefined;
 			if (options.controller) {
 				assertCSharpIdentifier(options.controller, "controller");
 				assertCSharpIdentifier(options.action, "action");
-				controllerRouteName(options.controller);
+				controller = controllerRouteName(options.controller);
 			}
 
 			const files = resolveRouteFiles(name, options.flat);
-
-			const controller = options.controller
-				? ensureControllerAction(paths, options.controller, options.action)
-				: undefined;
 
 			const route: Route = {
 				path: routePath,
@@ -78,8 +75,17 @@ export function addCommand(): Command {
 				seo: defaultSeo(name),
 			};
 
-			routes.push(route);
-			writeRoutes(paths, routes);
+			// The registry the command is about to write is validated whole
+			// before any file is touched. A route refused here (a duplicate
+			// name, say) used to leave an appended controller behind.
+			const nextRoutes = [...routes, route];
+			validateRoutes(nextRoutes);
+
+			if (options.controller) {
+				ensureControllerAction(paths, options.controller, options.action);
+			}
+
+			writeRoutes(paths, nextRoutes);
 			writeRouteManifest(paths);
 
 			scaffoldRouteFiles(paths, name, files, {

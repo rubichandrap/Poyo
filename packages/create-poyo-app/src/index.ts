@@ -202,17 +202,31 @@ export function createProject(
 	const templateDir = resolveTemplateDir();
 	const rules = renameRules(pascal, lower);
 
-	copyRecursive(templateDir, targetDir);
-	ensureEnvFile(targetDir);
-	renameTree(targetDir, rules);
-	// npm/pnpm pack strips .gitignore from published tarballs;
-	// ship it under .template extension and restore it in the generated project.
-	restoreTemplates(targetDir);
-	rewritePackageJson(targetDir, pascal, lower, poyoVersion);
-	rewriteClientPackageJson(targetDir, lower, poyoVersion);
+	// The project is assembled beside its future name and moved into place as
+	// the last step. A copy that fails halfway therefore leaves no directory
+	// under the project's name, so a re-run is not refused as "already
+	// exists" — and a process killed mid-copy leaves only a staging directory
+	// the operator can delete.
+	const stagingDir = fs.mkdtempSync(`${targetDir}.staging-`);
 
-	if (!options.skipInstall) {
-		installDependencies(targetDir);
+	try {
+		copyRecursive(templateDir, stagingDir);
+		ensureEnvFile(stagingDir);
+		renameTree(stagingDir, rules);
+		// npm/pnpm pack strips .gitignore from published tarballs;
+		// ship it under .template extension and restore it in the generated project.
+		restoreTemplates(stagingDir);
+		rewritePackageJson(stagingDir, pascal, lower, poyoVersion);
+		rewriteClientPackageJson(stagingDir, lower, poyoVersion);
+
+		if (!options.skipInstall) {
+			installDependencies(stagingDir);
+		}
+
+		fs.renameSync(stagingDir, targetDir);
+	} catch (error) {
+		fs.rmSync(stagingDir, { recursive: true, force: true });
+		throw error;
 	}
 
 	process.stdout.write(

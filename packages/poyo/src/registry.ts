@@ -315,10 +315,26 @@ export function readRoutes(paths: ProjectPaths): Route[] {
 export function writeRoutes(paths: ProjectPaths, routes: Route[]): void {
 	validateRoutes(routes);
 	const sorted = [...routes].sort((a, b) => a.path.localeCompare(b.path));
-	fs.writeFileSync(
-		paths.routesJsonPath,
-		`${JSON.stringify(sorted, null, 2)}\n`,
-	);
+	writeFileAtomic(paths.routesJsonPath, `${JSON.stringify(sorted, null, 2)}\n`);
+}
+
+/**
+ * Replaces a file through a temporary one in the same directory and a rename.
+ * The registry is read at boot (ADR 0014) and a deployment is often a live
+ * directory, so a process that stops during the write must not leave half a
+ * `routes.json` for the next start to fail on: until the rename, the previous
+ * file is untouched, and the rename is one filesystem operation.
+ */
+function writeFileAtomic(target: string, content: string): void {
+	const temp = `${target}.${process.pid}.${Date.now()}.tmp`;
+
+	try {
+		fs.writeFileSync(temp, content);
+		fs.renameSync(temp, target);
+	} catch (error) {
+		fs.rmSync(temp, { force: true });
+		throw error;
+	}
 }
 
 export function findRoute<T extends { path: string }>(

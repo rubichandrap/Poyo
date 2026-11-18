@@ -246,6 +246,40 @@ describe("create-poyo-app", () => {
 		expect(result.stderr).toContain("already exists");
 	});
 
+	it("leaves no target directory when scaffolding fails mid-copy", () => {
+		const cwd = makeTempDir();
+		// A copy that fails once, the way a full disk or a dying process does.
+		// The failure lands after the first files exist, so a scaffolder that
+		// copies straight into the target leaves a half project a re-run then
+		// refuses as "already exists".
+		fs.writeFileSync(
+			path.join(cwd, "fail-copy.cjs"),
+			[
+				'const fs = require("node:fs");',
+				"const copyFileSync = fs.copyFileSync;",
+				"let copies = 0;",
+				"fs.copyFileSync = function (source, destination) {",
+				"	copies += 1;",
+				'	if (copies === 5) throw new Error("simulated copy failure");',
+				"	return copyFileSync.call(fs, source, destination);",
+				"};",
+				"",
+			].join("\n"),
+		);
+
+		const result = runCli(["Broken", "--skip-install"], {
+			cwd,
+			env: { NODE_OPTIONS: "--require ./fail-copy.cjs" },
+		});
+
+		expect(result.status).toBe(1);
+		expect(result.stderr).toContain("simulated copy failure");
+		expect(exists(cwd, "Broken")).toBe(false);
+		expect(
+			fs.readdirSync(cwd).filter((entry) => entry !== "fail-copy.cjs"),
+		).toEqual([]);
+	});
+
 	it("bootstraps .env and keeps routes.json intact", () => {
 		const cwd = makeTempDir();
 		runCli(["MyApp", "--skip-install"], { cwd });

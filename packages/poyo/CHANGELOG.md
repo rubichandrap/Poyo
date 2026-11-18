@@ -17,6 +17,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - `poyo route add --controller` now stores the bare controller name in `routes.json` and scaffolds actions that return `this.PoyoPage(null)`, so the route answers 200 for the document and a navigation descriptor. **Upgrading:** drop the `Controller` suffix from `controller` in `routes.json` and replace `return View(...)` with `return this.PoyoPage(null)` in scaffolded actions.
 - `poyo route remove` deletes a controller only when no other route references it and the CLI wrote the whole file; a shared controller, or one holding actions the CLI did not scaffold, is kept and the command says so. **Upgrading:** none.
 - `poyo route remove` compares controller names as MVC matches them, so a legacy `ReportsController` and `Reports` count as one controller, and reports `Controller not found: …` when the file is missing. **Upgrading:** none.
+- A route command validates the registry it is about to write before creating or changing a file, and `routes.json` is replaced through a temporary file and a rename. A refused command therefore changes nothing, and an interrupted write cannot leave a truncated registry. **Upgrading:** none.
 
 ### Changed
 

@@ -4,7 +4,7 @@ import { Command } from "commander";
 import { getPaths, type ProjectPaths } from "../config.js";
 import { projectFilePath } from "../file-paths.js";
 import { toRouteName, toRoutePath } from "../naming.js";
-import { readRoutes, writeRoutes } from "../registry.js";
+import { readRoutes, validateRoutes, writeRoutes } from "../registry.js";
 import { writeRouteManifest } from "../route-manifest.js";
 import { DEFAULT_ACCESS, type Route } from "../routes.js";
 import {
@@ -269,17 +269,26 @@ async function runAction(
 				}
 			}
 
+			// The whole registry is checked before a view is written: a
+			// candidate that duplicates an existing route still derives a view
+			// path, and writing it before the registry refuses the addition
+			// left an untracked view behind.
+			const nextRoutes = [...routes];
 			for (const { route } of selected) {
-				if (!routes.some((r) => r.path === route.path)) {
-					routes.push(route);
+				if (!nextRoutes.some((r) => r.path === route.path)) {
+					nextRoutes.push(route);
 				}
+			}
+			validateRoutes(nextRoutes);
+
+			for (const { route } of selected) {
 				const viewPath = projectFilePath(paths, "server", route.files.view);
 				if (!fs.existsSync(viewPath)) {
 					fs.mkdirSync(path.dirname(viewPath), { recursive: true });
 					fs.writeFileSync(viewPath, viewTemplate(route.name));
 				}
 			}
-			writeRoutes(paths, routes);
+			writeRoutes(paths, nextRoutes);
 			writeRouteManifest(paths);
 			break;
 		}
