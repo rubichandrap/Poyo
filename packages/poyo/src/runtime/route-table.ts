@@ -114,7 +114,10 @@ export interface RouteTable {
 	findRouteByName(name: string): AppRoute | undefined;
 	/**
 	 * Finds a route by URL pathname, stripping the app base path first.
-	 * Used as the standalone-dev fallback (no server-declared page name).
+	 * The pathname may be percent-encoded, as `URL.pathname` reports it; the
+	 * declared path and the argument are compared in that one form. Used as
+	 * the standalone-dev fallback (no server-declared page name) and by the
+	 * navigation target checks.
 	 */
 	findRouteGeneric(pathname: string): AppRoute | undefined;
 	/**
@@ -215,6 +218,9 @@ export function createRouteTable(
 	// fallback, preserving exact-match priority when names collide by case.
 	const byName = new Map<string, AppRoute>();
 	const byNameLower = new Map<string, AppRoute>();
+	// Path lookup in the form `URL.pathname` reports; see normalizeRoutePath.
+	// First-inserted wins, like the linear scan this replaced.
+	const byPath = new Map<string, AppRoute>();
 
 	for (const entry of manifest) {
 		const loader = loaders[entry.files.react];
@@ -246,6 +252,10 @@ export function createRouteTable(
 		if (!byNameLower.has(lowerName)) {
 			byNameLower.set(lowerName, route);
 		}
+		const lowerPath = normalizeRoutePath(entry.path).toLowerCase();
+		if (!byPath.has(lowerPath)) {
+			byPath.set(lowerPath, route);
+		}
 	}
 
 	const findRouteByName = (name: string): AppRoute | undefined => {
@@ -271,8 +281,7 @@ export function createRouteTable(
 		}
 
 		const normalizedPath = relativePath.replace(/\/+$/, "") || "/";
-		const lowerPath = normalizedPath.toLowerCase();
-		return routes.find((route) => route.path.toLowerCase() === lowerPath);
+		return byPath.get(normalizeRoutePath(normalizedPath).toLowerCase());
 	};
 
 	const detectGhostRoutes = (): void => {
@@ -380,6 +389,22 @@ export function withBasePath(
 	if (!basePath || basePath === "/") return href;
 	if (!href.startsWith("/") || href.startsWith("//")) return href;
 	return href === "/" ? basePath : `${basePath}${href}`;
+}
+
+/**
+ * A path in the form `URL.pathname` reports: a space or a non-ASCII character
+ * is percent-encoded. Both sides of a path comparison go through this, so a
+ * registry path declared `/Café` matches the `/Caf%C3%A9` a browser sends, and
+ * a caller that hands over the declared spelling resolves too. An escape the
+ * registry allows (`%2F`) stays encoded: decoding it would turn the escape into
+ * a path separator (ADR 0015).
+ */
+function normalizeRoutePath(path: string): string {
+	try {
+		return new URL(path, "http://poyo.invalid").pathname;
+	} catch {
+		return path;
+	}
 }
 
 function normalizeBasePath(rawBaseUrl: string): string {

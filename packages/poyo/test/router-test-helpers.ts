@@ -30,6 +30,12 @@ export interface MockLocation {
 
 export interface RouterHarnessOptions {
 	routes?: AppRoute[];
+	/**
+	 * A real route table to look up through. Use this when the lookup itself
+	 * is under test (path normalization, a skipped page file); the synthetic
+	 * table over `routes` compares paths literally.
+	 */
+	routeTable?: RouteTable;
 	fetch?: typeof fetch;
 	document?: Document;
 	location?: Partial<Omit<MockLocation, "assign" | "replace" | "reload">>;
@@ -149,7 +155,7 @@ export function createRouterHarness(
 	vi.stubGlobal("window", win);
 
 	const routes = options.routes ?? [];
-	const routeTable: RouteTable = {
+	const routeTable: RouteTable = options.routeTable ?? {
 		basePath: "/",
 		routes,
 		routeMap: Object.fromEntries(

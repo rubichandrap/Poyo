@@ -27,6 +27,7 @@ import {
 import { type FakeDocument, createFakeDocument, seed } from "./fake-head.js";
 import {
 	clearActiveRouteTable,
+	createRouteTable,
 	type AppRoute,
 } from "../src/runtime/route-table.js";
 import { createRouterHarness, stubPage } from "./router-test-helpers.js";
@@ -1237,6 +1238,85 @@ describe("Router — no wasted or stale work (ADR 0009)", () => {
 		await harness.router.push("/not-a-route");
 		expect(fetchMock).not.toHaveBeenCalled();
 		expect(harness.assign).toHaveBeenCalledWith("/not-a-route");
+	});
+
+	it("requests a descriptor for a route the browser percent-encodes", async () => {
+		// `URL.pathname` reports a space or a non-ASCII character encoded;
+		// the route table must still know the declared path.
+		const table = createRouteTable(
+			[
+				{
+					path: "/Café",
+					name: "Cafe",
+					files: {
+						react: "src/pages/Cafe/index.page.tsx",
+						view: "Views/Cafe/Index.cshtml",
+					},
+					access: "public",
+				},
+				{
+					path: "/My Page",
+					name: "MyPage",
+					files: {
+						react: "src/pages/MyPage/index.page.tsx",
+						view: "Views/MyPage/Index.cshtml",
+					},
+					access: "public",
+				},
+			],
+			{
+				"src/pages/Cafe/index.page.tsx": async () => ({ default: () => null }),
+				"src/pages/MyPage/index.page.tsx": async () => ({
+					default: () => null,
+				}),
+			},
+			{ baseUrl: "/" },
+		);
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ name: "Cafe", pageData: null }),
+		});
+		const harness = createRouterHarness({
+			routeTable: table,
+			fetch: fetchMock as unknown as typeof fetch,
+		});
+
+		await harness.router.push("/Caf%C3%A9");
+		expect(fetchMock).toHaveBeenCalledWith("/Caf%C3%A9", expect.anything());
+		expect(harness.assign).not.toHaveBeenCalled();
+
+		fetchMock.mockClear();
+		await harness.router.push("/My%20Page");
+		expect(fetchMock).toHaveBeenCalledWith("/My%20Page", expect.anything());
+		expect(harness.assign).not.toHaveBeenCalled();
+	});
+
+	it("does nothing for a push or replace after destroy()", async () => {
+		const home = page("/", "Home");
+		const dashboard = page("/dashboard", "Dashboard");
+		const fetchMock = vi.fn();
+		const harness = createRouterHarness({
+			routes: [home, dashboard],
+			fetch: fetchMock as unknown as typeof fetch,
+			location: { pathname: "/", href: "http://localhost:3000/" },
+		});
+		const before = getNavigationStore().getState();
+
+		harness.router.destroy?.();
+		harness.history.pushState.mockClear();
+		harness.history.replaceState.mockClear();
+
+		await harness.router.push("/dashboard");
+		await harness.router.replace("/dashboard");
+
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(getNavigationStore().getState()).toBe(before);
+		expect(harness.history.pushState).not.toHaveBeenCalled();
+		expect(harness.history.replaceState).not.toHaveBeenCalled();
+		expect(harness.assign).not.toHaveBeenCalled();
+		expect(harness.replaceLocation).not.toHaveBeenCalled();
+		expect(harness.scrollTo).not.toHaveBeenCalled();
 	});
 
 	it("settles a traversal to a non-dynamic or unknown entry with a document load", async () => {

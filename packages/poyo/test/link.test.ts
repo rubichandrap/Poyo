@@ -5,6 +5,7 @@ import { createRouter } from "../src/runtime/router.js";
 import { resetNavigationStore } from "../src/runtime/navigation-store.js";
 import {
 	clearActiveRouteTable,
+	createRouteTable,
 	type AppRoute,
 	type RouteTable,
 } from "../src/runtime/route-table.js";
@@ -415,6 +416,47 @@ describe("<Link /> component click eligibility rules", () => {
 
 		expect(event.preventDefault).not.toHaveBeenCalled();
 		expect(pushMock).not.toHaveBeenCalled();
+	});
+
+	it("intercepts a route the browser percent-encodes", async () => {
+		const pushMock = vi.fn();
+		// A real table: the lookup normalizes `URL.pathname` against the
+		// declared path, which the synthetic `tableWith` does not.
+		const table = createRouteTable(
+			[
+				{
+					path: "/Café",
+					name: "Cafe",
+					files: {
+						react: "src/pages/Cafe/index.page.tsx",
+						view: "Views/Cafe/Index.cshtml",
+					},
+					access: "public",
+				},
+			],
+			{
+				"src/pages/Cafe/index.page.tsx": async () => ({ default: () => null }),
+			},
+			{ baseUrl: "/" },
+		);
+		const router = createRouter({ routeTable: table });
+		vi.spyOn(router, "push").mockImplementation(pushMock);
+
+		vi.stubGlobal("window", {
+			location: {
+				origin: "http://localhost:3000",
+				pathname: "/",
+				search: "",
+				href: "http://localhost:3000/",
+			},
+		});
+
+		const event = createMockEvent();
+		const rendered = renderLink({ href: "/Café" });
+		rendered.props.onClick(event);
+
+		expect(event.preventDefault).toHaveBeenCalled();
+		expect(pushMock).toHaveBeenCalledWith("/Café");
 	});
 
 	it("resolves app-relative hrefs against the base path and leaves absolute URLs outside it native", async () => {

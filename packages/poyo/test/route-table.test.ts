@@ -361,6 +361,56 @@ describe("createRouteTable", () => {
 		);
 	});
 
+	it("matches a declared path the browser percent-encodes", () => {
+		// The registry accepts spaces and non-ASCII; `URL.pathname` reports
+		// them percent-encoded, so both sides are compared in that form.
+		const entry = (path: string, name: string): RouteEntry => ({
+			path,
+			name,
+			access: "public",
+			files: {
+				react: `src/pages/${name}/index.page.tsx`,
+				view: `Views/${name}/Index.cshtml`,
+			},
+		});
+		const spaced = entry("/My Page", "MyPage");
+		const cafe = entry("/Café", "Cafe");
+		const table = makeTable({
+			manifest: [spaced, cafe],
+			loaders: {
+				[spaced.files.react]: async () => ({ default: DashboardPage }),
+				[cafe.files.react]: async () => ({ default: DashboardPage }),
+			},
+		});
+
+		expect(table.findRouteGeneric("/My%20Page")?.pageName).toBe("MyPage");
+		expect(table.findRouteGeneric("/Caf%C3%A9")?.pageName).toBe("Cafe");
+		// A caller may hand over the declared spelling; it takes the same form.
+		expect(table.findRouteGeneric("/Café")?.pageName).toBe("Cafe");
+	});
+
+	it("keeps an allowed %2F escape encoded in findRouteGeneric", () => {
+		const escaped: RouteEntry = {
+			path: "/Users%2F42",
+			name: "Users42",
+			access: "public",
+			files: {
+				react: "src/pages/Users42/index.page.tsx",
+				view: "Views/Users42/Index.cshtml",
+			},
+		};
+		const table = makeTable({
+			manifest: [escaped],
+			loaders: {
+				[escaped.files.react]: async () => ({ default: DashboardPage }),
+			},
+		});
+
+		expect(table.findRouteGeneric("/Users%2F42")?.pageName).toBe("Users42");
+		// Decoding the escape would turn it into a path separator.
+		expect(table.findRouteGeneric("/Users/42")).toBeUndefined();
+	});
+
 	it("returns undefined for unmatched pathnames", () => {
 		const table = makeTable();
 		expect(table.findRouteGeneric("/Nope")).toBeUndefined();

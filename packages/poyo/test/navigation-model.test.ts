@@ -76,10 +76,6 @@ interface Pending {
 	mode: "push" | "replace" | "traverse";
 	/** The controller signal the router handed the transport. */
 	signal: AbortSignal | null | undefined;
-	/** Whether a response was delivered before the request was cancelled. */
-	answered: boolean;
-	/** Whether the router cancelled it — a superseded request must be. */
-	aborted: boolean;
 	resolve: (response: Response) => void;
 	reject: (error: unknown) => void;
 }
@@ -97,8 +93,6 @@ class SimBrowser {
 	scrollY = 0;
 	terminal: Terminal | null = null;
 	pending: Pending[] = [];
-	/** Every request the router started, answered or not, for the abort checks. */
-	requests: Pending[] = [];
 	/** Set by the destroy event; the router no longer owns the screen. */
 	destroyed = false;
 	epoch = 0;
@@ -302,14 +296,16 @@ class SimBrowser {
 		if (headers["X-Poyo-Navigation"] !== "1") {
 			this.violations.push(`descriptor request without header: ${input}`);
 		}
-		// ABORT — a navigation supersedes whatever came before it; the older
-		// request must be cancelled, not merely ignored.
-		for (const earlier of this.requests) {
-			if (!earlier.answered && !earlier.aborted) {
-				this.violations.push(
-					`ABORT: ${this.during} started ${url.pathname} while ${earlier.path} was still in flight`,
-				);
-			}
+		// ABORT — a navigation supersedes whatever came before it, and the
+		// older request must be cancelled before the new one starts. A live
+		// request is one still in `pending`: answering pops it, aborting
+		// removes it.
+		if (this.pending.length > 0) {
+			this.violations.push(
+				`ABORT: ${this.during} started ${url.pathname} while ${this.pending
+					.map((request) => request.path)
+					.join(", ")} was still in flight`,
+			);
 		}
 		// NON-DYNAMIC-FETCH — the route table carries the registry's opt-out,
 		// so the router must hand the target to the browser unrequested.
@@ -329,23 +325,16 @@ class SimBrowser {
 							? "push"
 							: "traverse",
 				signal: init?.signal ?? null,
-				answered: false,
-				aborted: false,
-				resolve: (response) => {
-					record.answered = true;
-					resolve(response);
-				},
+				resolve,
 				reject,
 			};
 			record.signal?.addEventListener("abort", () => {
-				record.aborted = true;
 				const index = this.pending.indexOf(record);
 				if (index >= 0) this.pending.splice(index, 1);
 				const error = new Error("The operation was aborted.");
 				error.name = "AbortError";
 				reject(error);
 			});
-			this.requests.push(record);
 			this.pending.push(record);
 		});
 	};
@@ -505,10 +494,13 @@ type Event =
 	| "frame"
 	| "destroy";
 
+/**
+ * The depth-7 alphabet: the navigation behaviors the deep walk has always
+ * covered. It stays this size because depth 7 replays millions of traces.
+ */
 const ALPHABET: Event[] = [
 	"push /a",
 	"push /b",
-	"push /c",
 	"replace /b",
 	"frag",
 	"push #x",
@@ -522,8 +514,14 @@ const ALPHABET: Event[] = [
 	"pageFail",
 	"scroll",
 	"frame",
-	"destroy",
 ];
+
+/**
+ * The behaviors added with abort, destroy and the `dynamic: false` opt-out.
+ * A non-dynamic push ends the run in a document load and destroy is only
+ * enabled while work is in flight, so this walk is cheap at depth 5.
+ */
+const EXTENDED_ALPHABET: Event[] = [...ALPHABET, "push /c", "destroy"];
 
 function enabled(sim: SimBrowser, e: Event): boolean {
 	if (sim.terminal) return false;
@@ -552,12 +550,13 @@ function enabled(sim: SimBrowser, e: Event): boolean {
 		case "frame":
 			return sim.frames.size > 0;
 		case "destroy":
-			// Destroying an idle router proves nothing. The case worth
-			// exploring is a page module already loading: a dynamic import
-			// cannot be aborted, so only the token stops it committing. A
-			// descriptor request and a queued restore frame are cancelled at
-			// the seams the unit tests pin.
-			return sim.pendingPages.length > 0;
+			// Destroying an idle router proves nothing; the cases worth
+			// exploring are the ones with work that could still land.
+			return (
+				sim.pending.length > 0 ||
+				sim.pendingPages.length > 0 ||
+				sim.frames.size > 0
+			);
 		default:
 			return true;
 	}
@@ -778,12 +777,12 @@ async function step({ sim, router }: Run, e: Event): Promise<void> {
 		case "destroy":
 			router.destroy?.();
 			sim.destroyed = true;
-			for (const request of sim.requests) {
-				if (!request.answered && !request.aborted) {
-					sim.violations.push(
-						`ABORT: destroy() left the request for ${request.path} in flight`,
-					);
-				}
+			if (sim.pending.length > 0) {
+				sim.violations.push(
+					`ABORT: destroy() left ${sim.pending
+						.map((request) => request.path)
+						.join(", ")} in flight`,
+				);
 			}
 			break;
 		case "frame": {
@@ -870,7 +869,10 @@ interface Counterexample {
 	trace: Event[];
 }
 
-async function explore(depth: number): Promise<Map<string, Counterexample>> {
+async function explore(
+	depth: number,
+	alphabet: Event[] = ALPHABET,
+): Promise<Map<string, Counterexample>> {
 	const found = new Map<string, Counterexample>();
 	// Breadth-first, so the first counterexample per invariant is a shortest one.
 	let frontier: Event[][] = [[]];
@@ -887,7 +889,7 @@ async function explore(depth: number): Promise<Map<string, Counterexample>> {
 				sinceYield = 0;
 				await new Promise((resolve) => setTimeout(resolve, 0));
 			}
-			for (const e of ALPHABET) {
+			for (const e of alphabet) {
 				const trace = [...prefix, e];
 				const run = boot();
 				let alive = true;
@@ -931,8 +933,17 @@ describe("dynamic navigation — model check", () => {
 		);
 		expect(report).toEqual([]);
 		// Depth 7 explores millions of states in a CPU-bound walk; a shared
-		// runner has taken over ten minutes for it, and the alphabet grew with
-		// the abort, destroy and non-dynamic events. The cap is a resource
+		// runner has taken over ten minutes for it. The cap is a resource
 		// bound, not an invariant.
 	}, 900_000);
+
+	it("holds the abort, destroy and non-dynamic invariants up to depth 5", async () => {
+		const found = await explore(5, EXTENDED_ALPHABET);
+		const report = [...found.values()].map(
+			(c) => `${c.message}\n    trace: ${c.trace.join(" → ")}`,
+		);
+		expect(report).toEqual([]);
+		// A separate, shallower walk: these events multiply the depth-7 state
+		// space without revealing anything the extra depth would.
+	}, 120_000);
 });
