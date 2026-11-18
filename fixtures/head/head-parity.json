@@ -59,6 +59,19 @@
 					"name": "</script><script>alert(1)</script>"
 				}
 			}
+		},
+		{
+			"id": "replacement-pattern-title",
+			"name": "Placeholders",
+			"seo": {
+				"title": "$& and $$ and %s and %s"
+			},
+			"expected": {
+				"title": "$& and $$ and %s and %s - Poyo",
+				"description": null,
+				"meta": {},
+				"jsonLd": null
+			}
 		}
 	]
 }

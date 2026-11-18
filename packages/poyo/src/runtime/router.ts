@@ -194,8 +194,11 @@ function applyHead(doc: Document, body: PageDescriptor): string {
 	const template = doc
 		.querySelector?.("title")
 		?.getAttribute?.(TITLE_TEMPLATE_ATTRIBUTE);
+	// The server's layout replaces every `%s` literally; `String.replace`
+	// would read `$&` and `$$` in the page title as replacement patterns and
+	// stop after the first placeholder. Split/join does neither.
 	doc.title = template?.includes("%s")
-		? template.replace("%s", pageTitle)
+		? template.split("%s").join(pageTitle)
 		: pageTitle;
 
 	if (typeof doc.querySelectorAll === "function") {
@@ -251,23 +254,14 @@ function applyHead(doc: Document, body: PageDescriptor): string {
 
 function applySeoAndAccessibility(
 	doc: Document | undefined,
+	win: Window | undefined,
 	body: PageDescriptor,
+	isCurrent: () => boolean,
 ): void {
 	if (!doc) return;
 
 	const title = applyHead(doc, body);
-
-	// Shift focus to page region for accessibility
-	const pageRegion =
-		doc.querySelector("[data-page-region]") ??
-		doc.querySelector("main") ??
-		doc.getElementById("react-root");
-	if (pageRegion && typeof (pageRegion as HTMLElement).focus === "function") {
-		if (!pageRegion.hasAttribute("tabindex")) {
-			pageRegion.setAttribute("tabindex", "-1");
-		}
-		(pageRegion as HTMLElement).focus({ preventScroll: true });
-	}
+	focusPageAfterRender(doc, win, isCurrent);
 
 	// Announce swap via live region for assistive tech
 	if (doc.body) {
@@ -287,6 +281,68 @@ function applySeoAndAccessibility(
 			announcer.textContent = title;
 		}
 	}
+}
+
+/** How long a navigation watches for the incoming page's focus region. */
+const FOCUS_RENDER_WAIT_MS = 5000;
+
+/** Gives the page region focus, making it focusable if it is not. */
+function focusPageRegion(element: Element): boolean {
+	if (typeof (element as HTMLElement).focus !== "function") return false;
+	if (!element.hasAttribute("tabindex")) {
+		element.setAttribute("tabindex", "-1");
+	}
+	(element as HTMLElement).focus({ preventScroll: true });
+	return true;
+}
+
+/**
+ * Moves focus into the page the navigation just committed, never onto an
+ * element React is about to remove. The page region on screen at commit
+ * belongs to the outgoing page; the mount root survives the swap, so focus
+ * goes there first, and the incoming page's own region takes it once React
+ * has rendered it (a lazy page renders a fallback before its markup). A page
+ * that renders no region keeps the focus on the root, as before.
+ */
+function focusPageAfterRender(
+	doc: Document,
+	win: Window | undefined,
+	isCurrent: () => boolean,
+): void {
+	const findRegion = () =>
+		doc.querySelector?.("[data-page-region]") ??
+		doc.querySelector?.("main") ??
+		null;
+	const outgoing = findRegion();
+	const root = doc.getElementById?.("react-root") ?? null;
+	const focusedRoot = root ? focusPageRegion(root) : false;
+
+	const Observer = (win as (Window & typeof globalThis) | undefined)
+		?.MutationObserver;
+	if (!Observer || !doc.body) return;
+
+	const observer = new Observer(() => {
+		if (!isCurrent()) {
+			observer.disconnect();
+			return;
+		}
+		const region = findRegion();
+		// The region still on screen is the outgoing page's; its replacement
+		// is the incoming page's own.
+		if (!region || region === outgoing) return;
+		// Do not steal focus from a reader who has already moved it.
+		if (focusedRoot) {
+			const active = doc.activeElement;
+			if (active && active !== doc.body && active !== root) {
+				observer.disconnect();
+				return;
+			}
+		}
+		focusPageRegion(region);
+		observer.disconnect();
+	});
+	observer.observe(doc.body, { childList: true, subtree: true });
+	win?.setTimeout?.(() => observer.disconnect(), FOCUS_RENDER_WAIT_MS);
 }
 function saveCurrentScroll(win: Window | undefined): void {
 	if (!win?.history) return;
@@ -793,7 +849,9 @@ export function createRouter(options?: RouterOptions): Router {
 			if (fragment) revealFragment(fragment, currentToken);
 
 			// Apply SEO & accessibility
-			applySeoAndAccessibility(doc, result.body);
+			applySeoAndAccessibility(doc, win, result.body, () => {
+				return currentToken === supersedeToken;
+			});
 			lastCommittedUrl = win?.location?.href ?? url;
 			screenUrl = lastCommittedUrl;
 		} catch {
@@ -901,7 +959,9 @@ export function createRouter(options?: RouterOptions): Router {
 			});
 
 			// Apply SEO & accessibility
-			applySeoAndAccessibility(doc, result.body);
+			applySeoAndAccessibility(doc, win, result.body, () => {
+				return currentToken === supersedeToken;
+			});
 
 			// Restore the stored scroll position after the browser has had a
 			// chance to render the destination — restoring synchronously clamps

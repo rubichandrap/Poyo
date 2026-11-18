@@ -1160,6 +1160,18 @@ describe("Head parity with the server-rendered document", () => {
 		expect(doc.title).toBe("Your profile - Poyo");
 	});
 
+	it("replaces every placeholder literally, as the layout does", async () => {
+		const doc = createFakeDocument();
+		seed(
+			doc,
+			"title",
+			{ [TITLE_TEMPLATE_ATTRIBUTE]: "%s / %s" },
+			"Home / Home",
+		);
+		await navigateTo(doc, { title: "$& and $$ with %s" });
+		expect(doc.title).toBe("$& and $$ with %s / $& and $$ with %s");
+	});
+
 	it("replaces the previous route's description, meta tags and JSON-LD", async () => {
 		const doc = previousPage();
 		await navigateTo(doc, {

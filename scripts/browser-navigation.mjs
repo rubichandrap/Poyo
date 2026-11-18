@@ -84,6 +84,37 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 			);
 		};
 
+		/**
+		 * Focus lands in the incoming page's own region, not on an element of
+		 * the outgoing page that React removes. The pages under test render
+		 * `data-page-region`, so the target is the page's, not the mount
+		 * root's.
+		 */
+		const assertFocusRegion = async (name, step) => {
+			await page.waitForFunction(
+				(expected) =>
+					document.activeElement
+						?.closest?.("[data-page-region]")
+						?.getAttribute("data-page-region") === expected,
+				name,
+			);
+			const active = await page.evaluate(() => {
+				const element = document.activeElement;
+				return {
+					region:
+						element
+							?.closest?.("[data-page-region]")
+							?.getAttribute("data-page-region") ?? null,
+					isMountRoot: element?.id === "react-root",
+				};
+			});
+			assert.deepEqual(
+				active,
+				{ region: name, isMountRoot: false },
+				`${step}: focus is not on the ${name} page's region`,
+			);
+		};
+
 		await page.goto(`${origin}/`);
 		await homeReady();
 		await page.evaluate((marker) => {
@@ -117,6 +148,7 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 			false,
 			"a dynamic navigation showed the Suspense fallback",
 		);
+		await assertFocusRegion("Login", "Link to /Login");
 		assert.deepEqual(
 			await readHead(page),
 			expectedLogin,
@@ -128,6 +160,7 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 		await page.waitForURL(`${origin}/`);
 		await homeReady();
 		await assertSameDocument("Back to the landing entry");
+		await assertFocusRegion("Home", "Back to the landing entry");
 		assert.deepEqual(
 			await readHead(page),
 			expectedHome,
@@ -139,6 +172,7 @@ export async function checkBrowserNavigation({ chromium, origin }) {
 		await page.waitForURL(/\/Login$/);
 		await loginReady();
 		await assertSameDocument("Forward to /Login");
+		await assertFocusRegion("Login", "Forward to /Login");
 		assert.deepEqual(await readHead(page), expectedLogin);
 
 		// A page chunk that fails to load — a tab left open across a deploy,
