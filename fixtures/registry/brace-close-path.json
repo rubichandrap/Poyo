@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A closing brace is half of the same route-template syntax an opening one is refused for, and a path holding one is not the literal URL the server resolves a request against.",
+	"message": ["\"}\" character", "/Users/id}"],
+	"registry": [
+		{
+			"path": "/Users/id}",
+			"name": "UserDetail",
+			"files": {
+				"react": "src/pages/UserDetail/index.page.tsx",
+				"view": "Views/UserDetail/Index.cshtml"
+			}
+		}
+	]
+}

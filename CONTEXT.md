@@ -29,7 +29,7 @@ The part of the framework package's CLI that mutates the routes registry and sca
 _Avoid_: route generator, route script
 
 **Route identity**:
-What makes a route referable: a canonical declared path (rooted, with no trailing slash except for the root, no empty or dot (`.`/`..`) segment — `%2e` counts as a dot — and no backslash, unique ignoring case), a canonical name (present, with no leading or trailing slash, unique ignoring case), and a controller and action declared together or not at all. Enforced in two disciplines with one definition — the authored registry is strict and fails the boot, the incoming request is normalized and resolved. A request URL is owned by the browser; a declaration is not.
+What makes a route referable: a canonical declared path (rooted, with no trailing slash except for the root, no empty or dot (`.`/`..`) segment — `%2e` counts as a dot — no backslash, and no route-template or URL syntax (`{`, `}`, `*`, `?`, `#`, or a `%` other than `%2F`), unique ignoring case), a canonical name (present, with no leading or trailing slash, unique ignoring case), and a controller and action declared together or not at all. Enforced in two disciplines with one definition — the authored registry is strict and fails the boot, the incoming request is normalized and resolved. A request URL is owned by the browser; a declaration is not.
 _Avoid_: route validation, canonical routes, path cleanup
 
 **Registry corpus**:

@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A question mark starts a query string, so it is not part of any URL's path: the route is declared at a URL no request carries, and the registry lookup never sees the declared string.",
+	"message": ["\"?\" character", "/Search?q=draft"],
+	"registry": [
+		{
+			"path": "/Search?q=draft",
+			"name": "Search",
+			"files": {
+				"react": "src/pages/Search/index.page.tsx",
+				"view": "Views/Search/Index.cshtml"
+			}
+		}
+	]
+}

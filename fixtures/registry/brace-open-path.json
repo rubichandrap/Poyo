@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A declared path is mapped as an ASP.NET route template but resolved literally, so an opening brace makes the endpoint match URLs the registry does not own: /Users/{id} serves /Users/42 without the access policy, the SEO policy or no-store.",
+	"message": ["\"{\" character", "/Users/{id}"],
+	"registry": [
+		{
+			"path": "/Users/{id}",
+			"name": "UserDetail",
+			"files": {
+				"react": "src/pages/UserDetail/index.page.tsx",
+				"view": "Views/UserDetail/Index.cshtml"
+			}
+		}
+	]
+}

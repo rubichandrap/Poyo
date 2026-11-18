@@ -1,0 +1,15 @@
+{
+	"verdict": "reject",
+	"note": "A catch-all segment is route-template syntax: /Files/* matches every path below /Files at the endpoint, while the registry lookup finds nothing, so those requests skip every policy the registry applies.",
+	"message": ["\"*\" character", "/Files/*"],
+	"registry": [
+		{
+			"path": "/Files/*",
+			"name": "Files",
+			"files": {
+				"react": "src/pages/Files/index.page.tsx",
+				"view": "Views/Files/Index.cshtml"
+			}
+		}
+	]
+}
