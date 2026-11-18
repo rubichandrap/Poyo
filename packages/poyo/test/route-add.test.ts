@@ -1,13 +1,13 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import {
 	execInFixture,
 	existsFixtureFile,
 	makeFixture,
 	readFixtureFile,
+	typeErrors,
 	writeFixtureFile,
 	type Fixture,
 	type Route,
@@ -24,21 +24,6 @@ const starter: Route[] = [
 		access: "protected",
 	},
 ];
-
-/** Syntax errors TypeScript reports for a scaffolded page, so a test can prove it compiles. */
-function syntacticErrors(source: string): string[] {
-	const { diagnostics } = ts.transpileModule(source, {
-		compilerOptions: {
-			jsx: ts.JsxEmit.ReactJSX,
-			target: ts.ScriptTarget.ES2022,
-		},
-		fileName: "index.page.tsx",
-		reportDiagnostics: true,
-	});
-	return (diagnostics ?? []).map((diagnostic) =>
-		ts.flattenDiagnosticMessageText(diagnostic.messageText, " "),
-	);
-}
 
 describe("poyo route add", () => {
 	it("registers the route, writes routes.json sorted by path, and scaffolds page + view", () => {
@@ -115,12 +100,15 @@ describe("poyo route add", () => {
 		expect(view).toContain('data-page-name="About"');
 	});
 
-	it("scaffolds a page component that parses for hyphenated, digit-leading and nested names", () => {
+	it("scaffolds a page component that type-checks for any route name", () => {
 		const fixture = makeFixture(starter);
 		const cases = [
 			["/user-profile", "poyo.client/src/pages/User-profile/index.page.tsx"],
 			["/123", "poyo.client/src/pages/123/index.page.tsx"],
 			["/a-b/c", "poyo.client/src/pages/A-b/C/index.page.tsx"],
+			["/react", "poyo.client/src/pages/React/index.page.tsx"],
+			["/a<b", "poyo.client/src/pages/A<b/index.page.tsx"],
+			["/a{b", "poyo.client/src/pages/A{b/index.page.tsx"],
 		] as const;
 
 		for (const [urlPath, pagePath] of cases) {
@@ -128,8 +116,16 @@ describe("poyo route add", () => {
 			expect(result.status, result.stderr).toBe(0);
 
 			const page = readFixtureFile(fixture, pagePath);
-			expect(syntacticErrors(page), urlPath).toEqual([]);
+			expect(typeErrors(page), urlPath).toEqual([]);
 		}
+
+		const escaped = readFixtureFile(
+			fixture,
+			"poyo.client/src/pages/A<b/index.page.tsx",
+		);
+		expect(escaped).toContain(
+			'<h1 className="text-2xl font-bold">{"A<b"}</h1>',
+		);
 	});
 
 	it("honors --public and --guest", () => {

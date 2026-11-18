@@ -14,7 +14,7 @@ export function pageTemplate(name: string): string {
 const ${component}: React.FC = () => {
   return (
     <div className="p-4">
-      <h1 className="text-2xl font-bold">${name}</h1>
+      <h1 className="text-2xl font-bold">{${JSON.stringify(name)}}</h1>
     </div>
   );
 }

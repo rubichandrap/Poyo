@@ -20,6 +20,9 @@ export function toRoutePath(name: string): string {
  * segment becomes PascalCase words and a name that would still start with a
  * digit is prefixed. `User-profile` becomes `UserProfile`, `123` becomes
  * `Page123`, and a name with no identifier characters becomes `Page`.
+ *
+ * `React` becomes `ReactPage`: the page imports `React` as a type, so a local
+ * declaration of the same name would collide (TS2440).
  */
 export function toComponentName(name: string): string {
 	const leaf = name.split("/").filter(Boolean).pop() ?? "";
@@ -30,7 +33,10 @@ export function toComponentName(name: string): string {
 		.join("");
 
 	if (identifier === "") return "Page";
-	return /^[A-Za-z_$]/.test(identifier) ? identifier : `Page${identifier}`;
+	const valid = /^[A-Za-z_$]/.test(identifier)
+		? identifier
+		: `Page${identifier}`;
+	return valid === "React" ? "ReactPage" : valid;
 }
 
 export function resolveRouteFiles(

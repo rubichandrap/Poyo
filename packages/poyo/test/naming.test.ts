@@ -26,6 +26,7 @@ describe("naming helpers", () => {
 		expect(toComponentName("123")).toBe("Page123");
 		expect(toComponentName("A-b/C")).toBe("C");
 		expect(toComponentName("A b")).toBe("AB");
+		expect(toComponentName("React")).toBe("ReactPage");
 		expect(toComponentName("")).toBe("Page");
 	});
 
