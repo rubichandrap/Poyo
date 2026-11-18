@@ -10,9 +10,9 @@ import {
 	execInFixture,
 	existsFixtureFile,
 	makeFixture,
+	type Route,
 	readFixtureFile,
 	writeFixtureFile,
-	type Route,
 } from "./helpers.js";
 
 vi.mock("@inquirer/prompts", () => ({ confirm: vi.fn() }));
@@ -35,7 +35,7 @@ const starter: Route[] = [
 			view: "Views/Reports/Index.cshtml",
 		},
 		access: "protected",
-		controller: "ReportsController",
+		controller: "Reports",
 		action: "Index",
 	},
 ];

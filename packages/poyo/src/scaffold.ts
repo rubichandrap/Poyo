@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { ProjectPaths } from "./config.js";
+import { CliError } from "./error.js";
 import { containedProjectPath, routeFilePaths } from "./file-paths.js";
 import type { RouteFile } from "./routes.js";
 import {
@@ -12,6 +13,53 @@ import {
 
 function escapeRegExp(value: string): string {
 	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const CSHARP_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * Refuses a value that cannot be written into generated C# as an identifier.
+ * A controller or action name reaches a file path and a source file, so
+ * anything else is either a path escape or a syntax injection.
+ */
+export function assertCSharpIdentifier(value: string, flag: string): void {
+	if (!CSHARP_IDENTIFIER.test(value)) {
+		throw new CliError(
+			`--${flag} must be a C# identifier (letters, digits, and underscores, not starting with a digit), got: ${JSON.stringify(value)}`,
+		);
+	}
+}
+
+/** The class and file name for a controller: MVC's suffix belongs there. */
+export function controllerClassName(controllerName: string): string {
+	return controllerName.endsWith("Controller")
+		? controllerName
+		: `${controllerName}Controller`;
+}
+
+/**
+ * The name MVC matches: the class name without its suffix. The registry stores
+ * this, because an MVC route value carrying "Controller" names no controller.
+ */
+export function controllerRouteName(controllerName: string): string {
+	const name = controllerName.endsWith("Controller")
+		? controllerName.slice(0, -"Controller".length)
+		: controllerName;
+
+	if (!name) {
+		throw new CliError(
+			`--controller must name a controller, got: ${JSON.stringify(controllerName)}`,
+		);
+	}
+
+	return name;
+}
+
+function ensureFrameworkUsing(content: string): string {
+	if (/^\s*using\s+Poyo\.Framework\s*;/m.test(content)) {
+		return content;
+	}
+	return `using Poyo.Framework;\n${content}`;
 }
 
 export function findFiles(
@@ -50,57 +98,47 @@ export function ensureControllerAction(
 	paths: ProjectPaths,
 	controllerName: string,
 	actionName: string,
-	viewPath: string,
 ): string {
-	let safeControllerName = controllerName;
-	if (!safeControllerName.endsWith("Controller")) {
-		safeControllerName += "Controller";
-	}
+	const routeName = controllerRouteName(controllerName);
+	const className = controllerClassName(controllerName);
 
 	const controllerPath = containedProjectPath(
 		paths.controllersDir,
-		`${safeControllerName}.cs`,
+		`${className}.cs`,
 	);
 
 	if (!fs.existsSync(controllerPath)) {
 		fs.mkdirSync(paths.controllersDir, { recursive: true });
 		fs.writeFileSync(
 			controllerPath,
-			controllerTemplate(
-				paths.serverNamespace,
-				safeControllerName,
-				actionName,
-				viewPath,
-			),
+			controllerTemplate(paths.serverNamespace, className, actionName),
 		);
-		return safeControllerName;
+		return routeName;
 	}
 
-	const content = fs.readFileSync(controllerPath, "utf-8");
+	const content = ensureFrameworkUsing(
+		fs.readFileSync(controllerPath, "utf-8"),
+	);
 	const safeActionNameForRegex = escapeRegExp(actionName);
 	const actionRegex = new RegExp(
 		`public\\s+(async\\s+Task<)?IActionResult(>)?\\s+${safeActionNameForRegex}\\s*\\(`,
 		"i",
 	);
 	if (actionRegex.test(content)) {
-		throw new Error(
-			`Action '${actionName}' already exists in ${safeControllerName}.cs`,
-		);
+		throw new Error(`Action '${actionName}' already exists in ${className}.cs`);
 	}
 
 	const lastBraceIndex = content.lastIndexOf("}");
 	if (lastBraceIndex === -1) {
-		throw new Error(
-			`Could not parse class structure in ${safeControllerName}.cs`,
-		);
+		throw new Error(`Could not parse class structure in ${className}.cs`);
 	}
 
 	const newContent =
 		content.slice(0, lastBraceIndex) +
-		actionTemplate(actionName, viewPath) +
+		actionTemplate(actionName) +
 		content.slice(lastBraceIndex);
 	fs.writeFileSync(controllerPath, newContent);
-	return safeControllerName;
+	return routeName;
 }
 
 export function scaffoldRouteFiles(
@@ -132,12 +170,7 @@ export function scaffoldRouteFiles(
 	}
 
 	if (options.controller && options.action) {
-		ensureControllerAction(
-			paths,
-			options.controller,
-			options.action,
-			files.view,
-		);
+		ensureControllerAction(paths, options.controller, options.action);
 	}
 }
 
@@ -158,7 +191,10 @@ export function deleteRouteFiles(
 	const controllerPath =
 		options.controller === undefined
 			? undefined
-			: containedProjectPath(paths.controllersDir, `${options.controller}.cs`);
+			: containedProjectPath(
+					paths.controllersDir,
+					`${controllerClassName(options.controller)}.cs`,
+				);
 
 	if (controllerPath !== undefined && fs.existsSync(controllerPath)) {
 		fs.unlinkSync(controllerPath);
